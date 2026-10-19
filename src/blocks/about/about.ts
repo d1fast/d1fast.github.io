@@ -105,8 +105,8 @@ const clear = (c: Curve, obstacles: Box[], m = 5) => {
 };
 
 /**
- * Стрелка от руки между двумя пометками: вбок, если они рядом, вниз, если одна под другой, иначе
- * крюком из конца строки. Берётся первый вариант, который не задевает лид и другие пометки.
+ * Стрелка от руки между двумя пометками: дугой вбок, если они рядом, вниз, если одна под другой.
+ * Берётся первый вариант, который не задевает лид и другие пометки; если чисто провести нельзя, стрелки нет.
  */
 function linkPath(A: Box, B: Box, obstacles: Box[]): { line: string; head: string } | null {
   const pad = 7;
@@ -128,18 +128,15 @@ function linkPath(A: Box, B: Box, obstacles: Box[]): { line: string; head: strin
     const ex = gsap.utils.clamp(B.l + 14, B.r - 14, ex0);
     const S: Pt = [sx, A.b + pad * 0.5], E: Pt = [ex, B.t - pad * 0.6];
     const dx = E[0] - S[0], dy = E[1] - S[1];
-    // далеко вбок и близко вниз: дуга в четверть эллипса (уходит вбок, приходит сверху); иначе S-кривая
-    if (Math.abs(dx) > dy * 1.6) tries.push([S, [S[0] + dx * 0.56, S[1] + dy * 0.06], [E[0], E[1] - dy * 0.6], E]);
-    else tries.push([S, [sx + (right ? -1 : 1) * Math.min(26, dy * 0.4), S[1] + dy * 0.55], [ex, E[1] - dy * 0.5], E]);
+    // плавная дуга: выходит почти вниз и приходит сверху, без петель и крюков
+    tries.push([S, [S[0] + dx * 0.15, S[1] + dy * 0.55], [E[0] - dx * 0.1, E[1] - dy * 0.5], E]);
   }
-  {
-    // крюк: из конца строки в сторону следующей пометки и вниз, на её верх
-    const sx = right ? A.r + pad : A.l - pad;
-    const lo = right ? Math.max(sx + 26, B.l + 16) : B.l + 14;
-    const hi = right ? B.r - 14 : Math.min(sx - 26, B.r - 16);
-    const S: Pt = [sx, A.t + (A.b - A.t) * 0.5];
-    const ex = right ? lo : hi, E: Pt = [ex, B.t - pad * 0.6];
-    if (lo <= hi && E[1] - S[1] >= 12) tries.push([S, [sx + (ex - sx) * 0.8, S[1] - 2], [ex, S[1] + (E[1] - S[1]) * 0.25], E]);
+  if (B.r < A.l - 20 || B.l > A.r + 20) {
+    // наискосок вниз: выходит из-под пометки вниз и подходит к следующей сбоку, четверть окружности
+    const toLeft = B.r < A.l;
+    const S: Pt = [toLeft ? A.l + Math.min(30, (A.r - A.l) * 0.25) : A.r - Math.min(30, (A.r - A.l) * 0.25), A.b + pad * 0.5];
+    const E: Pt = [toLeft ? B.r + pad : B.l - pad, B.t + (B.b - B.t) * 0.45];
+    if (E[1] - S[1] >= 10) tries.push([S, [S[0], S[1] + (E[1] - S[1]) * 0.75], [E[0] + (S[0] - E[0]) * 0.35, E[1]], E]);
   }
   const c = tries.find((t) => Math.hypot(t[3][0] - t[0][0], t[3][1] - t[0][1]) >= 18 && clear(t, obstacles));
   if (!c) return null;
@@ -147,7 +144,7 @@ function linkPath(A: Box, B: Box, obstacles: Box[]): { line: string; head: strin
   // наконечник по касательной в конце
   let dx = E[0] - c2[0], dy = E[1] - c2[1];
   if (Math.hypot(dx, dy) < 1) { dx = E[0] - c1[0]; dy = E[1] - c1[1]; }
-  const a = Math.atan2(dy, dx), h = 9, w = 0.5;
+  const a = Math.atan2(dy, dx), h = 10, w = 0.48;
   const h1: Pt = [E[0] - h * Math.cos(a - w), E[1] - h * Math.sin(a - w)];
   const h2: Pt = [E[0] - h * Math.cos(a + w), E[1] - h * Math.sin(a + w)];
   return { line: `M${pt(S)} C${pt(c1)} ${pt(c2)} ${pt(E)}`, head: `M${pt(h1)} L${pt(E)} L${pt(h2)}` };
@@ -285,6 +282,18 @@ export function init(root: HTMLElement) {
     .fromTo(tape, { scaleX: 0 }, { scaleX: 1, duration: 0.32, ease: 'power3.out', immediateRender: true }, 0.62)
     .fromTo(dev, { opacity: 1 }, { opacity: 0, duration: 2.4, ease: 'power2.inOut', immediateRender: true }, 0.7));
   const nameW = handwrite(q<HTMLElement>('[data-about-write]')[0], 0.05);
+  const akaW = handwrite(q<HTMLElement>('[data-about-aka]')[0], 0.05);
+
+  /* лист в клетку: ложится под текст, скотч прихватывает углы; за мышью чуть смещается, как нижний слой */
+  const sheet = q<HTMLElement>('[data-about-sheet]')[0];
+  const sheetIn = wrap(gsap.timeline({ paused: true })
+    .fromTo(sheet, { autoAlpha: 0, y: 46, rotation: 2.6 }, { autoAlpha: 1, y: 0, rotation: 0, duration: 0.9, ease: 'expo.out', immediateRender: true }, 0)
+    .fromTo(q('[data-about-sheet-tape]'), { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: 'power3.out', stagger: 0.1, immediateRender: true }, 0.45));
+  const marginsEl = q<HTMLElement>('.about__margins')[0];
+  // смещение в процентах: не спорит с x/y анимации входа
+  const px = [gsap.quickTo(sheet, 'xPercent', { duration: 0.9, ease: 'power3' }), gsap.quickTo(sheet, 'yPercent', { duration: 0.9, ease: 'power3' })];
+  const mx = [gsap.quickTo(marginsEl, 'x', { duration: 1.2, ease: 'power3' }), gsap.quickTo(marginsEl, 'y', { duration: 1.2, ease: 'power3' })];
+  const depth = (nx: number, ny: number) => { px[0](nx * -0.9); px[1](ny * -0.8); mx[0](nx * 14); mx[1](ny * 10); };
 
   // пружина: полароид висит на скотче, мышь его раскачивает, потом он успокаивается
   let ang = 0, vel = 0, target = 0, raf = 0, last = 0;
@@ -307,18 +316,20 @@ export function init(root: HTMLElement) {
     const r = swing.getBoundingClientRect();
     const cx = r.left + r.width / 2;
     target = gsap.utils.clamp(-3.5, 3.5, ((e.clientX - cx) / r.width) * 2.6);
-    // мышь задела снимок: толкаем его по ходу движения
-    if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) vel += gsap.utils.clamp(-9, 9, e.movementX * 0.6);
+    depth(e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5);
+    // мышь задела снимок: он отходит от неё по ходу движения (курсор справа ведёт влево, снимок уходит влево)
+    if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) vel += gsap.utils.clamp(-9, 9, -e.movementX * 0.6);
     wake();
   });
-  root.addEventListener('pointerleave', () => { target = 0; wake(); });
+  root.addEventListener('pointerleave', () => { target = 0; wake(); depth(0, 0); });
   let side = 1;
   swing.addEventListener('click', () => { side = -side; kick(side * 70); });
 
   /* ---------- текст ---------- */
   const leadEl = q<HTMLElement>('[data-about-lead]')[0];
   const lead = splitLines(leadEl, { yPercent: 125, stagger: 0.08, duration: 1 });
-  const nickLine = wrap(gsap.fromTo(leadEl, { '--u': 0 }, { '--u': 1, duration: 0.7, ease: 'power2.inOut', paused: true, immediateRender: true }));
+  // выделенные слова в лиде подчёркиваются от руки
+  const emLine = wrap(gsap.fromTo(leadEl, { '--u': 0 }, { '--u': 1, duration: 0.7, ease: 'power2.inOut', paused: true, immediateRender: true }));
 
   const noteItems = q<HTMLElement>('[data-about-note-item]');
   const notes = noteItems.map((li) => {
@@ -474,7 +485,7 @@ export function init(root: HTMLElement) {
   let lastW = innerWidth;
   addEventListener('resize', () => { if (innerWidth !== lastW) { lastW = innerWidth; homeStickers(); } }, { passive: true });
 
-  const all: Player[] = [title, ring, photoIn, nameW, lead, nickLine, slap, hint, hintArrow, ...notes.flatMap((n) => [n.w, n.doodle]), ...links.map((l) => l.draw)];
+  const all: Player[] = [title, ring, photoIn, nameW, akaW, sheetIn, lead, emLine, slap, hint, hintArrow, ...notes.flatMap((n) => [n.w, n.doodle]), ...links.map((l) => l.draw)];
   all.forEach((p) => p.reset());
 
   // пометки на полях: карандаш дорисовывает их по одной, когда основное уже на месте
@@ -491,13 +502,15 @@ export function init(root: HTMLElement) {
     titleDone = false;
     fitRing();
     layoutLinks();
-    title.play(0);
-    ring.play(0.55);
+    sheetIn.play(0);
+    title.play(0.12);
+    ring.play(0.65);
     photoIn.play(0.05);
     after(0.62, () => kick(-45));
-    lead.play(0.32);
-    nickLine.play(1.15);
+    lead.play(0.4);
+    emLine.play(1.3);
     nameW.play(1.25);
+    akaW.play(1.25 + nameW.dur() + 0.1);
     // пометки пишутся по очереди; закончив одну, рука ведёт стрелку к следующей
     let t = 0.8;
     notes.forEach((n, i) => {
@@ -516,6 +529,8 @@ export function init(root: HTMLElement) {
     titleDone = false;
     later.splice(0).forEach((c) => c.kill());
     stopSwing();
+    gsap.set(sheet, { xPercent: 0, yPercent: 0 });
+    gsap.set(marginsEl, { x: 0, y: 0 });
     homeStickers();
     fx.forEach((a) => a.kill());
     fx.clear();

@@ -30,9 +30,10 @@ export const en: Dict = {
   about: {
     title: 'About',
     photoAlt: 'Photo of Saveliy Lopatin',
-    lead: 'I’m Saveliy, better known online as d1fast. A young developer from Moscow. I build digital products end to end.',
-    notes: ['first I get to the bottom of the task', 'I write a detailed spec', 'I polish until I like it myself', 'AI takes the routine, I make the calls'],
-    stickers: ['Moscow', 'remote', 'same-day replies'],
+    lead: 'I’m Saveliy. I love building quality products and seeing *your delight* at the result. It genuinely makes me happy.',
+    notes: ['I dive in head first', 'I learn every process', 'I see it through'],
+    stickers: ['feedback? sure', 'hard means fun', 'always in touch'],
+    aka: 'aka d1fast',
   },
   services: {
     title: 'What I do',

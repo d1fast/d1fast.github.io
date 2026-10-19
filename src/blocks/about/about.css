@@ -68,8 +68,10 @@
 }
 .about__mono { font: italic 700 44cqi/1 var(--font-serif); letter-spacing: -.04em; padding-right: .06em; translate: 0 -4%; }
 .about__dev { position: absolute; inset: 0; background: #0b1714; pointer-events: none; opacity: 0; }
-.about__name { display: block; padding: calc(var(--pw) * .035) 4px calc(var(--pw) * .06) calc(var(--pw) * .03); text-align: left; color: var(--ink); font: 600 clamp(20px, calc(var(--pw) * .085), 40px)/1.05 var(--font-hand); }
+.about__name { display: block; padding: calc(var(--pw) * .035) 4px calc(var(--pw) * .055) calc(var(--pw) * .03); text-align: left; color: var(--ink); font: 600 clamp(20px, calc(var(--pw) * .085), 40px)/1.05 var(--font-hand); }
 .about__name-t { display: inline-block; rotate: -2deg; }
+/* ник подписан на снимке, как псевдоним: «он же d1fast» */
+.about__aka { display: block; width: fit-content; margin: .12em 0 -.2em .9em; rotate: -3deg; font-size: .6em; font-weight: 500; opacity: .8; white-space: nowrap; }
 /* скотч: полупрозрачная полоска в косую линию, рваные края */
 .about__tape {
   position: absolute; z-index: 2; left: 50%; top: calc(var(--pw) * -.05); width: 40%; height: calc(var(--pw) * .1); min-height: 22px;
@@ -77,6 +79,30 @@
   background: repeating-linear-gradient(-55deg, rgb(1 62 55 / .16) 0 5px, transparent 5px 11px), rgb(255 252 238 / .62);
   clip-path: polygon(0 0, 100% 0, 97% 14%, 100% 28%, 97% 43%, 100% 57%, 97% 72%, 100% 86%, 97% 100%, 0 100%, 3% 86%, 0 72%, 3% 57%, 0 43%, 3% 28%, 0 14%);
 }
+
+/* ---------- лист из тетради в клетку под текстом ---------- */
+.about__sheet { grid-area: text; position: relative; z-index: 0; align-self: stretch; margin: calc(-1 * clamp(22px, 3.6vh, 40px)) calc(-1 * clamp(28px, 3vw, 52px)) calc(-1 * clamp(22px, 3.6vh, 40px)) calc(-1 * clamp(30px, 3.2vw, 56px)); rotate: .9deg; pointer-events: none; }
+.about__sheet-shade, .about__sheet-paper { position: absolute; inset: 0;
+  /* верхний край оторван неровно, остальные ровные */
+  clip-path: polygon(0 1.6%, 4% .4%, 8% 1.8%, 13% .6%, 18% 1.5%, 24% .2%, 30% 1.4%, 36% .5%, 42% 1.9%, 48% .7%, 55% 1.6%, 61% .3%, 67% 1.5%, 73% .6%, 79% 1.8%, 85% .4%, 91% 1.4%, 96% .5%, 100% 1.3%, 100% 100%, 0 100%); }
+.about__sheet-shade { background: var(--shade); translate: 6px 9px; }
+.about__sheet-paper {
+  --cell: clamp(18px, 1.7vw, 24px);
+  background:
+    linear-gradient(90deg, transparent calc(100% - 3.2 * var(--cell)), rgb(196 72 60 / .32) calc(100% - 3.2 * var(--cell)), rgb(196 72 60 / .32) calc(100% - 3.2 * var(--cell) + 1.5px), transparent calc(100% - 3.2 * var(--cell) + 1.5px)),
+    repeating-linear-gradient(0deg, rgb(1 62 55 / .09) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(90deg, rgb(1 62 55 / .09) 0 1px, transparent 1px var(--cell)),
+    var(--paper);
+  background-position: 0 0, 0 calc(var(--cell) * .5), calc(var(--cell) * .5) 0, 0 0;
+}
+.about__sheet-tape { position: absolute; z-index: 1; top: -12px; width: clamp(86px, 8vw, 128px); height: 26px;
+  background: repeating-linear-gradient(-55deg, rgb(1 62 55 / .14) 0 5px, transparent 5px 11px), rgb(255 212 94 / .55);
+  clip-path: polygon(0 0, 100% 0, 97% 20%, 100% 40%, 97% 60%, 100% 80%, 97% 100%, 0 100%, 3% 80%, 0 60%, 3% 40%, 0 20%); }
+.about__sheet-tape--a { left: 6%; rotate: -5deg; }
+.about__sheet-tape--b { right: 7%; rotate: 4deg; }
+.about__text { position: relative; z-index: 1; }
+/* на телефоне колонка текста раскладывается в общую сетку (display: contents): слои над листом задаём каждому */
+.about__lead, .about__notes, .about__links { position: relative; z-index: 1; }
 
 /* ---------- наклейки ---------- */
 .about__sticker { position: absolute; z-index: 6; display: grid; padding: 0; color: var(--fg); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; border-radius: 50%; }
@@ -99,6 +125,7 @@
 /* фигурный круг: город */
 .about__sticker--scallop { width: clamp(92px, 8.6vw, 132px); aspect-ratio: 1; right: calc(var(--pw) * -.17); top: 84%; --r: 8deg; }
 .about__sticker--scallop .about__st-text { color: var(--bg); font: italic 700 clamp(17px, 1.6vw, 24px)/1 var(--font-serif); }
+.about__sticker--scallop.is-long .about__st-text { max-width: 66%; font-size: clamp(14px, 1.2vw, 18px); line-height: 1.05; }
 /* овал, как этикетка */
 .about__sticker--oval { width: clamp(132px, 12vw, 180px); aspect-ratio: 100 / 62; left: calc(var(--pw) * -.13); top: 21%; --r: -9deg; border-radius: 50% / 50%; }
 .about__sticker--oval .about__st-body { border-radius: 50% / 50%; }
@@ -114,12 +141,13 @@
 
 /* ---------- текст ---------- */
 .about__text {
-  grid-area: text; min-width: 0; align-self: center;
-  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto;
-  column-gap: clamp(24px, 3vw, 48px); row-gap: clamp(14px, 2.6vh, 30px);
+  grid-area: text; min-width: 0; align-self: stretch;
+  /* заголовок вровень с верхом снимка, пометки внизу листа: колонка занимает всю высоту полароида */
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; align-content: space-between;
+  row-gap: clamp(16px, 3vh, 36px); padding-block: clamp(4px, 1.2vh, 14px) clamp(2px, .8vh, 10px);
 }
 .about__head { --bw: clamp(104px, 9.4vw, 146px); grid-column: 1 / -1; grid-row: 1; position: relative; display: flex; align-items: center; justify-content: space-between; gap: clamp(12px, 2vw, 32px); margin-bottom: clamp(0px, 1.2vh, 12px); }
-.about__title { flex: none; font: 500 clamp(56px, 7.2vw, 108px)/1 var(--font-serif); letter-spacing: -.035em; text-transform: none; }
+.about__title { flex: none; font: 500 clamp(56px, 7.6vw, 124px)/1 var(--font-serif); letter-spacing: -.035em; text-transform: none; }
 .about__w { display: inline-block; white-space: nowrap; }
 .about__m { display: inline-block; clip-path: inset(-40% -30% 0 -30%); padding-bottom: .16em; margin-bottom: -.16em; }
 .about__ch { display: inline-block; transform-origin: 0 100%; }
@@ -132,23 +160,20 @@
 .about__hint-t { display: block; }
 .about__hint-arrow { flex: none; width: 40px; height: auto; max-width: none; overflow: visible; fill: none; stroke: var(--fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; translate: 0 14px; rotate: 32deg; }
 
-.about__lead { --u: 0; grid-column: 1; grid-row: 2 / 4; align-self: start; max-width: 23.5em; font: 400 clamp(19px, 1.9vw, 31px)/1.3 var(--font-serif); letter-spacing: -.005em; text-wrap: pretty; }
-.about__nick { position: relative; font-style: italic; font-weight: 600; }
-.about__nick:empty { display: none; }
-.about__nickbox { white-space: nowrap; }
-.about__nick::after {
+.about__lead { --u: 0; grid-column: 1; grid-row: 2; align-self: start; max-width: 21em; font: 400 clamp(20px, 2.2vw, 36px)/1.28 var(--font-serif); letter-spacing: -.008em; text-wrap: pretty; }
+.about__em { position: relative; font-style: italic; font-weight: 600; white-space: nowrap; }
+.about__em::after {
   content: ''; position: absolute; left: -3%; right: -3%; bottom: -.02em; height: .34em; pointer-events: none;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cpath d='M3 9 C30 3 70 4 117 7 M10 13 C40 10 80 11 108 12' fill='none' stroke='%23013E37' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
   clip-path: inset(0 calc((1 - var(--u)) * 100%) 0 0);
 }
 
-/* пометки на полях: две справа от лида, две под ним; сетка общая с лидом */
-.about__notes { grid-column: 1 / -1; grid-row: 2 / 5; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; pointer-events: none; }
-.about__note { position: relative; justify-self: start; max-width: calc(100% - var(--nx, 0px) - .3em); margin-left: var(--nx, 0px); font: 600 clamp(21px, 1.85vw, 28px)/1.06 var(--font-hand); color: var(--ink); rotate: var(--nr, 0deg); pointer-events: auto; }
-.about__note--1 { grid-column: 2; grid-row: 1; align-self: start; --nr: 2.4deg; --nx: .2em; }
-.about__note--2 { grid-column: 2; grid-row: 2; align-self: end; --nr: -2deg; --nx: 1.1em; margin-bottom: .5em; }
-.about__note--3 { grid-column: 1; grid-row: 3; align-self: start; --nr: -1.4deg; --nx: .7em; margin-top: .8em; }
-.about__note--4 { grid-column: 2; grid-row: 3; align-self: start; --nr: 2deg; --nx: .4em; margin-top: 1.2em; }
+/* пометки внизу листа: три в ряд, стрелки ведут от одной к другой */
+.about__notes { grid-column: 1; grid-row: 3; display: grid; grid-template-columns: repeat(3, minmax(0, max-content)); justify-content: space-between; column-gap: clamp(44px, 4.6vw, 88px); align-items: start; pointer-events: none; }
+.about__note { position: relative; justify-self: start; max-width: 8.4em; margin-left: var(--nx, 0px); font: 600 clamp(21px, 1.9vw, 30px)/1.06 var(--font-hand); color: var(--ink); rotate: var(--nr, 0deg); pointer-events: auto; }
+.about__note--1 { --nr: -1.6deg; }
+.about__note--2 { --nr: 1.8deg; margin-top: 1.1em; }
+.about__note--3 { --nr: -1.2deg; margin-top: .35em; margin-right: .5em; }
 .about__note-t { display: block; text-wrap: balance; }
 .about__wl { width: fit-content; }
 .about__doodle { position: absolute; max-width: none; overflow: visible; fill: none; stroke: var(--fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
@@ -158,20 +183,17 @@
 /* двойная черта ниже хвостов «р» и «у» */
 .about__doodle--double { left: 0; bottom: -.52em; width: 100%; height: .44em; }
 /* стрелки между пометками: путь считает скрипт по местам, где пометки встали */
-.about__links { grid-column: 1 / -1; grid-row: 2 / 5; align-self: stretch; justify-self: stretch; width: 100%; height: 100%; overflow: visible; pointer-events: none; fill: none; stroke: var(--fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* высота в пиксель: свой размер svg не раздувает ряд пометок, стрелки рисуются за границей (overflow visible); при нулевой svg не рисуется вовсе */
+.about__links { grid-column: 1; grid-row: 3; align-self: start; justify-self: stretch; width: 100%; height: 1px; overflow: visible; pointer-events: none; fill: none; stroke: var(--fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* средний десктоп: заголовок чуть меньше, чтобы наклейке хватило места; пометки уходят под лид змейкой */
 @media (min-width: 761px) and (max-width: 1180px) and (orientation: landscape) {
   .about__title { font-size: clamp(56px, 6.8vw, 108px); }
 }
 @media (min-width: 761px) and (max-width: 1120px) and (orientation: landscape) {
-  .about__text { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto; }
-  .about__lead { grid-column: 1 / -1; grid-row: 2; max-width: 26em; }
-  .about__notes, .about__links { grid-row: 3 / 5; }
-  .about__note--1 { grid-row: 1; grid-column: 1; --nr: -2deg; --nx: 0; }
-  .about__note--2 { grid-row: 1; grid-column: 2; align-self: start; margin-top: 1.1em; margin-bottom: 0; --nr: 2.2deg; --nx: .6em; }
-  .about__note--3 { grid-row: 2; grid-column: 1; margin-top: .5em; --nx: .8em; }
-  .about__note--4 { grid-row: 2; grid-column: 2; margin-top: 1.5em; --nx: .9em; }
+  /* узкая колонка: две пометки в ряд, третья под первой, стрелка к ней идёт наискосок */
+  .about__notes { grid-template-columns: repeat(2, minmax(0, max-content)); row-gap: .4em; }
+  .about__note--3 { grid-column: 1; margin-top: .9em; --nx: .6em; }
 }
 
 /* ---------- узкие экраны и планшет стоя: всё в колонку, наклейки справа от фото ---------- */
@@ -189,13 +211,16 @@
   .about__title { grid-area: head; justify-self: start; align-self: center; font-size: clamp(46px, 13vw, 84px); }
   .about__lead { grid-area: lead; font-size: clamp(18px, 4.9vw, 28px); max-width: 32em; }
   .about__notes, .about__links { grid-area: notes; }
-  .about__notes { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: clamp(16px, 2.6vh, 34px); }
-  .about__note, .about__note--1, .about__note--2, .about__note--3, .about__note--4 { grid-column: 1; grid-row: auto; align-self: start; margin: 0 0 0 var(--nx, 0px); font-size: clamp(20px, 5.4vw, 28px); }
-  .about__note--1 { --nr: -2deg; --nx: 0px; }
-  .about__note--2 { justify-self: end; --nr: 2.6deg; --nx: 0px; margin-right: .3em; }
-  /* круг вокруг третьей пометки и волна под второй не должны сходиться: запас сверху на оба штриха */
-  .about__note--3 { --nr: -1deg; --nx: .75em; margin-top: .95em; max-width: min(calc(100% - var(--nx) - .3em), 11.5em); }
-  .about__note--4 { justify-self: end; --nr: 1.8deg; --nx: 0px; margin-right: .2em; margin-top: .6em; }
+  /* две пометки в ряд, третья под первой: стрелки вправо, потом вниз-влево */
+  .about__notes { grid-template-columns: minmax(0, max-content) minmax(0, max-content); justify-content: space-between; column-gap: clamp(40px, 11vw, 72px); row-gap: clamp(10px, 1.6vh, 22px); }
+  /* пометки в две строки: между ними остаётся место под стрелку */
+  .about__note, .about__note--1, .about__note--2, .about__note--3 { align-self: start; margin: 0 0 0 var(--nx, 0px); max-width: 6.8em; font-size: clamp(19px, 5.2vw, 28px); }
+  .about__note--1 { grid-column: 1; grid-row: 1; --nr: -2deg; --nx: 0px; }
+  .about__note--2 { grid-column: 2; grid-row: 1; --nr: 2.2deg; --nx: .2em; margin-top: .55em; }
+  /* сверху запас под стрелку от второй пометки */
+  .about__note--3 { grid-column: 1; grid-row: 2; --nr: -1deg; --nx: .7em; margin-top: 1.05em; margin-right: .5em; }
+  .about__sheet { grid-area: auto; grid-row: lead-start / notes-end; grid-column: 1 / -1; margin: calc(-1 * clamp(10px, 1.6vh, 18px)) calc(-1 * var(--gutter) + 8px); rotate: -.6deg; }
+  .about__sheet-tape { height: 20px; top: -9px; width: 72px; }
   .about__photo { grid-area: photo; margin: 4px 0 0 clamp(4px, 2vw, 24px); align-self: start; }
   .about__sticker--round { grid-area: head; justify-self: end; align-self: center; width: clamp(86px, 23vw, 140px); margin: 0 10px 0 0; }
   .about__sticker--round .about__st-text { max-width: 74%; font-size: clamp(17px, 4.5vw, 24px); }
@@ -204,19 +229,14 @@
   .about__sticker--oval.is-short .about__st-text { font-size: clamp(21px, 5.6vw, 28px); }
   .about__sticker--scallop { right: auto; left: calc(100% + var(--sx) * 2.6); top: 42%; width: clamp(88px, 23vw, 136px); }
   .about__sticker--scallop .about__st-text { font-size: clamp(17px, 4.6vw, 24px); }
+  .about__sticker--scallop.is-long .about__st-text { max-width: 70%; font-size: clamp(12.5px, 3.4vw, 17px); }
   .about__hint { position: static; grid-area: side; align-self: end; justify-self: start; display: flex; flex-direction: row; align-items: flex-start; gap: 2px; margin: 0 0 4px calc(var(--sx) + 6px); font-size: clamp(17px, 4.4vw, 22px); white-space: normal; }
   .about__hint-t { max-width: 5.6em; padding-top: 10px; }
   .about__hint-arrow { order: 2; width: 30px; translate: 0 0; rotate: -60deg; }
 }
-/* планшет стоя: пометки змейкой в две колонки, как на среднем десктопе */
+/* планшет стоя: снимок растёт вместе с экраном */
 @media (min-width: 600px) and (max-width: 1100px) and (orientation: portrait) {
-  /* высокий планшет: снимок растёт вместе с экраном */
   .about__grid { --pw: clamp(250px, min(44vw, calc((100dvh - 650px) * .7)), 420px); }
-  .about__notes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: clamp(28px, 5vw, 56px); row-gap: clamp(18px, 2.4vh, 30px); }
-  .about__note--1 { grid-column: 1; grid-row: 1; }
-  .about__note--2 { grid-column: 2; grid-row: 1; justify-self: start; --nx: .9em; margin-right: 0; margin-top: 1.2em; }
-  .about__note--3 { grid-column: 1; grid-row: 2; --nx: .9em; margin-top: .3em; }
-  .about__note--4 { grid-column: 2; grid-row: 2; justify-self: start; --nx: .5em; margin-right: 0; margin-top: 1.5em; }
   .about__sticker--round { margin-right: 16px; }
 }
 /* телефоны: нижний отступ блока меньше, пометкам нужнее место */
@@ -228,21 +248,18 @@
   .about__grid { row-gap: 11px; }
   .about__notes { row-gap: 13px; }
 }
-/* телефон с панелями браузера (Safari, Telegram): пометки змейкой в две колонки, иначе блок не влезает */
+/* телефон с панелями браузера (Safari, Telegram): всё плотнее, иначе блок не влезает */
 @media (max-width: 599px) and (max-height: 860px) {
   .about__title { font-size: clamp(42px, 12vw, 64px); }
-  .about__lead { font-size: clamp(15.5px, 4.3vw, 20px); line-height: 1.28; }
-  .about__notes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; row-gap: 6px; }
-  .about__note, .about__note--1, .about__note--2, .about__note--3, .about__note--4 { font-size: clamp(17px, 4.7vw, 21px); line-height: 1.05; }
-  .about__note--1 { grid-column: 1; grid-row: 1; }
-  .about__note--2 { grid-column: 2; grid-row: 1; justify-self: start; --nx: .5em; margin-right: 0; margin-top: .45em; }
-  /* порядок буквой П: стрелки идут вправо, вниз и влево и не пересекаются */
-  .about__note--3 { grid-column: 2; grid-row: 2; justify-self: start; --nx: .3em; margin-top: 1.3em; max-width: calc(100% - .4em); }
-  .about__note--4 { grid-column: 1; grid-row: 2; justify-self: start; --nx: 0px; margin-right: 0; margin-top: 1.5em; }
+  .about__lead { font-size: clamp(16px, 4.5vw, 21px); line-height: 1.28; }
+  .about__notes { row-gap: 4px; }
+  .about__note, .about__note--1, .about__note--2, .about__note--3 { font-size: clamp(17px, 4.8vw, 21px); line-height: 1.05; }
 }
 @media (max-width: 599px) and (max-height: 700px) {
+  .about__sticker--round { width: clamp(76px, 21vw, 90px); }
+  .about__sticker--round .about__st-text { font-size: clamp(15px, 4.1vw, 19px); }
   .about__grid { --pw: clamp(128px, min(38vw, calc((100dvh - 470px) * .8)), 150px); padding-bottom: 10px; }
-  /* «Москва» правее: не ложится на подсказку «потаскай наклейки» и её стрелку */
+  /* фигурная наклейка правее: не ложится на подсказку и её стрелку */
   .about__sticker--scallop { left: calc(100% + var(--sx) * 2.6 + min(56px, 100vw - 304px)); }
 }
 /* телефон боком: всё мельче и ниже шапки ровно на свой отступ, чтобы влезло в один экран */
@@ -255,8 +272,11 @@
   .about__lead { font-size: 15px; }
   .about__note { font-size: 17px; }
   .about__sticker--round .about__st-text { font-size: 14px; }
-  .about__sticker--scallop { width: 70px; }
-  .about__sticker--scallop .about__st-text { font-size: 14px; }
+  .about__sticker--scallop { width: 84px; }
+  .about__sticker--scallop .about__st-text, .about__sticker--scallop.is-long .about__st-text { font-size: 12px; }
+  /* лист не заходит под шапку и не торчит за низ экрана */
+  .about__sheet { margin: -6px -14px -4px -18px; }
+  .about__sheet-tape { display: none; }
   .about__sticker--oval { width: 100px; }
   .about__sticker--oval .about__st-text { font-size: 13px; }
   .about__sticker--oval.is-short .about__st-text { font-size: 18px; }

@@ -10,7 +10,7 @@ export interface Dict {
   };
   hero: { name: string; nick: string; tagline: string; ctaContact: string; ctaWorks: string };
   /** lead: одно короткое вступление; notes: пометки от руки; stickers: короткие наклейки-факты */
-  about: { title: string; photoAlt: string; lead: string; notes: string[]; stickers: string[] };
+  about: { title: string; photoAlt: string; lead: string; notes: string[]; stickers: string[]; aka: string };
   services: { title: string; items: { title: string; text: string }[] };
   works: { title: string; open: string; year: string; stack: string };
   process: { title: string; steps: { title: string; text: string }[] };

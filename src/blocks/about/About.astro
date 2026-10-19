@@ -9,21 +9,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 // Фото: положить файл в public/photo/me.jpg (или .webp, .png), пропорция 4:5. Пока его нет, стоит заглушка.
 const photo = ['me.webp', 'me.jpg', 'me.png'].find((f) => fs.existsSync(`public/photo/${f}`));
 const ui = {
-  ru: { hint: 'потаскайте наклейки', keys: 'Наклейку в фокусе двигают стрелки.' },
-  en: { hint: 'drag the stickers', keys: 'Arrow keys move the focused sticker.' },
+  ru: { hint: 'их можно двигать, кстати', keys: 'Наклейку в фокусе двигают стрелки.' },
+  en: { hint: 'you can move them, by the way', keys: 'Arrow keys move the focused sticker.' },
 }[lang];
 
 // заголовок по буквам: первая буква курсивная, её обводит рука (кольцо подгоняет скрипт по самой букве)
 const words = d.about.title.split(' ');
-// в лиде ник выделен курсивом и подчёркнут от руки
-const lead = d.about.lead;
-const nick = d.hero.nick;
-const at = lead.indexOf(nick);
-const leadA = at >= 0 ? lead.slice(0, at) : lead;
-const tail = at >= 0 ? lead.slice(at + nick.length) : '';
-// знак после ника держится с ним на одной строке
-const punct = tail.match(/^[^\s]*/)?.[0] ?? '';
-const leadB = tail.slice(punct.length);
+// в лиде слово между звёздочками выделено курсивом и подчёркнуто от руки
+const [leadA, emph = '', leadB = ''] = d.about.lead.split('*');
 const initials = d.hero.name.split(/\s+/).map((w) => w[0]).join('');
 
 // формы наклеек: фигурный круг, овал, круглая наклейка, вырезанная ножницами чуть неровно
@@ -40,7 +33,7 @@ const radial = (fn: (a: number, i: number) => number, steps: number) => {
 const scallop = radial((a) => 44 + 5 * Math.abs(Math.cos(a * 7)), 280);
 const round = radial((a) => 48 + 0.9 * Math.sin(a * 3 + 0.6) + 0.6 * Math.cos(a * 5), 120);
 const roundIn = radial((a) => 42 + 0.7 * Math.sin(a * 3 + 0.6) + 0.5 * Math.cos(a * 5), 120);
-const [stMoscow, stRemote, stReply] = d.about.stickers;
+const [stScallop, stOval, stRound] = d.about.stickers;
 // слова с дефисом не рвём по дефису
 const words2 = (s: string) => s.split(' ').map((w, i) => ({ w, sp: i > 0, nw: w.includes('-') }));
 
@@ -76,6 +69,11 @@ const doodles = [
   <div class="block__inner container about__grid">
     <div class="about__desk" data-about-desk aria-hidden="true"></div>
 
+    <!-- лист из тетради в клетку под текстом: прихвачен скотчем, край оторван -->
+    <div class="about__sheet" aria-hidden="true" data-about-sheet>
+      <span class="about__sheet-shade"></span><span class="about__sheet-paper"></span>
+      <span class="about__sheet-tape about__sheet-tape--a" data-about-sheet-tape></span><span class="about__sheet-tape about__sheet-tape--b" data-about-sheet-tape></span>
+    </div>
     <div class="about__text">
       <div class="about__head">
         <h2 class="block__title about__title" aria-label={d.about.title} data-about-title>
@@ -95,31 +93,31 @@ const doodles = [
             </Fragment>
           ))}
         </h2>
-        <button type="button" class="about__sticker about__sticker--round" data-about-sticker data-drag data-keys aria-label={stReply} aria-describedby="about-hint">
+        <button type="button" class="about__sticker about__sticker--round" data-about-sticker data-drag data-keys aria-label={stRound} aria-describedby="about-hint">
           <span class="about__st-in">
             <span class="about__st-body">
               <svg class="about__st-shape" viewBox="0 0 100 100" aria-hidden="true"><path class="about__st-shadow" d={round} /><path class="about__st-fill" d={round} /><path class="about__st-line" d={roundIn} /></svg>
-              <span class="about__st-text">{words2(stReply).map((x) => <Fragment>{x.sp && ' '}{x.nw ? <span class="about__nw">{x.w}</span> : x.w}</Fragment>)}</span>
+              <span class="about__st-text">{words2(stRound).map((x) => <Fragment>{x.sp && ' '}{x.nw ? <span class="about__nw">{x.w}</span> : x.w}</Fragment>)}</span>
             </span>
           </span>
         </button>
         <p class="about__hint" id="about-hint"><span class="about__hint-t" data-about-hint>{ui.hint}</span><span class="visually-hidden"> {ui.keys}</span><svg class="about__hint-arrow" viewBox="0 0 60 40" aria-hidden="true"><path data-about-hint-arrow d="M4,30 C14,12 32,4 52,12" /><path data-about-hint-arrow d="M52,12 L41,5 M52,12 L45,22" /></svg></p>
       </div>
 
-      <p class="about__lead" data-about-lead>{leadA}{at >= 0 && <span class="about__nickbox"><em class="about__nick">{nick}</em>{punct}</span>}{leadB}</p>
+      <p class="about__lead" data-about-lead>{leadA}{emph && <em class="about__em">{emph}</em>}{leadB}</p>
 
       <ul class="about__notes" data-about-notes>
-        {d.about.notes.slice(0, 4).map((n, i) => (
+        {d.about.notes.slice(0, 3).map((n, i) => (
           <li class={`about__note about__note--${i + 1}`} data-about-note-item>
             <span class="about__note-t" data-about-note>{n}</span>
+            {i === 0 && <svg class="about__doodle about__doodle--double" viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M4,7 C50,3 120,4 196,6 M12,15 C70,12 128,13 186,15" /></svg>}
             {i === 1 && <svg class="about__doodle about__doodle--wave" viewBox="0 0 200 16" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M3,10 C18,4 30,14 46,8 C62,2 74,13 90,8 C106,3 118,13 134,8 C150,3 162,12 178,7 C186,5 192,6 197,8" /></svg>}
             {i === 2 && <svg class="about__doodle about__doodle--loop" viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M42,11 C92,4 156,2 183,8 C202,14 201,58 189,69 C168,80 60,82 18,75 C0,70 -1,22 14,12 C28,5 62,3 98,6" /></svg>}
-            {i === 3 && <svg class="about__doodle about__doodle--double" viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M4,7 C50,3 120,4 196,6 M12,15 C70,12 128,13 186,15" /></svg>}
           </li>
         ))}
       </ul>
       <svg class="about__links" aria-hidden="true">
-        {[0, 1, 2].map(() => <g data-about-link><path class="about__link-line" d="" /><path class="about__link-head" d="" /></g>)}
+        {[0, 1].map(() => <g data-about-link><path class="about__link-line" d="" /><path class="about__link-head" d="" /></g>)}
       </svg>
     </div>
 
@@ -138,23 +136,23 @@ const doodles = [
               )}
               <span class="about__dev" data-about-dev aria-hidden="true"></span>
             </div>
-            <figcaption class="about__name"><span class="about__name-t" data-about-write>{d.hero.name}</span></figcaption>
+            <figcaption class="about__name"><span class="about__name-t" data-about-write>{d.hero.name}</span><span class="about__aka" data-about-aka>{d.about.aka}</span></figcaption>
           </figure>
         </div>
       </div>
-      <button type="button" class={`about__sticker about__sticker--oval${stRemote.length <= 10 ? ' is-short' : ''}`} data-about-sticker data-drag data-keys aria-label={stRemote} aria-describedby="about-hint">
+      <button type="button" class={`about__sticker about__sticker--oval${stOval.length <= 10 ? ' is-short' : ''}`} data-about-sticker data-drag data-keys aria-label={stOval} aria-describedby="about-hint">
         <span class="about__st-in">
           <span class="about__st-body">
             <svg class="about__st-shape" viewBox="0 0 100 62" aria-hidden="true"><ellipse class="about__st-shadow" cx="50" cy="31" rx="48" ry="29" /><ellipse class="about__st-fill" cx="50" cy="31" rx="48" ry="29" /><ellipse class="about__st-line" cx="50" cy="31" rx="43" ry="24.5" /></svg>
-            <span class="about__st-text">{words2(stRemote).map((x) => <Fragment>{x.sp && ' '}{x.nw ? <span class="about__nw">{x.w}</span> : x.w}</Fragment>)}</span>
+            <span class="about__st-text">{words2(stOval).map((x) => <Fragment>{x.sp && ' '}{x.nw ? <span class="about__nw">{x.w}</span> : x.w}</Fragment>)}</span>
           </span>
         </span>
       </button>
-      <button type="button" class="about__sticker about__sticker--scallop" data-about-sticker data-drag data-keys aria-label={stMoscow} aria-describedby="about-hint">
+      <button type="button" class={`about__sticker about__sticker--scallop${stScallop.length > 10 ? ' is-long' : ''}`} data-about-sticker data-drag data-keys aria-label={stScallop} aria-describedby="about-hint">
         <span class="about__st-in">
           <span class="about__st-body">
             <svg class="about__st-shape" viewBox="0 0 100 100" aria-hidden="true"><path class="about__st-shadow" d={scallop} /><path class="about__st-fill" d={scallop} /></svg>
-            <span class="about__st-text">{stMoscow}</span>
+            <span class="about__st-text">{stScallop}</span>
           </span>
         </span>
       </button>
