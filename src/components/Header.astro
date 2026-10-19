@@ -12,7 +12,6 @@ const items = [
 ];
 ---
 <header class="site-header" data-header>
-  <a class="site-header__logo" href={home} aria-label="d1fast" data-logo>d1fast</a>
   <nav class="site-header__nav" aria-label={lang === 'ru' ? 'Разделы' : 'Sections'}>
     {items.map(([id, label]) => <a href={`${home}#${id}`} data-scramble>{lang === 'en' ? label.toLowerCase().replace(/\bi\b/g, 'I') : label}</a>)}
   </nav>

@@ -40,7 +40,6 @@ const enChrome = {
       document.querySelector('.not-found__ru')?.setAttribute('hidden', '');
       document.querySelector('.not-found__en')?.removeAttribute('hidden');
       const skip = document.querySelector('.skip-link'); if (skip) skip.textContent = c.skip;
-      const logo = document.querySelector<HTMLAnchorElement>('.site-header__logo'); if (logo) logo.href = c.home;
       document.querySelectorAll<HTMLAnchorElement>('.site-header__nav a').forEach((a, i) => { const n = c.nav[i]; if (n) { a.href = c.home + '#' + n[0]; a.textContent = n[1]; } });
       const nav = document.querySelector('.site-header__nav'); nav?.setAttribute('aria-label', 'Sections');
       const sw = document.querySelector<HTMLAnchorElement>('.site-header__lang');

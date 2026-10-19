@@ -9,6 +9,15 @@ const RATE_LIMIT = { windowMs: 10 * 60 * 1000, max: 5 }; // не больше 5 
 const MAX_NAME = 120;
 const MAX_MESSAGE = 2000;
 const hits = new Map(); // живёт, пока жив экземпляр функции; для спама этого достаточно
+// уже отправленные заявки: повтор той же заявки (переотправка после обрыва связи) отвечает «ок», но в бота второй раз не уходит
+const DEDUP_MS = 15 * 60 * 1000;
+const seen = new Map();
+const VIA = { tg: 'Telegram', wa: 'WhatsApp', email: 'Почта', phone: 'Телефон' };
+function dup(keys) {
+  const now = Date.now();
+  if (seen.size > 5000) for (const [k, t] of seen) if (now - t > DEDUP_MS) seen.delete(k);
+  return keys.some((k) => now - (seen.get(k) || 0) < DEDUP_MS);
+}
 
 function corsHeaders(origin) {
   const allowed = process.env.ALLOWED_ORIGIN || '';
@@ -60,6 +69,8 @@ module.exports.handler = async function (event) {
   const name = clean(data.name, MAX_NAME);
   const message = clean(data.message, MAX_MESSAGE);
   const lang = data.lang === 'en' ? 'en' : 'ru';
+  const raw = data.contacts && typeof data.contacts === 'object' ? data.contacts : {};
+  const contacts = Object.keys(VIA).map((k) => [k, clean(raw[k], 160)]).filter(([, v]) => v);
   if (!message || message.length < 3) return reply(400, { ok: false, error: 'empty' });
   if (data.consent !== true) return reply(400, { ok: false, error: 'consent' });
 
@@ -67,24 +78,34 @@ module.exports.handler = async function (event) {
   const ctxIp = event.requestContext && event.requestContext.identity && event.requestContext.identity.sourceIp;
   const xff = String(headers['X-Forwarded-For'] || headers['x-forwarded-for'] || '');
   const ip = ctxIp || xff.split(',').pop().trim() || 'unknown';
+  const id = clean(data.id, 64);
+  const keys = [`${ip}|${name}|${message}`];
+  if (id) keys.push(`id|${id}`);
+  if (dup(keys)) return reply(200, { ok: true, dup: true });
   if (limited(ip)) return reply(429, { ok: false, error: 'rate' });
 
   const token = process.env.BOT_TOKEN;
   const chatId = process.env.CHAT_ID;
   if (!token || !chatId) return reply(500, { ok: false, error: 'config' });
 
+  keys.forEach((k) => seen.set(k, Date.now()));
   const text = [
     `<b>Заявка с сайта</b> (${lang})`,
-    `<b>От:</b> ${escapeHtml(name || 'не указано')}`,
+    `<b>Имя:</b> ${escapeHtml(name || 'не указано')}`,
+    ...contacts.map(([k, v]) => `<b>${VIA[k]}:</b> ${escapeHtml(v)}`),
     '',
     escapeHtml(message),
   ].join('\n');
 
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-  });
-  if (!res.ok) return reply(502, { ok: false, error: 'telegram' });
-  return reply(200, { ok: true });
+  let res = null;
+  try {
+    res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+  } catch { res = null; }
+  if (res && res.ok) return reply(200, { ok: true });
+  keys.forEach((k) => seen.delete(k));
+  return reply(502, { ok: false, error: 'telegram' });
 };

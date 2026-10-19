@@ -12,8 +12,6 @@
 /* Шапка: цвета следуют за текущим блоком */
 .site-header { position: fixed; inset: 0 0 auto 0; z-index: 50; display: flex; align-items: center; gap: 24px; height: var(--header-h); padding-inline: var(--gutter); font: 500 13px/1 var(--font-mono); letter-spacing: .02em; color: var(--fg); background: var(--bg); }
 .site-header a { color: inherit; }
-.site-header__logo { font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 10px; padding-block: 14px; }
-.site-header__logo::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 25%, transparent); }
 .site-header__nav { display: flex; gap: 22px; margin-left: auto; }
 .site-header__nav a { position: relative; padding: 6px 0; text-transform: lowercase; }
 /* в английском меню строчные набраны в разметке, местоимение I остаётся заглавным */
@@ -22,6 +20,8 @@
 .site-header__nav a:hover::after, .site-header__nav a:focus-visible::after { transform: scaleX(1); }
 .site-header__lang { display: inline-grid; place-items: center; min-width: 44px; min-height: 36px; border: 1px solid currentColor; padding: 0 10px; border-radius: var(--radius-sm); font-weight: 600; }
 @media (max-width: 760px) { .site-header__nav { display: none; } .site-header__lang { margin-left: auto; } }
+/* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
+html.stage-on .site-header { background: transparent; }
 
 /* Первый экран: имя из роя знаков на кобальте. Вторая строка имени сдвинута вправо,
    слева от неё подпись и кнопки. Знаки рисует холст на весь блок, настоящий текст под ним прозрачный. */

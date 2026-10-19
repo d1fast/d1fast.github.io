@@ -3,7 +3,12 @@
 // В репозитории и на сайте токена нет.
 
 const RATE = { windowMs: 10 * 60 * 1000, max: 5 };
+const DEDUP_MS = 15 * 60 * 1000;
 const hits = new Map();
+// уже отправленные заявки: повтор той же заявки (переотправка после обрыва связи, второй клик)
+// отвечает «ок», но в бота второй раз не уходит
+const seen = new Map();
+const VIA = { tg: 'Telegram', wa: 'WhatsApp', email: 'Почта', phone: 'Телефон' };
 const clean = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '').trim().slice(0, max);
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 
@@ -15,6 +20,12 @@ function limited(ip) {
   list.push(now);
   hits.set(ip, list);
   return false;
+}
+
+function dup(keys) {
+  const now = Date.now();
+  if (seen.size > 5000) for (const [k, t] of seen) if (now - t > DEDUP_MS) seen.delete(k);
+  return keys.some((k) => now - (seen.get(k) || 0) < DEDUP_MS);
 }
 
 export default {
@@ -43,19 +54,39 @@ export default {
     const name = clean(data.name, 120);
     const message = clean(data.message, 2000);
     const lang = data.lang === 'en' ? 'en' : 'ru';
+    const raw = data.contacts && typeof data.contacts === 'object' ? data.contacts : {};
+    const contacts = Object.keys(VIA).map((k) => [k, clean(raw[k], 160)]).filter(([, v]) => v);
     if (message.length < 3) return reply(400, { ok: false, error: 'empty' });
     if (data.consent !== true) return reply(400, { ok: false, error: 'consent' });
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const id = clean(data.id, 64);
+    const keys = [`${ip}|${name}|${message}`];
+    if (id) keys.push(`id|${id}`);
+    if (dup(keys)) return reply(200, { ok: true, dup: true });
     if (limited(ip)) return reply(429, { ok: false, error: 'rate' });
     if (!env.BOT_TOKEN || !env.CHAT_ID) return reply(500, { ok: false, error: 'config' });
 
-    const text = [`<b>Заявка с сайта</b> (${lang})`, `<b>От:</b> ${esc(name || 'не указано')}`, '', esc(message)].join('\n');
-    const res = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: env.CHAT_ID, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-    });
-    return res.ok ? reply(200, { ok: true }) : reply(502, { ok: false, error: 'telegram' });
+    // заявка помечается до отправки: вторая такая же, пришедшая, пока первая ещё летит в Telegram, не продублируется
+    const now = Date.now();
+    keys.forEach((k) => seen.set(k, now));
+    const text = [
+      `<b>Заявка с сайта</b> (${lang})`,
+      `<b>Имя:</b> ${esc(name || 'не указано')}`,
+      ...contacts.map(([k, v]) => `<b>${VIA[k]}:</b> ${esc(v)}`),
+      '',
+      esc(message),
+    ].join('\n');
+    let res;
+    try {
+      res = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: env.CHAT_ID, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+      });
+    } catch { res = null; }
+    if (res && res.ok) return reply(200, { ok: true });
+    keys.forEach((k) => seen.delete(k));
+    return reply(502, { ok: false, error: 'telegram' });
   },
 };
