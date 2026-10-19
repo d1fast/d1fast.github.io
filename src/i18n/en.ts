@@ -4,11 +4,11 @@ export const en: Dict = {
   lang: 'en',
   htmlLang: 'en',
   meta: {
-    title: 'Saveliy Lopatin (d1fast): websites, 3D, games and interfaces',
+    title: 'Saveliy Lopatin (d1fast): websites, apps, bots and 3D',
     description:
-      'I build digital products from idea to launch: websites, web apps, Telegram bots, 3D scenes, small games and interfaces. Based in Moscow, working remotely.',
+      'I build digital products from idea to launch: websites, web apps, mobile and desktop apps, Telegram bots, 3D scenes and promo games.',
     ogTitle: 'Saveliy Lopatin, d1fast',
-    ogDescription: 'Websites, 3D, small games and interfaces. From idea to launch.',
+    ogDescription: 'Websites, apps, Telegram bots and 3D. From idea to launch.',
   },
   nav: {
     about: 'About',
@@ -23,7 +23,7 @@ export const en: Dict = {
   hero: {
     name: 'Saveliy Lopatin',
     nick: 'd1fast',
-    tagline: 'I make websites, 3D, small games and interfaces. From idea to launch.',
+    tagline: 'I make websites, apps, Telegram bots and 3D. From idea to launch.',
     ctaContact: 'Write to me',
     ctaWorks: 'Work',
   },

@@ -17,7 +17,7 @@ const page = (w, h, scale = 1) => browser.newPage({ viewport: { width: w, height
 const og = (lang) => {
   const ru = lang === 'ru';
   const name = ru ? ['САВЕЛИЙ', 'ЛОПАТИН'] : ['SAVELIY', 'LOPATIN'];
-  const tag = ru ? 'Сайты, 3D, небольшие игры и интерфейсы. От идеи до запуска.' : 'Websites, 3D, small games and interfaces. From idea to launch.';
+  const tag = ru ? 'Сайты, приложения, Telegram-боты и 3D. От идеи до запуска.' : 'Websites, apps, Telegram bots and 3D. From idea to launch.';
   return `<!doctype html><html><head><base href="${base}"><meta charset="utf-8">
   <style>${fontCss}</style>
   <style>
