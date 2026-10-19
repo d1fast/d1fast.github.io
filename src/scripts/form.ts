@@ -1,7 +1,6 @@
 /**
  * Форма связи. Шлёт JSON на серверную функцию, и заявка приходит владельцу в Telegram-бота,
- * посетителю никуда переходить не нужно. Если адреса функции нет, открывает почтовую программу
- * с готовым письмом.
+ * посетителю никуда переходить не нужно.
  *
  * У каждой заявки свой номер. Если связь оборвалась, пока заявка летела (вкладку свернули,
  * сменилась сеть), повторная отправка того же текста идёт с тем же номером, и функция не
@@ -12,12 +11,10 @@ export function initForm(root: ParentNode = document) {
   if (!form) return;
   form.classList.add('is-form-bound');
   const endpoint = form.dataset.endpoint || '';
-  const email = form.dataset.email || '';
   const lang = form.dataset.lang || 'ru';
   const status = form.querySelector<HTMLElement>('[data-form-status]')!;
   const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-  const labels = { submit: submit.textContent || '', sending: form.dataset.sending || '', success: form.dataset.success || '', successMail: form.dataset.successMail || form.dataset.success || '', error: form.dataset.error || '', errorConsent: form.dataset.errorConsent || '', errorEmpty: form.dataset.errorEmpty || '', errorContact: form.dataset.errorContact || '' };
-  const fallback = form.querySelector<HTMLElement>('[data-form-fallback]');
+  const labels = { submit: submit.textContent || '', sending: form.dataset.sending || '', success: form.dataset.success || '', error: form.dataset.error || '', errorConsent: form.dataset.errorConsent || '', errorEmpty: form.dataset.errorEmpty || '', errorContact: form.dataset.errorContact || '' };
   const last = { t: 0 };
   let pending: { sig: string; id: string } | null = null;
   let busy = false;
@@ -29,7 +26,6 @@ export function initForm(root: ParentNode = document) {
   const show = (text: string, kind: 'ok' | 'err' | '', field?: HTMLElement | null) => {
     status.textContent = text;
     status.dataset.kind = kind;
-    if (fallback) fallback.hidden = kind !== 'err';
     form.querySelectorAll('[aria-invalid]').forEach((el) => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); });
     if (kind === 'err' && field) { field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', status.id); field.focus(); }
   };
@@ -50,24 +46,13 @@ export function initForm(root: ParentNode = document) {
     if (via.length && !Object.keys(contacts).length) {
       const empty = via.find((b) => b.checked);
       show(labels.errorContact, 'err', empty ? viaInput(empty.value) : via[0]);
-      if (fallback) fallback.hidden = true;
       return;
     }
-    if (!message || message.length < 3) { show(labels.errorEmpty, 'err', msgField); if (fallback) fallback.hidden = true; return; }
-    if (!consent) { show(labels.errorConsent, 'err', consentBox); if (fallback) fallback.hidden = true; return; }
+    if (!message || message.length < 3) { show(labels.errorEmpty, 'err', msgField); return; }
+    if (!consent) { show(labels.errorConsent, 'err', consentBox); return; }
     if (Date.now() - last.t < 15000) return; // не чаще раза в 15 секунд
 
-    if (!endpoint) {
-      if (!email) { show(labels.error, 'err'); return; }
-      // функция для бота не подключена: письмо с готовым текстом открывается в почтовой программе
-      const subject = lang === 'en' ? 'Request from the website' : 'Заявка с сайта';
-      const head = [name, ...Object.values(contacts)].filter(Boolean).join('\n');
-      const body = head ? `${head}\n\n${message}` : message;
-      last.t = Date.now();
-      location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      show(labels.successMail, 'ok');
-      return;
-    }
+    if (!endpoint) { show(labels.error, 'err'); return; } // адрес функции не задан при сборке
 
     const payload = { name, contacts, message, consent, lang, website };
     const sig = JSON.stringify(payload);
@@ -86,7 +71,6 @@ export function initForm(root: ParentNode = document) {
       last.t = Date.now();
       pending = null;
       form.reset();
-      form.dispatchEvent(new Event('form:sent'));
       show(labels.success, 'ok');
     } catch {
       show(labels.error, 'err');

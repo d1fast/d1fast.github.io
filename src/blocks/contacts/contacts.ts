@@ -40,7 +40,7 @@ export function init(root: HTMLElement) {
   const plane = q<SVGGElement>('[data-plane]');
   const title = q('[data-title]');
   const head = q('[data-head]');
-  const links = q('[data-links]');
+  const leadEl = q('[data-lead]');
   const letter = q('[data-letter]');
   const form = q<HTMLFormElement>('[data-form]');
   const flap = q('[data-flap]');
@@ -88,55 +88,42 @@ export function init(root: HTMLElement) {
     const narrow = W < 961;
     const top = 56 + 24; // ниже фиксированной шапки
 
-    // путь письма: вдоль каждой строки, между строками петля назад, в конце уход вверх-вправо
-    const pts: Pt[] = [];
-    spans = [];
+    // путь письма: один спокойный пролёт слева направо под последней строкой, все строки проявляются
+    // за хвостом по мере того, как самолётик проходит над ними; в конце мягкий уход вверх-вправо
     const lb = lines.map(box);
-    lb.forEach((b, i) => {
-      const fs = parseFloat(getComputedStyle(title).fontSize);
-      // самолётик идёт по низу строки: след ложится под буквы, а не зачёркивает их
-      const x0 = b.l + fs * 0.12, x1 = b.r - fs * 0.3, y = b.t + b.h * 0.8;
-      if (i === 0) { pts.push([-90, y + fs * 0.5], [x0 - fs * 0.6, y + fs * 0.12]); }
-      else {
-        const p = lb[i - 1], py = p.t + p.h * 0.8, pr = p.r - fs * 0.3;
-        pts.push([pr + fs * 0.5, py + fs * 0.35], [(pr + x0) / 2, y + fs * 0.75], [x0 - fs * 0.5, y + fs * 0.2]);
-      }
-      const si = pts.length;
-      const n = Math.max(2, Math.round((x1 - x0) / 70));
-      for (let k = 0; k <= n; k++) pts.push([x0 + (x1 - x0) * k / n, y + (k % 2 ? -3 : 3) * (k && k < n ? 1 : 0)]);
-      const ei = pts.length - 1;
-      spans[i] = [measure(pts.slice(0, si + 1)), measure(pts.slice(0, ei + 1))];
-      if (i === lb.length - 1) {
-        // уход одной плавной дугой вправо-вверх, без излома у края экрана
-        const exitY = Math.max(top, y - fs * 1.8);
-        pts.push([x1 + fs * 0.9, y - fs * 0.25], [W + 160, exitY]);
-      }
-    });
+    const fs = parseFloat(getComputedStyle(title).fontSize);
+    const last = lb[lb.length - 1];
+    const x0 = Math.min(...lb.map((b) => b.l)) + fs * 0.12, x1 = Math.max(...lb.map((b) => b.r)) - fs * 0.3;
+    const y = last.t + last.h * 0.8;
+    const pts: Pt[] = [[-90, y + fs * 0.35], [x0 - fs * 0.7, y + fs * 0.08]];
+    const n = Math.max(2, Math.round((x1 - x0) / 90));
+    for (let k = 0; k <= n; k++) pts.push([x0 + (x1 - x0) * k / n, y]);
+    const along = [measure(pts.slice(0, 3)), measure(pts)];
+    spans = lb.map(() => along as [number, number]);
+    pts.push([x1 + fs * 1.1, y - fs * 0.3], [W + 160, Math.max(top, y - fs * 1.6)]);
     setRoute(routes.write, pts);
     lineLeft = lb.map((b) => b.l);
 
-    // круг по экрану: под кнопками, вверх по просвету между колонками, над письмом, за письмо и прочь
-    const L = box(links), F = box(letter), Hd = box(head);
+    // дальше самолётик изредка спокойно пересекает небо по свободной полосе: над содержимым,
+    // под ним или (на телефоне) в просвете между подписью и письмом. Без петель и резких виражей.
+    const F = box(letter), Hd = box(head), Ld = box(leadEl);
     const footTop = box(footer).t;
-    let ip: Pt[];
+    const contentTop = Math.min(Hd.t, F.t), contentBot = Math.max(Hd.b, F.b);
+    let lane: number | null = null;
     if (!narrow) {
-      // широкая спокойная дуга: под кнопками, вверх по просвету между колонками, над письмом, нырок за письмо и прочь вправо
-      const gx = (Hd.r + F.l) / 2;
-      const low = Math.min(footTop - 40, L.b + 80);
-      const over = Math.max(top + 24, F.t - 44);
-      ip = [[-90, low + 10], [L.l + L.w * 0.5, low], [Math.min(gx, F.l - 30), F.t + F.h * 0.5], [F.l + F.w * 0.2, over], [F.l + F.w * 0.62, over + 6],
-        [F.r - F.w * 0.12, F.t + F.h * 0.32], [F.r + (W - F.r) * 0.55, F.t + F.h * 0.62], [W + 120, F.t + F.h * 0.7]];
-    } else {
-      // одна колонка: волна по просвету между кнопкой и письмом, самолётик ныряет между слоями
-      const y = (L.b + F.t) / 2, a = 6;
-      ip = [[-80, y + a]];
-      for (let k = 1; k <= 5; k++) ip.push([(W * k) / 6, y + (k % 2 ? -a : a)]);
-      ip.push([W + 80, y - a]);
-    }
+      if (contentTop - top > 70) lane = (top + contentTop) / 2;
+      else if (footTop - contentBot > 70) lane = (contentBot + footTop) / 2;
+    } else if (F.t - Ld.b > 26) lane = (Ld.b + F.t) / 2;
+    idleOn = lane !== null;
+    const ly = lane ?? 0, a = narrow ? 3 : Math.min(14, H * 0.015);
+    const ip: Pt[] = [[-90, ly + a]];
+    for (let k = 1; k <= 3; k++) ip.push([(W * k) / 4, ly + (k % 2 ? -a : a)]);
+    ip.push([W + 90, ly - a]);
     setRoute(routes.idle, ip);
     if (flight && cur) trail.setAttribute('d', cur.el.getAttribute('d') || '');
     draw();
   };
+  let idleOn = true;
   let raf = 0;
   const queueBuild = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(build); };
   addEventListener('resize', queueBuild, { passive: true });
@@ -170,10 +157,10 @@ export function init(root: HTMLElement) {
     let tx = 0, ty = 0;
     if (cur === routes.idle) {
       const dx = pt.x - mouse.x, dy = pt.y - mouse.y, dist = Math.hypot(dx, dy);
-      if (dist < 130 && dist > 0.1) { const k = (130 - dist) / 130 * 56; tx = dx / dist * k; ty = dy / dist * k; }
+      if (dist < 120 && dist > 0.1) { const k = (120 - dist) / 120 * 34; tx = dx / dist * k; ty = dy / dist * k; }
     }
-    dodge.x += (tx - dodge.x) * 0.12; dodge.y += (ty - dodge.y) * 0.12;
-    const s = W < 761 ? 0.85 : 1;
+    dodge.x += (tx - dodge.x) * 0.06; dodge.y += (ty - dodge.y) * 0.06;
+    const s = W < 761 ? (cur === routes.idle ? 0.62 : 0.85) : (cur === routes.idle ? 0.8 : 1);
     plane.setAttribute('transform', `translate(${(pt.x + dodge.x).toFixed(1)} ${(pt.y + dodge.y).toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${s} ${(s * (1 - bank)).toFixed(3)})`);
     const from = Math.max(0, at - TAIL) / L * 100, to = fly.p * 100;
     gsap.set(trail, { drawSVG: `${from}% ${to}%` });
@@ -216,14 +203,15 @@ export function init(root: HTMLElement) {
     } });
   };
   const idle = () => {
-    if (!routes.idle.len) { later = gsap.delayedCall(0.5, idle); return; }
-    takeOff(routes.idle, routes.idle.len / 175, 'none', () => { later = gsap.delayedCall(1.4, idle); });
+    if (!routes.idle.len || !idleOn) { later = gsap.delayedCall(2, idle); return; }
+    // медленно, с паузами между пролётами: фон, а не главное действие
+    takeOff(routes.idle, routes.idle.len / (W < 761 ? 70 : 110), 'none', () => { later = gsap.delayedCall(4.5, idle); });
   };
   const write = () => {
     if (!routes.write.len) { setTitle(true); swashed = true; swashIn.play(0); later = gsap.delayedCall(1, idle); return; }
-    // ровная скорость: без разгона в середине и без торможения у края экрана
-    const dur = gsap.utils.clamp(2, 4.2, routes.write.len / 430);
-    takeOff(routes.write, dur, 'none', () => {
+    // спокойно, с мягким стартом и уходом: видно, что самолётик пишет заголовок
+    const dur = gsap.utils.clamp(2.6, 4.6, routes.write.len / 330);
+    takeOff(routes.write, dur, 'sine.inOut', () => {
       setTitle(true);
       if (!swashed) { swashed = true; swashIn.play(0); }
       later = gsap.delayedCall(1.1, idle);
@@ -245,7 +233,6 @@ export function init(root: HTMLElement) {
     .fromTo(swash[1], { clipPath: hid }, { clipPath: shown, duration: 0.4, ease: 'power2.out' }, '-=0.1'));
   const lead = splitLines(q('[data-lead]'), { duration: 0.9 });
   // явные конечные значения: у .btn есть CSS-переход transform, from() с ним путается
-  const btns = wrap(gsap.fromTo([...links.children], { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'expo.out', stagger: 0.09, paused: true }));
   const foot = rise(footer, { y: 0, duration: 0.8 });
   const envelope = wrap(gsap.timeline({ paused: true })
     .fromTo(letter, { y: 70, rotation: -3, opacity: 0 }, { y: 0, rotation: 0, opacity: 1, duration: 0.9, ease: 'expo.out' }, 0)
@@ -317,6 +304,24 @@ export function init(root: HTMLElement) {
     if (status.dataset.kind === 'err') { status.textContent = ''; status.dataset.kind = ''; }
   };
   msgField?.addEventListener('input', () => clearErr(msgField, msgField.value.trim().length >= 3));
+
+  // куда ответить: отмеченный способ открывает свою строку, остальные прячутся
+  const via = [...form.querySelectorAll<HTMLInputElement>('input[name="via"]')];
+  const viaLine = (b: HTMLInputElement) => form.querySelector<HTMLElement>(`[data-via="${b.value}"]`);
+  const syncVia = (b: HTMLInputElement, animate: boolean) => {
+    const line = viaLine(b); if (!line) return;
+    const input = line.querySelector('input');
+    if (b.checked === !line.hidden) return;
+    if (b.checked) {
+      line.hidden = false;
+      if (animate) { gsap.fromTo(line, { height: 0, opacity: 0, y: -6 }, { height: 'auto', opacity: 1, y: 0, duration: 0.35, ease: 'power3.out', clearProps: 'height,opacity,transform' }); input?.focus({ preventScroll: true }); }
+    } else line.hidden = true; // старая строка уходит сразу: письмо не прыгает по высоте
+    if (input) input.removeAttribute('aria-invalid');
+  };
+  via.forEach((b) => b.addEventListener('change', () => { via.forEach((o) => syncVia(o, true)); clearErr(b, b.checked); }));
+  // после отправки форма сбрасывается: строки возвращаются к отметкам по умолчанию
+  form.addEventListener('reset', () => setTimeout(() => via.forEach((b) => syncVia(b, false))));
+  form.querySelectorAll<HTMLInputElement>('.reply__line input').forEach((inp) => inp.addEventListener('input', () => clearErr(inp, inp.value.trim().length > 0)));
   consentBox?.addEventListener('change', () => clearErr(consentBox, consentBox.checked));
 
   new MutationObserver(() => {
@@ -334,7 +339,6 @@ export function init(root: HTMLElement) {
     later = gsap.delayedCall(veiled ? 0.62 : 0.15, write);
     envelope.play(0.05);
     lead.play(0.5);
-    btns.play(0.75);
     foot.play(1.1);
   }, () => {
     stopFlight();
@@ -345,6 +349,6 @@ export function init(root: HTMLElement) {
     gsap.set(trail, { drawSVG: '0% 0%' });
     gsap.set(sendTrail, { drawSVG: '0% 0%' });
     setTitle(false);
-    [swashIn, lead, btns, foot, envelope].forEach((p) => p.reset());
+    [swashIn, lead, foot, envelope].forEach((p) => p.reset());
   });
 }

@@ -81,7 +81,7 @@ html.js .dim:not(.is-in) b { opacity: 0; }
 .dim b { transition: opacity .3s .5s; }
 
 /* Подвал: внутри последнего блока на главной, отдельно на остальных страницах */
-.site-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 20px var(--gutter) 24px; font: 500 12px/1.5 var(--font-mono); border-top: 1px solid var(--line); color: var(--fg); }
+.site-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 20px var(--gutter) 24px; font: 500 12px/1.5 var(--font-mono); color: var(--fg); }
 .site-footer__policy { text-decoration: underline; text-underline-offset: 3px; padding-block: 12px; margin-block: -12px; }
 
 /* Кейс */

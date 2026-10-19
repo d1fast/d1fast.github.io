@@ -30,6 +30,14 @@ const planeLow = 'M18 0 L-7 1 L-12 12 Z';
 const planeKeel = 'M18 0 L-7 1';
 // облака: плоское дно и шапка из нескольких горбов
 const cloudA = 'M8 58 C6 47 16 40 27 44 C29 29 47 22 58 32 C64 20 86 21 90 37 C103 34 114 45 110 58 Z';
+// волнистая черта под полем при фокусе и галочка: ровная, чуть выгнутая, внутри квадрата
+const wave = 'M0 4 ' + 'q6 -2.6 12 0 t12 0 '.repeat(12).trim() + ' t12 0';
+const tick = 'M6 12.6 C 7.4 13.9, 8.7 15.3, 10 16.9 C 12.4 13.2, 15 10, 18.2 7.2';
+const kinds = {
+  tg: { type: 'text', mode: 'text', auto: 'off' },
+  email: { type: 'email', mode: 'email', auto: 'email' },
+  phone: { type: 'tel', mode: 'tel', auto: 'tel' },
+} as const;
 const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C78 28 98 30 100 44 C110 43 116 52 113 58 Z';
 ---
 <section class="block block--contacts contacts" id="contacts" data-theme="contacts" data-block="contacts">
@@ -55,18 +63,12 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         </svg>
       </div>
       <p class="contacts__lead" data-lead>{leadParts.map((part, i) => <>{i > 0 && <br />}{part}</>)}</p>
-      <div class="contacts__links" data-links>
-        <button class="btn btn--primary contacts__email" type="button" data-copy={site.email} data-copied={d.contacts.copied} data-magnetic="0.2">
-          <span class="contacts__email-addr">{site.email}</span>
-          <span class="contacts__email-action" data-copy-label>{d.contacts.copy}</span>
-        </button>
-      </div>
     </div>
 
     <div class="contacts__letter" data-letter>
       <form class="contact-form" data-contact-form data-endpoint={site.formEndpoint} data-lang={lang}
-        data-sending={d.contacts.sending} data-success={d.contacts.success} data-success-mail={d.contacts.successMail} data-email={site.email} data-error={d.contacts.error}
-        data-error-consent={d.contacts.errorConsent} data-error-empty={d.contacts.errorEmpty} novalidate aria-labelledby="cf-title" data-form>
+        data-sending={d.contacts.sending} data-success={d.contacts.success} data-error={d.contacts.error}
+        data-error-consent={d.contacts.errorConsent} data-error-empty={d.contacts.errorEmpty} data-error-contact={d.contacts.errorContact} novalidate aria-labelledby="cf-title" data-form>
         <div class="contact-form__top">
           <h3 class="contact-form__title" id="cf-title">{d.contacts.formTitle}</h3>
           <div class="contacts__stamp" aria-hidden="true">
@@ -92,29 +94,44 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         <div class="field">
           <label class="field__label" for="cf-name">{d.contacts.nameLabel}</label>
           <input class="field__input" id="cf-name" name="name" type="text" autocomplete="name" maxlength="120" placeholder={d.contacts.namePlaceholder} />
-          <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M0 4 q6 -4 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0" /></svg>
+          <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d={wave} /></svg>
+        </div>
+        <!-- куда ответить: отмеченный способ открывает строку для своего контакта -->
+        <div class="field reply" role="radiogroup" aria-labelledby="cf-reply" data-reply data-keys>
+          <p class="field__label" id="cf-reply">{d.contacts.replyLabel}</p>
+          <div class="reply__opts">
+            {d.contacts.via.map((v, i) => (
+              <label class="check">
+                <input class="check__box" type="radio" name="via" value={v.id} checked={i === 0} aria-controls={`cf-${v.id}`} />
+                <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path pathLength="1" d={tick} /></svg></span>
+                <span class="check__text">{v.label}</span>
+              </label>
+            ))}
+          </div>
+          {d.contacts.via.map((v, i) => (
+            <div class="reply__line" data-via={v.id} hidden={i !== 0}>
+              <input class="field__input" id={`cf-${v.id}`} name={`c_${v.id}`} type={kinds[v.id].type} inputmode={kinds[v.id].mode} autocomplete={kinds[v.id].auto} maxlength="160" placeholder={v.placeholder} aria-label={v.label} />
+              <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d={wave} /></svg>
+            </div>
+          ))}
         </div>
         <div class="field">
           <label class="field__label" for="cf-message">{d.contacts.messageLabel}</label>
           <textarea class="field__input field__textarea" id="cf-message" name="message" rows="3" maxlength="2000" required placeholder={d.contacts.messagePlaceholder}></textarea>
-          <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M0 4 q6 -4 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0" /></svg>
         </div>
         <div class="field field--hp" aria-hidden="true">
           <label for="cf-website">Website</label>
           <input id="cf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
         </div>
-        <label class="consent">
-          <input class="consent__box" type="checkbox" name="consent" required />
-          <span class="consent__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path pathLength="1" d="M4 13 C 6 14.5, 8 17, 9.5 19.5 C 12 13, 15.5 8, 21 3.5" /></svg></span>
-          <span class="consent__text">{d.contacts.consent} <a href={policyHref}>{d.contacts.consentLink}</a></span>
+        <label class="check consent">
+          <input class="check__box" type="checkbox" name="consent" required />
+          <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path pathLength="1" d={tick} /></svg></span>
+          <span class="check__text">{d.contacts.consent} <a href={policyHref}>{d.contacts.consentLink}</a></span>
         </label>
         <div class="contact-form__actions">
           <button class="btn btn--primary contact-form__send" type="submit" data-magnetic="0.2">{d.contacts.submit}</button>
         </div>
         <p class="contact-form__status" id="cf-status" data-form-status role="status" aria-live="polite"></p>
-        <p class="contact-form__fallback" data-form-fallback hidden>
-          <a href={`mailto:${site.email}`}>{site.email}</a>
-        </p>
       </form>
       <!-- клапан конверта и сгибы: видны, пока письмо не раскрылось -->
       <div class="contacts__flap" aria-hidden="true" data-flap>

@@ -15,10 +15,11 @@ export interface Dict {
   works: { title: string; open: string; year: string; stack: string };
   process: { title: string; steps: { title: string; text: string }[] };
   contacts: {
-    title: string; lead: string; emailLabel: string; copy: string; copied: string;
+    title: string; lead: string;
     formTitle: string; nameLabel: string; namePlaceholder: string; messageLabel: string; messagePlaceholder: string;
+    replyLabel: string; via: { id: 'tg' | 'email' | 'phone'; label: string; placeholder: string }[]; errorContact: string;
     consent: string; consentLink: string; submit: string;
-    sending: string; success: string; successMail: string; error: string; errorConsent: string; errorEmpty: string;
+    sending: string; success: string; error: string; errorConsent: string; errorEmpty: string;
     policy: string;
   };
   notFound: { title: string; text: string; home: string; works: string };
