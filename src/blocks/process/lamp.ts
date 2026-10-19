@@ -38,12 +38,20 @@ const SD = unit(dir(-60));
 const SN: P = [-SD[1], SD[0]];
 const HB = 20;
 const HF = 62;
-const SB = add(J2, mul(SD, 4));
+// затылок плафона: дуга вокруг верхнего шарнира, концентрично с ним; боковины касаются дуги без излома
+const SB = J2;
 const SF = add(J2, mul(SD, 102));
-const BL = add(SB, mul(SN, HB));
-const BR = sub(SB, mul(SN, HB));
 const FL = add(SF, mul(SN, HF));
 const FR = sub(SF, mul(SN, HF));
+/** точка касания прямой из p к окружности (c, r) с нужной стороны от оси плафона */
+const touch = (p: P, c: P, r: number, side: 1 | -1): P => {
+  const v = sub(p, c), d = len(v), a = Math.acos(r / d), b = Math.atan2(v[1], v[0]);
+  const t1: P = add(c, mul([Math.cos(b + a), Math.sin(b + a)], r)), t2: P = add(c, mul([Math.cos(b - a), Math.sin(b - a)], r));
+  const dot = (t: P) => (t[0] - c[0]) * SN[0] + (t[1] - c[1]) * SN[1];
+  return dot(t1) * side > dot(t2) * side ? t1 : t2;
+};
+const BL = touch(FL, SB, HB, 1);
+const BR = touch(FR, SB, HB, -1);
 export const BULB: P = sub(SF, mul(SD, 3));
 export const BULB_R = 25;
 
@@ -63,7 +71,7 @@ const DOME_B: P = [270, 388];
 const DOME_C1: P = [166, 356];
 const DOME_C2: P = [262, 356];
 const domeD = `M${pt(DOME_A)}C${pt(DOME_C1)} ${pt(DOME_C2)} ${pt(DOME_B)}Z`;
-const shadeD = `M${pt(BL)}A${HB} ${HB} 0 0 1 ${pt(BR)}L${pt(FR)}L${pt(FL)}Z`;
+const shadeD = `M${pt(BL)}A${HB} ${HB} 0 1 1 ${pt(BR)}L${pt(FR)}L${pt(FL)}Z`;
 
 export const SHAPES: Record<string, string> = {
   plate: rrectD(PLATE.x, PLATE.y, PLATE.w, PLATE.h, PLATE.r),
@@ -120,15 +128,26 @@ function bezierPts(a: P, c1: P, c2: P, b: P, n = 14): P[] {
   });
 }
 const shadePts = (): P[] => {
-  const an = ang(SN);
-  return [...sampleArc(SB, HB, an, an + 180), ...sampleLine(BR, FR), ...sampleLine(FR, FL), ...sampleLine(FL, BL)];
+  const aL = ang(sub(BL, SB));
+  let aR = ang(sub(BR, SB));
+  while (aR < aL) aR += 360;
+  return [...sampleArc(SB, HB, aL, aR), ...sampleLine(BR, FR), ...sampleLine(FR, FL), ...sampleLine(FL, BL)];
 };
+/* В наброске три ошибки, на них и стоят вопросы: верхнее плечо не доходит до локтя,
+   лампочка выпала из плафона, подставка перекошена и лампа качается. На чертеже всё встаёт на место. */
+const U2 = unit(sub(J2, J1));
+export const GAP_FROM = 34; // где начинается плечо в наброске, от центра локтя
+const ARM2_START = add(J1, mul(U2, GAP_FROM));
+export const BULB_LOST: P = add(SF, mul(SD, 36));
+const TILT = -6 * R; // подставка задрана правым краем
+const PLATE_PIVOT: P = [PLATE.x, PLATE.y + PLATE.h];
+const tilt = (p: P): P => { const v = sub(p, PLATE_PIVOT); return add(PLATE_PIVOT, [v[0] * Math.cos(TILT) - v[1] * Math.sin(TILT), v[0] * Math.sin(TILT) + v[1] * Math.cos(TILT)]); };
 const PTS: Record<string, P[]> = {
-  plate: rrectPts(PLATE.x, PLATE.y, PLATE.w, PLATE.h, PLATE.r),
+  plate: rrectPts(PLATE.x, PLATE.y, PLATE.w, PLATE.h, PLATE.r).map(tilt),
   dome: [...bezierPts(DOME_A, DOME_C1, DOME_C2, DOME_B), ...sampleLine(DOME_B, DOME_A)],
   arm1: capsulePts(J0, J1, ARM_R),
-  arm2: capsulePts(J1, J2, ARM_R),
-  bulb: circlePts(BULB, BULB_R),
+  arm2: capsulePts(ARM2_START, J2, ARM_R),
+  bulb: circlePts(BULB_LOST, BULB_R),
   shade: shadePts(),
   j0: circlePts(J0, JOINT_R),
   j1: circlePts(J1, JOINT_R),
@@ -274,13 +293,27 @@ export const LABELS: { x: number; y: number; rot: number; text: string }[] = [
   { ...(() => { const m = add(mid(FL, FR), mul(SD, 50)); return { x: m[0], y: m[1] }; })(), rot: rotOf(FL, FR), text: `Ø${HF * 2}` },
 ].map((l) => ({ ...l, x: r1(l.x), y: r1(l.y) }));
 
+/* ---------- человечек: стоит у лампы и не знает, что с ней делать ---------- */
+const MAN_X = 500;
+export const MAN = {
+  head: [MAN_X, 351] as P,
+  body: `M${MAN_X} 358V381M${MAN_X} 381L${MAN_X - 7} 403M${MAN_X} 381L${MAN_X + 7} 403`,
+  armL: `M${MAN_X} 366L${MAN_X - 9} 380`,
+  // правая рука чешет затылок; поворачивается вокруг плеча
+  armR: `M${MAN_X} 366L${MAN_X + 11} 360L${MAN_X + 8} 348`,
+  // догадался: рука вверх
+  armUp: `M${MAN_X} 366L${MAN_X + 9} 355L${MAN_X + 12} 340`,
+  shoulder: [MAN_X, 366] as P,
+};
+
 /* ---------- вопросы и маршрут лупы ---------- */
-// вопросы стоят у деталей: у плеча, над плафоном, у края плафона, у подставки
-export const MARKS: P[] = [[158, 246], [416, 118], [470, 214], [296, 342]];
-// лупа спокойно переходит от вопроса к вопросу и задерживается над каждым (стоянки рядом с вопросами 0, 1, 2, 3)
-export const LENS_STOPS: P[] = [[180, 238], [404, 142], [458, 214], [300, 330]];
+// вопросы у ошибок наброска: над разрывом в локте, в выпавшей лампочке, над головой человечка, над задранной подставкой
+const gapMid = add(J1, mul(U2, (JOINT_R + GAP_FROM - ARM_R) / 2));
+export const MARKS: P[] = [add(gapMid, mul([U2[1], -U2[0]], 26)), BULB_LOST, [MAN_X + 3, 325], [288, 352]].map((p) => [r1(p[0]), r1(p[1])] as P);
+// лупа встаёт ровно на вопрос: он оказывается в центре стекла
+export const LENS_STOPS: P[] = MARKS;
 /** где может стоять центр лупы: стекло и ручка не заходят на мягкие края рисунка и не уходят под стол */
-export const LENS = { r: 46, minX: 172, minY: 134, maxY: 350, right: 622 };
+export const LENS = { r: 46, minX: 172, minY: 134, maxY: 356, right: 622 };
 
 /* ---------- шестерня каретки ---------- */
 export function gear(teeth = 14, ro = 29, ri = 25, hole = 0) {

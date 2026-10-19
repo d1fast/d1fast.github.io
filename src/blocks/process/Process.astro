@@ -1,7 +1,7 @@
 ---
 import './process.css';
 import { t, type Lang } from '../../i18n';
-import { VB_X, VB_Y, VB_W, VB_H, SHAPES, SKETCH, ORDER, SPRING, CONE, CONE_GRAD, RIM, CHECK_CIRCLE, CHECK_MARK, CHECK_RING, SPARKS, RAYS, POOL, DUST, BULB, GLINTS, AXES, DIMS, LABELS, MARKS, LENS, J0, J1, J2, gear } from './lamp';
+import { VB_X, VB_Y, VB_W, VB_H, SHAPES, SKETCH, ORDER, SPRING, CONE, CONE_GRAD, RIM, CHECK_CIRCLE, CHECK_MARK, CHECK_RING, SPARKS, RAYS, POOL, DUST, BULB, GLINTS, AXES, DIMS, LABELS, MARKS, LENS, MAN, J0, J1, J2, gear } from './lamp';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
@@ -72,19 +72,26 @@ const compassTicks = Array.from({ length: 21 }, (_, i) => {
             <clipPath id="process-lens-clip"><circle r={LENS.r} /></clipPath>
           </defs>
 
-          <!-- 2. чертёж: осевые и размеры -->
-          <g class="pr-blue" data-process-blue>
-            {AXES.map((p) => <path class="pr-axis" d={p} data-process-axis />)}
-            {DIMS.map((p) => <path class="pr-dim" d={p} data-process-dim />)}
-            {LABELS.map((l) => <text class="pr-label" x={l.x} y={l.y} transform={`rotate(${l.rot} ${l.x} ${l.y})`} data-process-label>{l.text}</text>)}
-          </g>
-
           <!-- 1–2. набросок, который потом становится чистым контуром -->
           <g class="pr-sketch">
             <g id="process-sk-lines">
               {ORDER.map((k) => <path class="pr-line" d={SKETCH[k]} data-clean={SHAPES[k]} data-sketch={SKETCH[k]} data-process-line />)}
             </g>
+            <!-- человечек у лампы чешет затылок: не знает, что с ней делать -->
+            <g class="pr-man" id="process-man" data-process-man>
+              <circle class="pr-man-line pr-man-head" cx={MAN.head[0]} cy={MAN.head[1]} r="7" />
+              <path class="pr-man-line" d={MAN.body} />
+              <path class="pr-man-line" d={MAN.armL} />
+              <path class="pr-man-line" d={MAN.armR} data-process-man-arm />
+            </g>
             {MARKS.map((m) => <text class="pr-mark" x={m[0]} y={m[1]} data-process-mark>?</text>)}
+          </g>
+
+          <!-- 2. чертёж: осевые и размеры поверх контура, как на настоящем чертеже -->
+          <g class="pr-blue" data-process-blue>
+            {AXES.map((p) => <path class="pr-axis" d={p} data-process-axis />)}
+            {DIMS.map((p) => <path class="pr-dim" d={p} data-process-dim />)}
+            {LABELS.map((l) => <text class="pr-label" x={l.x} y={l.y} transform={`rotate(${l.rot} ${l.x} ${l.y})`} data-process-label>{l.text}</text>)}
           </g>
 
           <!-- 3–4. детали лампы -->
@@ -155,6 +162,7 @@ const compassTicks = Array.from({ length: 21 }, (_, i) => {
             <g clip-path="url(#process-lens-clip)">
               <g data-process-lens-view>
                 <use href="#process-sk-lines" />
+                <use href="#process-man" />
                 {MARKS.map((m) => <text class="pr-mark" x={m[0]} y={m[1]} data-process-lens-mark>?</text>)}
               </g>
             </g>

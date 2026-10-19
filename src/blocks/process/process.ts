@@ -3,32 +3,33 @@ import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { watchBlock } from '../../scripts/block';
-import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, type P } from './lamp';
+import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, type P } from './lamp';
 
 gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
 
 /**
  * Как я работаю: сборочная линия. Лампа в центре проходит четыре поста:
- * 1 набросок с вопросами, лупа ищет ответы; 2 набросок выпрямляется в чертёж, рисуются размеры;
+ * 1 набросок с ошибками и вопросами у них, рядом человечек не знает, что делать; лупа по своему маршруту
+ *   встаёт на каждый вопрос, и он становится восклицательным знаком;
+ * 2 набросок выпрямляется в чертёж (ошибки исправляются), рисуются размеры;
  * 3 детали прилетают и защёлкиваются; 4 лампа загорается, по ней пробегает блик, ставится галочка.
- * Шаги идут сами (переезд MOVE и DWELL[шаг] секунд стоянки). Наведение, фокус или тап выбирают шаг и ставят на паузу;
- * пока мышь двигается над рисунком (лупа и лампа следят за ней), шаги тоже стоят.
+ * Шаги идут сами (переезд MOVE и DWELL[шаг] секунд стоянки). Наведение, фокус или тап выбирают шаг и ставят на паузу.
+ * На собранной лампе плафон смотрит на курсор.
  */
 // на первом шаге лупа обходит все вопросы, на четвёртом лампа включается: им нужно больше времени
-const DWELL = [5.6, 3.6, 3.6, 5.2];
-const MOVE = 0.95;
+const DWELL = [4.6, 2.8, 2.8, 4];
+const MOVE = 0.8;
 const N = 4;
 const ZOOM = 1.3; // увеличение в лупе
-const HOLD = 0.4; // столько лупа стоит над вопросом
+const HOLD = 0.3; // столько лупа стоит над вопросом
 const WARM = '#FFE7A0';
-const IDLE = 3; // через столько секунд без движения мыши над рисунком шаги идут дальше
-const HANDLE = Math.hypot(68, 68); // длина ручки лупы от центра
 const DEG = Math.PI / 180;
 type Sketch = 'off' | 'scribble' | 'clean' | 'ghost';
 const clamp = gsap.utils.clamp;
 const smooth = (a: number, b: number, x: number) => { const t = clamp(0, 1, (x - a) / (b - a)); return t * t * (3 - 2 * t); };
 /** ручка лупы смотрит вниз-вправо, а у самого стола поворачивается вправо, чтобы не уйти под стол */
 const handleAngle = (y: number) => 45 - 35 * smooth(300, 350, y);
+const HANDLE = Math.hypot(68, 68); // длина ручки лупы от центра
 
 export function init(root: HTMLElement) {
   const q = gsap.utils.selector(root);
@@ -87,6 +88,10 @@ export function init(root: HTMLElement) {
 
   const cs = getComputedStyle(root);
   const FG = cs.getPropertyValue('--fg').trim() || '#21262B';
+  const BG = cs.getPropertyValue('--bg').trim() || '#E9EBEE';
+  const man = one<SVGGElement>('[data-process-man]');
+  const manArm = one<SVGPathElement>('[data-process-man-arm]');
+  const manLines = q<SVGElement>('.pr-man-line');
   const ACC = cs.getPropertyValue('--accent').trim() || '#5F7389';
   const fine = matchMedia('(hover: hover) and (pointer: fine)');
   const isOn = () => root.classList.contains('is-on');
@@ -150,18 +155,22 @@ export function init(root: HTMLElement) {
     const key = mode === 'scribble' ? 'sketch' : 'clean';
     const look = { stroke: mode === 'scribble' ? FG : ACC, strokeWidth: mode === 'scribble' ? 2.2 : 1.6 };
     const op = mode === 'ghost' ? 0.28 : 1;
+    // чистый контур заливается фоном: детали перекрывают друг друга, лишние линии под ними не видны
+    if (mode !== 'clean') to(lines, { fillOpacity: 0, duration: 0.25, delay });
     if (prev === 'off' && opacityOf(lines[0]) < 0.05) {
       // из пустоты: форма ставится сразу, линии рисуются (подложка просто проявляется)
       lines.forEach((l) => { l.setAttribute('d', l.dataset[key]!); clearDash(l); });
       if (mode === 'ghost') { gsap.set(lines, { ...look, opacity: 0 }); to(lines, { opacity: op, duration: 0.4, delay }); return; }
-      gsap.set(lines, { ...look, opacity: 1, drawSVG: '0%' });
-      to(lines, { drawSVG: '100%', duration: mode === 'scribble' ? 0.55 : 0.6, ease: 'power2.inOut', delay, stagger: 0.075, onComplete: () => lines.forEach(clearDash) });
+      gsap.set(lines, { ...look, opacity: 1, drawSVG: '0%', fillOpacity: 0 });
+      to(lines, { drawSVG: '100%', duration: mode === 'scribble' ? 0.45 : 0.55, ease: 'power2.inOut', delay, stagger: 0.06, onComplete: () => lines.forEach(clearDash) });
+      if (mode === 'clean') to(lines, { fillOpacity: 1, duration: 0.35, delay: delay + 1, stagger: 0.03 });
       return;
     }
     // из другого вида: недорисованное дорисовывается сразу, форма перетекает в нужную
     lines.forEach(clearDash);
-    lines.forEach((l, i) => to(l, { morphSVG: l.dataset[key]!, duration: 0.95, ease: 'power3.inOut', delay: delay + i * 0.035 }));
+    lines.forEach((l, i) => to(l, { morphSVG: l.dataset[key]!, duration: 0.85, ease: 'power3.inOut', delay: delay + i * 0.035 }));
     to(lines, { ...look, opacity: op, duration: 0.5, delay: delay + (mode === 'ghost' ? 0 : 0.2), ease: 'power1.inOut' });
+    if (mode === 'clean') to(lines, { fillOpacity: 1, duration: 0.35, delay: delay + 0.95, stagger: 0.03 });
   }
 
   /* ---------- 1: вопросы. Лупа проходит над вопросом, и он становится восклицательным знаком ---------- */
@@ -172,18 +181,37 @@ export function init(root: HTMLElement) {
     allMarks.forEach((m) => { m.textContent = '?'; m.classList.remove('is-got'); });
     unhideMarks();
     gsap.set(allMarks, { scale: 0, rotation: -35, opacity: 1 });
-    MARKS.forEach((_, i) => to(pair(i), { scale: 1, rotation: 0, duration: 0.55, ease: 'back.out(3)', delay: delay + i * 0.12 }));
+    MARKS.forEach((_, i) => to(pair(i), { scale: 1, rotation: 0, duration: 0.5, ease: 'back.out(3)', delay: delay + i * 0.1 }));
+    manShow(delay - 0.3);
   }
-  const marksHide = () => to(allMarks, { scale: 0, opacity: 0, duration: 0.25, ease: 'power2.in' });
+  const marksHide = () => { to(allMarks, { scale: 0, opacity: 0, duration: 0.25, ease: 'power2.in' }); manHide(); };
   function flip(i: number) {
     flipped[i] = true;
     pair(i).forEach((m) => { m.textContent = '!'; m.classList.add('is-got'); });
     fromTo(pair(i), { scale: 1.7, rotation: 12 }, { scale: 1, rotation: 0, duration: 0.7, ease: 'elastic.out(1, .4)', overwrite: 'auto' });
+    if (i === 2) manGot();
   }
+
+  /* человечек: рисуется, чешет затылок; когда лупа дошла до его вопроса, поднимает руку и подпрыгивает */
+  gsap.set(manArm, { svgOrigin: `${MAN.shoulder[0]} ${MAN.shoulder[1]}` });
+  function manShow(delay: number) {
+    gsap.set(man, { opacity: 1, y: 0 });
+    gsap.set(manArm, { rotation: 0, attr: { d: MAN.armR } });
+    gsap.set(manLines, { drawSVG: '0%' });
+    to(manLines, { drawSVG: '100%', duration: 0.35, ease: 'power2.out', stagger: 0.08, delay: Math.max(0, delay) });
+    to(manArm, { rotation: -14, duration: 0.22, ease: 'sine.inOut', yoyo: true, repeat: -1, delay: Math.max(0, delay) + 0.5 });
+  }
+  function manGot() {
+    gsap.killTweensOf(manArm);
+    tl().to(manArm, { rotation: 0, morphSVG: MAN.armUp, duration: 0.3, ease: 'back.out(2)' }, 0)
+      .to(man, { y: -9, duration: 0.18, ease: 'power2.out' }, 0.05)
+      .to(man, { y: 0, duration: 0.4, ease: 'bounce.out' }, 0.23);
+  }
+  const manHide = () => { gsap.killTweensOf(manArm); to(man, { opacity: 0, duration: 0.25, ease: 'power1.in' }); };
   const unhideMarks = () => marks.forEach((m) => { m.style.fillOpacity = ''; });
 
-  /* лупа: плавно переходит от вопроса к вопросу по замкнутой кривой и задерживается над каждым; мышь может перехватить её */
-  const L = { s: 0, k: 0, w: 0, mx: 360, my: 220 };
+  /* лупа: всегда идёт своим маршрутом от вопроса к вопросу по замкнутой кривой и встаёт так, что вопрос в центре стекла */
+  const L = { s: 0, k: 0 };
   const SN = LENS_STOPS.length;
   // центростремительная кривая Катмулла — Рома через стоянки: без петель и выбросов за поля рисунка
   const route = (s: number): P => {
@@ -199,13 +227,14 @@ export function init(root: HTMLElement) {
     return lerp(B1, B2, t1, t2);
   };
   // время перехода зависит от расстояния: короткие шаги не дёргаются, длинные не тянутся
-  const SEG = LENS_STOPS.map((p, i) => { const q2 = LENS_STOPS[(i + 1) % SN]; return 0.5 + Math.hypot(q2[0] - p[0], q2[1] - p[1]) / 380; });
+  const SEG = LENS_STOPS.map((p, i) => { const q2 = LENS_STOPS[(i + 1) % SN]; return 0.3 + Math.hypot(q2[0] - p[0], q2[1] - p[1]) / 600; });
   const START: P = [150, -70];
   let lensOn = false;
   function lensRender() {
     const [rx, ry] = route(L.s);
     let x = START[0] + (rx - START[0]) * L.k, y = START[1] + (ry - START[1]) * L.k;
-    x += (L.mx - x) * L.w; y += (L.my - y) * L.w;
+    // кривая между стоянками не выносит стекло за поля рисунка и под стол
+    if (L.k > 0.99) { y = clamp(LENS.minY, LENS.maxY, y); x = clamp(LENS.minX, LENS.right - HANDLE * Math.cos(handleAngle(y) * DEG), x); }
     lens.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
     lensHandle.setAttribute('transform', `rotate(${(handleAngle(y) - 45).toFixed(1)})`);
     lensView.setAttribute('transform', `scale(${ZOOM}) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})`);
@@ -225,10 +254,10 @@ export function init(root: HTMLElement) {
     gsap.set(lens, { opacity: 0 });
     lensRender();
     tick(true);
-    to(lens, { opacity: 1, duration: 0.35, delay });
-    to(L, { k: 1, duration: 1.1, ease: 'power2.inOut', delay });
+    to(lens, { opacity: 1, duration: 0.3, delay });
+    to(L, { k: 1, duration: 0.8, ease: 'power2.inOut', delay });
     // обход: переход с мягким разгоном и торможением, стоянка над вопросом; круг замкнут, повтор без рывка
-    const walk = tl({ delay: delay + 1.1 + HOLD, repeat: -1 });
+    const walk = tl({ delay: delay + 0.8 + HOLD, repeat: -1 });
     SEG.forEach((d, i) => { walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' }); walk.to({}, { duration: HOLD }); });
   }
   function lensHide() {
@@ -397,8 +426,8 @@ export function init(root: HTMLElement) {
       if (had) { if (from === N - 1) rideAway(); else scatter(); } else stow();
       const d = t0 + (had ? (from === N - 1 ? 0.8 : 0.45) : 0);
       sketch('scribble', d);
-      marksShow(d + 0.75);
-      lensShow(d + 1.0);
+      marksShow(d + 0.55);
+      lensShow(d + 0.7);
     } else if (next === 1) {
       lensHide(); marksHide(); polish(false);
       if (had) scatter(); else stow();
@@ -538,7 +567,7 @@ export function init(root: HTMLElement) {
   list.addEventListener('focusin', (e) => { if ((e.target as HTMLElement).matches(':focus-visible')) hold('focus', true); });
   list.addEventListener('focusout', (e) => { if (!list.contains(e.relatedTarget as Node)) hold('focus', false); });
 
-  // мышь над рисунком: на первом шаге лупа идёт за курсором, на собранной лампе плафон смотрит на курсор
+  // мышь над рисунком: на собранной лампе плафон смотрит на курсор
   const toSvg = (e: PointerEvent): P => {
     const m = svg.getScreenCTM();
     if (!m) return [0, 0];
@@ -561,30 +590,15 @@ export function init(root: HTMLElement) {
     rot1(clamp(-4, 5, d * 0.12));
     rot2(clamp(-9, 20, d * 0.45));
   }
-  // пока мышь двигается над рисунком, шаги стоят; через IDLE секунд покоя лупа и лампа отпускают курсор
-  let idle: gsap.core.Tween | undefined;
+  // на собранной лампе плафон смотрит на курсор; лупа на мышь не реагирует, шаги не останавливаются
   let lastXY = [-1, -1];
-  const release = () => {
-    idle?.kill();
-    gsap.to(L, { w: 0, duration: 0.6, ease: 'power2.inOut', overwrite: 'auto' });
-    look(null);
-    hold('draw', false);
-  };
   stage.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !fine.matches || !isOn()) return;
+    if (e.pointerType !== 'mouse' || !fine.matches || !isOn() || !partsOn) return;
     if (Math.hypot(e.clientX - lastXY[0], e.clientY - lastXY[1]) < 3) return;
     lastXY = [e.clientX, e.clientY];
-    const p = toSvg(e);
-    const y = clamp(LENS.minY, LENS.maxY, p[1]);
-    L.my = y;
-    L.mx = clamp(LENS.minX, LENS.right - HANDLE * Math.cos(handleAngle(y) * DEG), p[0]);
-    if (L.w < 1) gsap.to(L, { w: 1, duration: 0.5, ease: 'power2.out', overwrite: 'auto' });
-    if (partsOn) look(p);
-    hold('draw', true);
-    idle?.kill();
-    idle = gsap.delayedCall(IDLE, release);
+    look(toSvg(e));
   });
-  stage.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') release(); });
+  stage.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') look(null); });
 
   addEventListener('resize', () => {
     if (cur < 0) return;
@@ -599,7 +613,7 @@ export function init(root: HTMLElement) {
   function reset() {
     killScene();
     timer?.kill(); timer = undefined;
-    touchHold?.kill(); idle?.kill(); hereCall?.kill();
+    touchHold?.kill(); hereCall?.kill();
     holds.clear();
     // блок мог открыться потому, что на шаг перешёл фокус с клавиатуры, или курсор уже стоит над линией
     const fe = document.activeElement as HTMLElement | null;
@@ -615,7 +629,11 @@ export function init(root: HTMLElement) {
     unhideMarks();
     gsap.set(allMarks, { scale: 0, opacity: 0 });
     gsap.set(lens, { opacity: 0 });
-    Object.assign(L, { s: 0, k: 0, w: 0 });
+    Object.assign(L, { s: 0, k: 0 });
+    killEach([man, manArm, ...manLines]);
+    gsap.set(man, { opacity: 0, y: 0 });
+    gsap.set(manArm, { rotation: 0, attr: { d: MAN.armR } });
+    gsap.set(lines, { fill: BG, fillOpacity: 0 });
     lastXY = [-1, -1];
     restoreLabels();
     gsap.set(dims, { drawSVG: '0%' });
