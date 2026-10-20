@@ -1,10 +1,9 @@
 import { gsap } from 'gsap';
-import { TextPlugin } from 'gsap/TextPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { watchBlock, splitChars } from '../../scripts/block';
-import { buildWidgets, type WidgetUI } from './widgets';
+import { buildWidgets, type WidgetUI, type View } from './widgets';
 
-gsap.registerPlugin(TextPlugin, ScrambleTextPlugin);
+gsap.registerPlugin(ScrambleTextPlugin);
 
 // мигание: 0,1,0,1… и в конце 1
 const blink = (n: number) => (p: number) => (p >= 1 ? 1 : Math.floor(p * n) % 2);
@@ -51,7 +50,7 @@ export function init(root: HTMLElement) {
   let ui: WidgetUI;
   try { ui = JSON.parse(root.dataset.svcUi || '{}'); } catch { ui = {} as WidgetUI; }
   const widgets = buildWidgets(slots, ui);
-  const GAME = slots.findIndex((s) => s.dataset.svcW === 'game');
+  const PROMO = slots.findIndex((s) => s.dataset.svcW === 'promo');
   const CUBE = slots.findIndex((s) => s.dataset.svcW === 'cube');
   const chars = /[а-яё]/i.test(names.join('')) ? 'абвгдежзиклмнопрстуфхцчшэюя' : 'abcdefghijklmnopqrstuvwxyz';
 
@@ -90,9 +89,15 @@ export function init(root: HTMLElement) {
   const fit = () => {
     const w = tube.offsetWidth, h = tube.offsetHeight;
     // сверху полоса под «каналы» в углу: сцена сдвинута вниз на половину полосы и не наезжает на них
-    const res = pipsBox.offsetTop + pipsBox.offsetHeight + 4;
-    if (w && h) { tube.style.setProperty('--k', Math.min(w / 360, (h - res) / 170).toFixed(4)); tube.style.setProperty('--dy', (res / 2).toFixed(1) + 'px'); }
-    widgets.forEach((wd) => wd.resize?.());
+    const res = pipsBox.offsetTop + pipsBox.offsetHeight;
+    if (!w || !h) return;
+    const k = Math.min(w / 360, (h - res) / 170);
+    tube.style.setProperty('--k', k.toFixed(4));
+    tube.style.setProperty('--dy', (res / 2).toFixed(1) + 'px');
+    // камере сцен нужен размер экранчика и отступ от рамки: по ним она вписывает сцену и решает, насколько наезжать
+    const pad = parseFloat(getComputedStyle(screen).getPropertyValue('--scr-pad')) || 8;
+    const v: View = { w, h, res, k, pad };
+    widgets.forEach((wd) => wd.resize?.(v));
   };
   const show = (i: number) => {
     if (shown === i) return;
@@ -117,10 +122,14 @@ export function init(root: HTMLElement) {
   const sayName = (i: number) => {
     gsap.to(dname, { duration: 0.45, scrambleText: { text: names[i], chars, speed: 0.8, revealDelay: 0.08 }, overwrite: true });
   };
+  // печать по буквам своим счётчиком: TextPlugin заменяет неразрывные пробелы обычными
+  const typed = { n: 0 };
   const typeText = (i: number, delay = 0) => {
-    gsap.killTweensOf(dtext);
+    gsap.killTweensOf(typed);
     dtext.textContent = '';
-    gsap.to(dtext, { text: { value: texts[i], delimiter: '' }, duration: Math.min(1.1, 0.25 + texts[i].length * 0.016), ease: 'none', delay });
+    const s = texts[i];
+    typed.n = 0;
+    gsap.to(typed, { n: s.length, duration: Math.min(1.1, 0.25 + s.length * 0.016), ease: 'none', delay, onUpdate: () => { dtext.textContent = s.slice(0, Math.round(typed.n)); } });
   };
 
   /* ---------- сам себя листает ---------- */
@@ -224,13 +233,9 @@ export function init(root: HTMLElement) {
     if (!to || !(menu.contains(to) || dialog.contains(to))) { kbd = false; sync(); }
   });
 
-  // игра: тап, клик, пробел или Enter на фокусе = прыжок
-  if (hit && GAME >= 0) {
-    hit.addEventListener('pointerdown', () => { widgets[GAME].jump?.(); hold(10000); });
-    hit.addEventListener('keydown', (e) => {
-      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); widgets[GAME].jump?.(); hold(10000); }
-    });
-  }
+  // колесо скидок: тап, клик, пробел или Enter на фокусе крутят колесо. click, а не pointerdown:
+  // свайп по экранчику листает блоки и колесо не трогает
+  if (hit && PROMO >= 0) hit.addEventListener('click', () => { widgets[PROMO].spin?.(); hold(12000); });
   // 3D смотрит на указатель; на тачскрине тап толкает куб
   if (CUBE >= 0) {
     const pt = (e: PointerEvent) => { const r = screen.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
@@ -279,7 +284,7 @@ export function init(root: HTMLElement) {
     mark(0);
     fit();
     reflow();
-    gsap.killTweensOf([dname, dtext]);
+    gsap.killTweensOf([dname, typed]);
     dname.textContent = ''; dtext.textContent = '';
     title.play(0);
     entry.restart();
@@ -297,7 +302,7 @@ export function init(root: HTMLElement) {
     shown = -1;
     prog?.kill(); prog = undefined;
     holdCall?.kill(); heldUntil = 0; kbd = false;
-    gsap.killTweensOf([dname, dtext, mkPop]);
+    gsap.killTweensOf([dname, typed, mkPop]);
     gsap.set(mkPop, { scaleX: 1, scaleY: 1 });
     pipFill.forEach((b) => gsap.set(b, { scaleX: 0 }));
     current = 0;

@@ -6,30 +6,35 @@ const { lang } = Astro.props;
 const d = t(lang);
 const items = d.services.items;
 const nn = (n: number) => String(n).padStart(2, '0');
-// Подписи только этого блока: меню, кнопка «дальше», мини-игра и надписи внутри экранчиков.
+// Подписи только этого блока: меню, кнопка «дальше», колесо скидок и надписи внутри экранчиков.
 const ui18n = {
   ru: {
     menu: 'Меню услуг', hint: 'наведите курсор или', next: 'Следующий пункт',
-    game: 'Мини-игра: нажмите, чтобы прыгнуть',
+    game: 'Колесо скидок: нажмите, чтобы крутить',
     w: {
-      tapFine: 'клик или пробел', tapTouch: 'нажмите, чтобы прыгнуть', hi: 'рекорд',
-      bot: 'бот', online: 'в сети', typing: 'печатает…',
-      ask: 'Хочу записаться', pick: 'Выберите время:', t1: '12:00', t2: '18:30', done: 'Готово, жду вас!',
-      send: 'Отправить', spec: 'ТЗ', checks: ['цель', 'аудитория', 'экраны', 'сроки'],
+      bot: 'Запись', online: 'в сети', typing: 'печатает…', msg: 'Сообщение',
+      ask: 'Хочу записаться', pick: 'Выберите время:', slots: ['12:00', '15:30', '18:30'], done: 'Готово! Жду вас в 18:30',
+      nav: ['Обзор', 'Заказы', 'Клиенты', 'Отчёты'], kpi: ['Выручка', 'Заказы', 'Конверсия'], dec: ',',
+      sales: 'Продажи', week: 'Неделя', toast: 'Новый заказ', st: ['новый', 'оплачен', 'в пути'], names: ['Анна', 'Илья', 'Мария', 'Олег'],
+      tasks: 'Задачи', todo: ['Созвон', 'Счёт', 'Макет'], add: 'Релиз',
+      promo: 'Скидка до 30%', spin: 'Крутить', code: 'Ваш промокод', copy: 'Скопировать', copied: 'Скопировано',
     },
   },
   en: {
     menu: 'Services menu', hint: 'hover or', next: 'Next item',
-    game: 'Mini game: press to jump',
+    game: 'Discount wheel: press to spin',
     w: {
-      tapFine: 'click or space', tapTouch: 'tap to jump', hi: 'hi',
-      bot: 'bot', online: 'online', typing: 'typing…',
-      ask: 'I want to book', pick: 'Pick a time:', t1: '12:00', t2: '18:30', done: 'Done, see you!',
-      send: 'Send', spec: 'Spec', checks: ['goal', 'audience', 'screens', 'deadline'],
+      bot: 'Booking', online: 'online', typing: 'typing…', msg: 'Message',
+      ask: 'I want to book', pick: 'Pick a time:', slots: ['12:00', '15:30', '18:30'], done: 'Done! See you at 18:30',
+      nav: ['Overview', 'Orders', 'Clients', 'Reports'], kpi: ['Revenue', 'Orders', 'Conversion'], dec: '.',
+      sales: 'Sales', week: 'Week', toast: 'New order', st: ['new', 'paid', 'shipped'], names: ['Anna', 'Ilya', 'Maria', 'Oleg'],
+      tasks: 'Tasks', todo: ['Call', 'Invoice', 'Mockup'], add: 'Release',
+      promo: 'Up to 30% off', spin: 'Spin', code: 'Your promo code', copy: 'Copy', copied: 'Copied',
     },
   },
 }[lang];
-const widgets = ['sites', 'apps', 'bots', 'cube', 'game', 'ui', 'spec'];
+// сцены экранчика по порядку пунктов меню
+const widgets = ['sites', 'dash', 'devices', 'bots', 'cube', 'promo'];
 
 // Фон: уровень платформера за меню. Пиксельные облака, холмы и земля рисуются здесь в SVG
 // (квадраты по 8 px), в CSS они повторяются по горизонтали и едут с разной скоростью.
@@ -106,9 +111,9 @@ const world = `--w-clouds: ${clouds}; --w-hills: ${hills}; --w-ground: ${ground}
         <div class="services__power" data-services-power>
           <div class="services__tube" data-services-tube>
             {widgets.map((w, i) => (
-              <div class={`svc-w svc-w--${w}`} class:list={[{ 'is-shown': i === 0 }]} aria-hidden={w === 'game' ? undefined : 'true'} data-svc-w={w}>
-                {w === 'game' && (
-                  <button class="svc-game__hit" type="button" aria-label={ui18n.game} data-drag data-svc-hit></button>
+              <div class={`svc-w svc-w--${w}`} class:list={[{ 'is-shown': i === 0 }]} aria-hidden={w === 'promo' ? undefined : 'true'} data-svc-w={w}>
+                {w === 'promo' && (
+                  <button class="svc-game__hit" type="button" aria-label={ui18n.game} data-svc-hit></button>
                 )}
               </div>
             ))}

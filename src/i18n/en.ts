@@ -38,13 +38,12 @@ export const en: Dict = {
   services: {
     title: 'What I do',
     items: [
-      { title: 'Websites', text: 'Landing pages, promos and portfolios with lively motion.' },
-      { title: 'Web apps', text: 'Dashboards, customer accounts, APIs and integrations.' },
-      { title: 'Telegram bots', text: 'Requests, notifications and mini apps inside Telegram.' },
-      { title: '3D and interactive', text: 'Three.js scenes that run smoothly on a phone too.' },
-      { title: 'Small games', text: 'Browser games for promos or just for fun.' },
-      { title: 'Interfaces', text: 'Screens, prototypes and design systems.' },
-      { title: 'Specs and planning', text: 'A clear spec before the first line of code.' },
+      { title: 'Websites', text: 'Landing pages, promo sites and portfolios.' },
+      { title: 'Web apps', text: 'Dashboards, client accounts, APIs and integrations.' },
+      { title: 'Apps', text: 'For phone, desktop or every device at once.' },
+      { title: 'Telegram bots', text: 'Online shops, bookings and requests right in the chat.' },
+      { title: '3D and interactive', text: 'Three.js scenes, 3D showcases and configurators.' },
+      { title: 'Promo games', text: 'Built into a site or bot: prize wheels, quests, mini arcades.' },
     ],
   },
   works: {

@@ -3,7 +3,9 @@
    Слева список с прыгающим треугольником и полосой выделения (текст под полосой инвертируется),
    справа окно диалога: в «экранчике» у каждого пункта своя живая штука, ниже имя и описание печатаются. */
 .services {
-  --rowh: clamp(40px, 8vh, 76px);
+  /* пунктов в меню; окно справа высотой со всё меню */
+  --rows: 6;
+  --rowh: clamp(44px, 9.2vh, 84px);
   --hint-h: 38px;
   /* Tiny5 нарисован на сетке 8 пикселей на кегль: размер заголовка кратен 8, чтобы пиксели букв были ровными */
   --fs-title: clamp(40px, 6.2vw, 112px);
@@ -16,6 +18,12 @@
   --scr-fg: #C6DBA2;
   --scr-ac: #EAF5D6;
   --pip: 8px;
+  /* отступы на одной шкале 4 / 8 / 12 / 16 / 24:
+     --gap внутри окна (от рамки до экрана, от экрана до подписи), --scr-pad от края экранчика
+     до сцены и до «каналов»; рамка окна 6 px (4 px вишнёвая и светлая линия 2 px) */
+  --frame: 6px;
+  --gap: 12px;
+  --scr-pad: 16px;
   font-variant-ligatures: none;
   font-synthesis: none;
   /* палитра экранчика; те же цвета продублированы в widgets.ts для canvas */
@@ -37,7 +45,7 @@
   .services { --fs-title: round(down, clamp(40px, 6.2vw, 112px), 8px); }
 }
 
-.services__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "title title" "menu dialog"; column-gap: clamp(28px, 4.6vw, 88px); row-gap: clamp(16px, 3vh, 34px); align-items: start; }
+.services__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "title title" "menu dialog"; column-gap: clamp(24px, 4.6vw, 88px); row-gap: clamp(16px, 3vh, 32px); align-items: start; }
 
 /* Заголовок: пиксельный, с выдавленной тенью в два шага, как надпись на заставке игры */
 .services__title { grid-area: title; font: 400 var(--fs-title)/.875 var(--font-pixel); letter-spacing: 0; text-transform: uppercase; color: var(--fg); text-shadow: calc(var(--fs-title) / 16) calc(var(--fs-title) / 16) 0 var(--sh1), calc(var(--fs-title) / 8) calc(var(--fs-title) / 8) 0 var(--sh2); }
@@ -61,7 +69,7 @@
 .services__mk-drop, .services__mk-pop { display: block; }
 .services__marker svg { width: 12px; height: 22px; animation: services-nudge .5s steps(1) infinite alternate; }
 @keyframes services-nudge { to { transform: translateX(4px); } }
-.services__hint { display: flex; align-items: center; gap: 6px; height: var(--hint-h); padding: 14px 0 0 12px; font: 500 15px/1 var(--font-game); color: var(--muted); }
+.services__hint { display: flex; align-items: center; gap: 8px; height: var(--hint-h); padding: 12px 0 0 12px; font: 500 15px/1 var(--font-game); color: var(--muted); }
 .services__hint kbd { display: inline-grid; place-items: center; width: 26px; height: 24px; color: var(--fg); box-shadow: inset 0 0 0 2px var(--muted), inset 0 -4px 0 var(--sh1); padding-bottom: 2px; }
 .services__hint kbd svg { width: 14px; height: 8px; }
 /* стрелки работают и под мышью: пока она над меню, клавиши подсвечены */
@@ -69,7 +77,7 @@
 @media (hover: none), (pointer: coarse) { .services__hint { display: none; } }
 
 /* Окно диалога: рамка в 4px со ступенчатыми углами и жёсткая пиксельная тень */
-.services__dialog { --fg: var(--scr-fg); --accent: var(--scr-ac); grid-area: dialog; position: relative; isolation: isolate; height: calc(var(--rowh) * 7 + var(--hint-h)); display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; gap: 12px 0; padding: 16px 16px 14px 18px; }
+.services__dialog { --fg: var(--scr-fg); --accent: var(--scr-ac); grid-area: dialog; position: relative; isolation: isolate; height: calc(var(--rowh) * var(--rows) + var(--hint-h)); display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; gap: var(--gap) 0; padding: calc(var(--frame) + var(--gap)); }
 .services__dialog::before, .services__dialog::after, .services__shade { content: ''; position: absolute; z-index: -1; clip-path: var(--px8); }
 /* жёсткая пиксельная тень отдельным слоем, а не filter: внутри всё время что-то движется */
 .services__shade { inset: 0; z-index: -2; background: var(--sh2); transform: translate(6px, 6px); pointer-events: none; }
@@ -85,7 +93,7 @@
 .services__flash { position: absolute; left: 0; right: 0; top: 50%; z-index: 4; height: 4px; margin-top: -2px; background: var(--accent); opacity: 0; pointer-events: none; }
 
 /* имя на всю ширину окна; описание оставляет справа место под кнопку ▼ */
-.services__say { grid-column: 1 / -1; grid-row: 2; display: grid; gap: 6px; padding-left: 4px; min-width: 0; }
+.services__say { grid-column: 1 / -1; grid-row: 2; display: grid; gap: 4px; min-width: 0; }
 .services__dname, .services__text { display: grid; min-width: 0; }
 .services__dname > *, .services__text > * { grid-area: 1 / 1; }
 .services__ghost { visibility: hidden; }
@@ -94,8 +102,10 @@
 /* курсор не занимает места в строке (отрицательный отступ), поэтому никогда не переносится один на новую строку */
 .services__caret { display: inline-block; width: .5em; height: 1em; margin: 0 calc(-.5em - 4px) 0 4px; vertical-align: -.125em; background: var(--accent); animation: services-caret 1s steps(1) infinite; }
 @keyframes services-caret { 50% { opacity: 0; } }
-/* «каналы» в левом верхнем углу экрана: квадратик показанного пункта заполняется, пока идёт таймер */
-.services__pips { position: absolute; z-index: 2; top: calc(var(--pip) + 2px); left: calc(var(--pip) + 4px); display: flex; gap: calc(var(--pip) / 2); pointer-events: none; }
+/* «каналы» в левом верхнем углу экрана: квадратик показанного пункта заполняется, пока идёт таймер.
+   Стоят на тёмной плашке, как надпись телевизора поверх картинки: при наезде камеры сцена уходит под неё.
+   Край плашки на том же отступе от рамки, что и сцена на общем плане */
+.services__pips { position: absolute; z-index: 2; top: var(--scr-pad); left: var(--scr-pad); display: flex; gap: calc(var(--pip) / 2); padding: 2px; border: 2px solid var(--s1); background: var(--s0); pointer-events: none; }
 .services__pips i { position: relative; width: var(--pip); height: var(--pip); background: color-mix(in oklab, var(--fg) 24%, var(--s0)); }
 .services__pips i.is-on { background: color-mix(in oklab, var(--fg) 42%, var(--s0)); }
 .services__pips b { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
@@ -107,17 +117,19 @@
 @media (hover: hover) and (pointer: fine) { .services__next:hover svg { color: var(--fg); } }
 
 .services:not(.is-on) .services__world i,
-.services:not(.is-on) .services__marker svg, .services:not(.is-on) .services__caret, .services:not(.is-on) .services__next svg, .services:not(.is-on) .services__scan::after, .services:not(.is-on) .svc-hint { animation-play-state: paused; }
+.services:not(.is-on) .services__marker svg, .services:not(.is-on) .services__caret, .services:not(.is-on) .services__next svg, .services:not(.is-on) .services__scan::after, .services:not(.is-on) .svc-caret { animation-play-state: paused; }
 
-/* ---------- фон: уровень платформера, слои едут с разной скоростью шагами по 4 px ---------- */
+/* ---------- фон: уровень платформера, слои плавно едут с разной скоростью ----------
+   Каждый слой шире экрана на одну плитку и сдвигается трансформом ровно на плитку, потом
+   начинает заново: шов не виден, браузер не перерисовывает слой, а только двигает готовую картинку. */
 .services__world { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.services__world i { position: absolute; left: 0; right: 0; background-repeat: repeat-x; background-position: 0 0; }
-.services__clouds { top: calc(var(--header-h) + 2vh); height: 72px; background-image: var(--w-clouds); animation: services-scroll-c 96s steps(140) infinite; }
-.services__hills { bottom: 48px; height: 128px; background-image: var(--w-hills); animation: services-scroll-h 52s steps(160) infinite; }
-.services__ground { bottom: 0; height: 48px; background-image: var(--w-ground); animation: services-scroll-g 1.7s steps(8) infinite; }
-@keyframes services-scroll-c { to { background-position: -560px 0; } }
-@keyframes services-scroll-h { to { background-position: -640px 0; } }
-@keyframes services-scroll-g { to { background-position: -32px 0; } }
+.services__world i { position: absolute; left: 0; background-repeat: repeat-x; background-position: 0 0; will-change: transform; animation: linear infinite; }
+.services__clouds { top: calc(var(--header-h) + 2vh); width: calc(100% + 560px); height: 72px; background-image: var(--w-clouds); animation-name: services-scroll-c; animation-duration: 96s; }
+.services__hills { bottom: 48px; width: calc(100% + 640px); height: 128px; background-image: var(--w-hills); animation-name: services-scroll-h; animation-duration: 52s; }
+.services__ground { bottom: 0; width: calc(100% + 32px); height: 48px; background-image: var(--w-ground); animation-name: services-scroll-g; animation-duration: 1.7s; }
+@keyframes services-scroll-c { to { transform: translate3d(-560px, 0, 0); } }
+@keyframes services-scroll-h { to { transform: translate3d(-640px, 0, 0); } }
+@keyframes services-scroll-g { to { transform: translate3d(-32px, 0, 0); } }
 /* содержимое стоит над землёй */
 .services > .block__inner { padding-bottom: max(64px, clamp(32px, 6vh, 72px)); }
 
@@ -127,9 +139,11 @@
 .svc-w svg { max-width: none; }
 .svc-st { position: absolute; left: 50%; top: 50%; width: 360px; height: 170px; margin: calc(-85px + var(--dy, 0px)) 0 0 -180px; transform: scale(var(--k, 1)); }
 .svc-st div, .svc-st span, .svc-st svg { position: absolute; }
-.svc-all { left: 0; top: 0; width: 360px; height: 170px; }
+/* слой камеры: трансформ ставит widgets.ts, начало координат в левом верхнем углу сцены */
+.svc-cam, .svc-all { left: 0; top: 0; width: 360px; height: 170px; }
+.svc-cam { transform-origin: 0 0; }
+.svc-t { font: 400 8px/1 var(--font-pixel); white-space: nowrap; color: var(--fg); }
 .svc-cv { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
-.svc-txt { font: 400 11px/1 var(--font-pixel); white-space: nowrap; }
 .svc-arc { font: 400 8px/1 var(--font-arcade); white-space: nowrap; }
 
 /* окно с рамкой в 2px и срезанными углами */
@@ -162,29 +176,31 @@
 .svc-st .svc-dot { width: 4px; height: 4px; background: var(--fg); }
 .svc-st .svc-check { position: relative; display: inline-block; vertical-align: -1px; margin-left: 4px; }
 
-/* интерфейс */
-.svc-tg { border: 2px solid var(--fg); background: var(--s0); clip-path: var(--px2); }
-.svc-knob { background: var(--fg); }
-.svc-btn { display: grid; place-items: center; background: var(--accent); color: var(--s0); font: 400 14px/1 var(--font-pixel); clip-path: var(--px2); box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--accent) 55%, var(--s2)); }
-.svc-ghost { border: 2px solid var(--fg); clip-path: var(--px2); }
+/* поле ввода и мигающий курсор в нём */
+.svc-field { border: 2px solid color-mix(in oklab, var(--fg) 45%, var(--s0)); background: var(--s1); }
+.svc-typed { color: var(--accent); }
+.svc-typed b { font-weight: 400; }
+.svc-caret { display: inline-block; width: 2px; height: .9em; margin-left: 1px; vertical-align: -.1em; background: var(--accent); animation: services-caret 1s steps(1) infinite; }
+.svc-send { background: var(--accent); clip-path: var(--px2); }
+.svc-feed { overflow: hidden; }
+
+/* панель веб-приложения */
+.svc-tbl { background: var(--s0); overflow: hidden; }
+.svc-pill { display: grid; place-items: center; font: 400 8px/1 var(--font-pixel); color: var(--s0); clip-path: var(--px2); }
+.svc-toast { background: var(--s0); border: 2px solid var(--accent); clip-path: var(--px2); }
+
+/* приложения на устройствах */
 .svc-box { border: 2px solid var(--fg); }
+.svc-phone { background: var(--s1); border: 3px solid var(--fg); clip-path: var(--px4); overflow: hidden; }
 
-/* ТЗ: светлый лист */
-.svc-paper { background: var(--accent); clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 14px) 0, calc(100% - 14px) 2px, calc(100% - 12px) 2px, calc(100% - 12px) 4px, calc(100% - 10px) 4px, calc(100% - 10px) 6px, calc(100% - 8px) 6px, calc(100% - 8px) 8px, calc(100% - 6px) 8px, calc(100% - 6px) 10px, calc(100% - 4px) 10px, calc(100% - 4px) 12px, calc(100% - 2px) 12px, calc(100% - 2px) 14px, 100% 14px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px)); }
-.svc-fold { background: var(--fg); clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 8px 6px, 8px 8px, 10px 8px, 10px 10px, 12px 10px, 12px 12px, 14px 12px, 14px 14px, 0 14px); }
-.svc-ink { color: var(--s0); }
-.svc-cb { border: 2px solid var(--s0); }
-.svc-ibar { background: color-mix(in oklab, var(--s0) 30%, var(--accent)); }
-.svc-ink-bg { background: var(--s0); }
-
-/* игра */
+/* колесо скидок */
+.svc-btn { display: grid; place-items: center; background: var(--accent); color: var(--s0); font: 400 14px/1 var(--font-pixel); clip-path: var(--px2); box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--accent) 55%, var(--s2)); }
+.svc-wheel { position: absolute; image-rendering: pixelated; }
+.svc-prize { background: var(--s0); border: 2px solid var(--accent); clip-path: var(--px2); }
+.svc-code { border: 2px dashed var(--accent); }
+.svc-code__t { display: grid; place-items: center; color: var(--accent); }
 .svc-game__hit { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .svc-game__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 0; }
-.svc-score { position: absolute; top: calc(var(--pip) + 2px); right: calc(var(--pip) + 4px); z-index: 1; display: flex; gap: 14px; font: 400 8px/1 var(--font-arcade); color: var(--accent); pointer-events: none; }
-.svc-score span:first-child { color: var(--fg); }
-.svc-hint { position: absolute; left: 0; right: 0; bottom: 6%; z-index: 1; text-align: center; font: 400 16px/1 var(--font-pixel); color: var(--accent); pointer-events: none; animation: services-blink 1.4s steps(1) infinite; transition: opacity .2s; }
-@keyframes services-blink { 72% { opacity: 0; } }
-.svc-hint.is-off { opacity: 0; animation: none; }
 
 /* номера пунктов: 16px рядом с пунктами в 32px, 8px рядом с пунктами в 24px и меньше */
 @media (min-width: 1280px), (max-width: 900px) and (min-width: 601px) {
@@ -193,41 +209,38 @@
 }
 @media (min-width: 1280px) and (min-height: 860px) {
   .services { --pip: 10px; }
-  .svc-score { font-size: 16px; gap: 24px; }
-  .svc-hint { font-size: 24px; }
 }
 
-/* Узкие экраны: окно сверху, меню под ним */
 /* Узкие экраны: окно сверху, меню под ним; полоса выделения и окно кончаются на одной линии справа */
 @media (max-width: 900px) {
-  .services { --rowh: 52px; --fs-title: 56px; --fs-row: 28px; --fs-name: 28px; --fs-text: 20px; --pip: 10px; }
-  .services__grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "title" "dialog" "menu"; row-gap: 18px; }
-  .services__dialog { height: auto; grid-template-rows: auto auto; padding: 12px 12px 10px 14px; gap: 10px 0; }
+  .services { --rowh: 52px; --fs-title: 56px; --fs-row: 28px; --fs-name: 28px; --fs-text: 20px; --pip: 10px; --scr-pad: 12px; }
+  .services__grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "title" "dialog" "menu"; row-gap: 16px; }
+  .services__dialog { height: auto; grid-template-rows: auto auto; }
   .services__screen { height: clamp(140px, 36vw, 280px); }
   .services__menu { width: 100%; }
 }
 @media (max-width: 600px) {
-  .services { --rowh: 42px; --fs-title: 48px; --fs-row: 21px; --fs-name: 21px; --fs-text: 15px; --pip: 8px; }
-  .services__grid { row-gap: 16px; }
+  .services { --rowh: 42px; --fs-title: 48px; --fs-row: 21px; --fs-name: 21px; --fs-text: 15px; --pip: 8px; --gap: 8px; --scr-pad: 8px; }
   .services__menu { padding-left: 24px; }
   .services__marker { left: -24px; }
   .services__btn { padding-right: 8px; }
   .services__row { grid-template-columns: 32px minmax(0, 1fr); }
   .services__item.is-active .services__row { transform: translateX(6px); }
   .services__screen { height: clamp(136px, 48vw, 210px); }
-  .services__say { gap: 4px; }
   .services__text { padding-right: 36px; }
   .services__shade { transform: translate(4px, 4px); }
-  .svc-hint { font-size: 16px; bottom: 5%; }
 }
 /* телефон с панелями браузера: всё плотнее, чтобы блок влез целиком */
 @media (max-width: 600px) and (max-height: 860px) {
   .services { --rowh: 36px; --fs-title: 40px; --fs-row: 19px; --fs-name: 19px; --fs-text: 14.5px; }
-  .services > .block__inner { padding-bottom: 14px; }
   .services__grid { row-gap: 12px; }
-  .services__screen { height: clamp(112px, min(36vw, 19vh), 170px); }
-  .services__dialog { padding: 10px 10px 8px 12px; gap: 8px 0; }
+  /* экранчик берёт себе всё, что осталось: чем он крупнее, тем меньше камере приходится наезжать */
+  .services__screen { height: clamp(120px, min(50vw, 25vh), 200px); }
   .services__say { gap: 2px; }
+}
+/* низкий телефон: земли и холмов нет, содержимое опускается к самому низу */
+@media (max-width: 600px) and (max-height: 720px) {
+  .services > .block__inner { padding-bottom: 14px; }
   .services__hills, .services__ground { display: none; }
 }
 @media (max-width: 380px) {
@@ -236,22 +249,22 @@
 
 /* ноутбук совсем низкий: строки меню чуть ниже, чтобы окно и меню влезли */
 @media (min-width: 901px) and (max-height: 600px) {
-  .services { --rowh: 7.4vh; }
+  .services { --rowh: 8.6vh; }
 }
 /* узкое окно на компьютере (601-900 и не выше экрана): меню и окно снова рядом, шрифты мельче */
 @media (min-width: 601px) and (max-width: 900px) and (orientation: landscape) {
-  .services { --rowh: clamp(40px, 8vh, 76px); --fs-title: 48px; --fs-row: 19px; --fs-num: 12px; --fs-name: 22px; --fs-text: 16px; }
+  .services { --rowh: clamp(44px, 9.2vh, 84px); --fs-title: 48px; --fs-row: 19px; --fs-num: 12px; --fs-name: 22px; --fs-text: 16px; }
   .services__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "title title" "menu dialog"; column-gap: 24px; }
   .services__row { grid-template-columns: 40px minmax(0, 1fr); }
-  .services__dialog { height: calc(var(--rowh) * 7 + var(--hint-h)); grid-template-rows: minmax(0, 1fr) auto; }
+  .services__dialog { height: calc(var(--rowh) * var(--rows) + var(--hint-h)); grid-template-rows: minmax(0, 1fr) auto; }
   .services__screen { height: auto; }
 }
 /* телефон боком: меню и окно рядом, всё по высоте экрана */
 @media (orientation: landscape) and (max-height: 540px) {
-  .services { --rowh: calc((100dvh - 150px) / 7); --fs-title: 32px; --fs-row: 17px; --fs-name: 17px; --fs-text: 13.5px; }
+  .services { --rowh: calc((100dvh - 150px) / var(--rows)); --fs-title: 32px; --fs-row: 17px; --fs-name: 17px; --fs-text: 13.5px; --gap: 8px; --scr-pad: 8px; }
   .services > .block__inner { padding-bottom: 10px; }
-  .services__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "title title" "menu dialog"; row-gap: 10px; column-gap: 28px; }
-  .services__dialog { height: calc(var(--rowh) * 7); padding: 8px 10px 8px 12px; gap: 6px 0; }
+  .services__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "title title" "menu dialog"; row-gap: 8px; column-gap: 24px; }
+  .services__dialog { height: calc(var(--rowh) * var(--rows)); }
   .services__screen { height: auto; }
   .services__hills, .services__ground { display: none; }
 }
