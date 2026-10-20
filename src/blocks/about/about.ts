@@ -472,6 +472,9 @@ export function init(root: HTMLElement) {
     });
     return d;
   });
+  // перетаскивание с инерцией всё время следит за скоростью наклеек и держит тикер GSAP на всём сайте:
+  // включаем его, только пока блок открыт
+  drags.forEach((d) => d.disable());
   const homeStickers = () => {
     drags.forEach((d, i) => {
       gsap.killTweensOf(stickers[i]);
@@ -498,6 +501,7 @@ export function init(root: HTMLElement) {
 
   watchBlock(root, () => {
     active = true;
+    drags.forEach((d) => d.enable());
     marginsIn.play(1.1);
     titleDone = false;
     fitRing();
@@ -529,6 +533,7 @@ export function init(root: HTMLElement) {
     titleDone = false;
     later.splice(0).forEach((c) => c.kill());
     stopSwing();
+    drags.forEach((d) => d.disable());
     gsap.set(sheet, { xPercent: 0, yPercent: 0 });
     gsap.set(marginsEl, { x: 0, y: 0 });
     homeStickers();
