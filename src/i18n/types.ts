@@ -12,7 +12,8 @@ export interface Dict {
   /** lead: одно короткое вступление; notes: пометки от руки; stickers: короткие наклейки-факты */
   about: { title: string; photoAlt: string; lead: string; notes: string[]; stickers: string[]; aka: string };
   services: { title: string; items: { title: string; text: string }[] };
-  works: { title: string; open: string; year: string; stack: string };
+  /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера */
+  works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string };
   process: { title: string; steps: { title: string; text: string }[] };
   contacts: {
     title: string; lead: string;

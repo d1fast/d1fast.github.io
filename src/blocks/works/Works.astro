@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getCollection } from 'astro:content';
 import { t, langPrefix, type Lang } from '../../i18n';
-import { SHAPES, ROWS } from './hall';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
@@ -12,245 +11,103 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const all = await getCollection('work', (e) => e.id.endsWith(`/${lang}`) && !e.data.draft);
 const works = all.sort((a, b) => a.data.order - b.data.order || b.data.year - a.data.year);
 
-// Каждая работа = фильм в репертуаре зала: кадры (горизонтальные скриншоты), афиша и мини-постер сеанса.
+// Акцент по проекту: красится кнопка при наведении на окно и заполнение точек. Нет записи: остаётся тема.
+const ACCENT: Record<string, string> = { perfume: '#F2B44C' };
+
+// Поле экранов: окно показывает горизонтальные кадры активной работы, телефон рядом вертикальные,
+// а наклонная плоскость за ними собрана из экранов всех работ (уменьшенные варианты -800).
 const has = (p: string) => fs.existsSync(path.join(process.cwd(), 'public', p));
-const small = (src: string) => { const s = src.replace(/\.webp$/, '-800.webp'); return has(s) ? s : null; };
-const films = works.map((w) => {
+const small = (src: string) => { const s = src.replace(/\.webp$/, '-800.webp'); return s !== src && has(s) ? s : null; };
+const items = works.map((w) => {
   const slug = w.id.split('/')[0];
-  const stills = w.data.media.filter((m) => !m.portrait && m.kind === 'image').map((m) => {
+  const shots = w.data.media.filter((m) => !m.portrait && m.kind === 'image');
+  const desk = (shots.length ? shots : [{ src: w.data.cover, alt: w.data.coverAlt }]).map((m) => {
     const s = small(m.src);
-    return { src: base + m.src, srcset: s ? `${base + s} 800w, ${base + m.src} 1600w` : undefined, thumb: base + (s ?? m.src), alt: m.alt, caption: m.caption ?? '' };
+    return { src: base + m.src, srcset: s ? `${base + s} 800w, ${base + m.src} 1600w` : undefined, tile: base + (s ?? m.src), alt: m.alt };
   });
-  // мини-постер сеанса: вертикальный кадр, если есть, иначе обложка
-  const tall = w.data.media.find((m) => m.portrait && m.kind === 'image');
-  return { w: w.data, slug, href: `${base}${langPrefix(lang)}/work/${slug}/`, stills, poster: base + (tall?.src ?? w.data.cover) };
+  const phones = w.data.media.filter((m) => m.portrait && m.kind === 'image').map((m) => ({ src: base + m.src, alt: m.alt }));
+  return { w: w.data, slug, href: `${base}${langPrefix(lang)}/work/${slug}/`, desk, phones, accent: ACCENT[slug] };
 });
-const first = films[0];
-
-// Подписи только этого блока
-const ui = {
-  ru: { reel: 'Кадры фильма', carousel: 'карусель', frame: 'Кадр', of: 'из', role: 'Роль', program: 'Сеансы', now: 'сейчас на экране', yours: 'Ваш проект', soon: 'премьера скоро', write: 'написать мне' },
-  en: { reel: 'Film stills', carousel: 'carousel', frame: 'Frame', of: 'of', role: 'Role', program: 'Showtimes', now: 'now showing', yours: 'Your project', soon: 'premiere soon', write: 'write to me' },
-}[lang];
-
-// лампочки вывески: верх и низ слева направо, бока сверху вниз; номер по кругу задаёт бегущий огонь
-const BULBS = 13, SIDE = 3;
-const bulbs = {
-  top: Array.from({ length: BULBS }, (_, i) => i),
-  right: Array.from({ length: SIDE }, (_, i) => BULBS + i),
-  bottom: Array.from({ length: BULBS }, (_, i) => BULBS * 2 + SIDE - 1 - i),
-  left: Array.from({ length: SIDE }, (_, i) => BULBS * 2 + SIDE * 2 - 1 - i),
-};
-const FOLDS = 10;
-
-// ламбрекен: полотно со складками и фестоны с бахромой по низу
-const SW = 5, VW = 1000, sw = VW / SW;
-const swags = Array.from({ length: SW }, (_, i) => i);
-const valance = `M0 0H${VW}V66` + swags.slice().reverse().map((i) => `Q${i * sw + sw / 2} 126 ${i * sw} 66`).join('') + 'Z';
-const fringe = 'M0 66' + swags.map((i) => `Q${i * sw + sw / 2} 126 ${(i + 1) * sw} 66`).join('');
+const first = items[0];
+const tiles = JSON.stringify([
+  ...items.flatMap((it) => it.desk.map((m) => ({ src: m.tile, portrait: false }))),
+  ...items.flatMap((it) => it.phones.map((m) => ({ src: m.src, portrait: true }))),
+]);
+const screenLabel = (i: number, n: number) => d.works.screen.replace('{n}', String(i + 1)).replace('{total}', String(n));
 ---
-<section class="block block--works works" id="works" data-theme="works" data-block="works">
-  <div class="works__hall" aria-hidden="true">
-    <i class="works__wall works__wall--l"></i>
-    <i class="works__wall works__wall--r"></i>
-    <i class="works__house" data-works-house></i>
+<section class="block block--works works" id="works" data-theme="works" data-block="works" style={first?.accent ? `--accent:${first.accent}` : undefined}
+  data-works-accents={JSON.stringify(items.map((it) => it.accent ?? ''))} data-works-slugs={JSON.stringify(items.map((it) => it.slug))}>
+  <div class="works__field" aria-hidden="true" data-works-field>
+    <div class="works__drift" data-works-drift>
+      <div class="works__plane" data-works-plane data-works-tiles={tiles}>
+        <div class="works__spin" data-works-spin>
+          <div class="works__strip" data-works-strip></div>
+        </div>
+      </div>
+    </div>
   </div>
+  <div class="works__veil" aria-hidden="true"></div>
 
-  <div class="block__inner container works__inner" data-works-inner>
-    <canvas class="works__beam" aria-hidden="true" data-works-beam></canvas>
+  <div class="block__inner container works__inner">
+    <h2 class="works__title" data-works-title>{d.works.title}</h2>
 
-    <h2 class="works__title" data-works-title>
-      <span class="works__sign-text" data-works-sign>{d.works.title}</span>
-      <span class="works__bulbs" aria-hidden="true">
-        {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-          <span class={`works__bulb-row works__bulb-row--${side}`}>
-            {(side === 'bottom' || side === 'left' ? bulbs[side].slice().reverse() : bulbs[side]).map((k) => <i class="works__bulb" style={`--k:${k % 3}`} data-works-bulb></i>)}
-          </span>
+    <div class="works__card" data-works-card>
+      {items.map((it, k) => (
+        <div class="works__proj" data-works-proj={k} hidden={k !== 0}>
+          <h3 class="works__name" data-works-name>{it.w.title}</h3>
+          <p class="works__sub" data-works-sub>{it.w.subtitle}</p>
+          <p class="works__meta" data-works-meta><span>{it.w.year}</span><span>{it.w.stack.join(', ')}</span></p>
+          <a class="works__open" href={it.href} data-works-open>
+            <span>{d.works.open}</span><span class="works__arrow" aria-hidden="true">→</span>
+          </a>
+        </div>
+      ))}
+      <ul class:list={['works__list', { 'is-many': items.length > 5 }]} data-works-list role="list">
+        {items.map((it, k) => (
+          <li class="works__row" data-works-row={k} hidden={k === 0}>
+            <button type="button" class="works__pick" data-works-pick={k}>
+              <span class="works__pick-name">{it.w.title}</span><span class="works__pick-year">{it.w.year}</span>
+            </button>
+          </li>
         ))}
-      </span>
-    </h2>
+        <li class="works__row works__row--yours">
+          <a class="works__yours" href="#contacts" aria-label={`${d.works.yours}: ${d.hero.ctaContact.toLowerCase()}`} data-works-yours>
+            <span class="works__type" aria-hidden="true"><span class="works__ghost" data-works-ghost>{d.works.yours}</span><i class="works__caret" data-works-caret></i></span>
+            <span class="works__write" aria-hidden="true">{d.hero.ctaContact} <span class="works__arrow">→</span></span>
+          </a>
+        </li>
+      </ul>
+    </div>
 
     {first && (
       <div class="works__stage" data-works-stage>
-        <span class="works__house-glow" aria-hidden="true" data-works-houseglow></span>
-        <span class="works__spill" aria-hidden="true" data-works-spill></span>
-        <span class="works__sconce works__sconce--l" aria-hidden="true" data-works-sconce>
-          <svg viewBox="0 0 30 64"><path d="M2.5 9C9 5 21 5 27.5 9L23 46C21 56 9 56 7 46Z" class="works__sconce-shade" /><path d="M9.5 9.5L12 50M15 8.5V53M20.5 9.5L18 50" class="works__sconce-ribs" /><rect x="1" y="5" width="28" height="5" rx="2.5" class="works__sconce-stem" /><circle cx="15" cy="58" r="3" class="works__sconce-stem" /></svg>
-        </span>
-        <span class="works__sconce works__sconce--r" aria-hidden="true" data-works-sconce>
-          <svg viewBox="0 0 30 64"><path d="M2.5 9C9 5 21 5 27.5 9L23 46C21 56 9 56 7 46Z" class="works__sconce-shade" /><path d="M9.5 9.5L12 50M15 8.5V53M20.5 9.5L18 50" class="works__sconce-ribs" /><rect x="1" y="5" width="28" height="5" rx="2.5" class="works__sconce-stem" /><circle cx="15" cy="58" r="3" class="works__sconce-stem" /></svg>
-        </span>
-
-        <div class="works__screenbox" role="group" aria-roledescription={ui.carousel} aria-label={ui.reel} data-works-reel>
-          <a class="works__screen" href={first.href} tabindex="-1" draggable="false" transition:name={`work-${first.slug}`} data-works-screen>
-            {films.map((f, fi) => (
-              <span class="works__film" data-works-film={fi}>
-                {f.stills.map((s, i) => (
-                  <img class:list={['works__still', { 'is-active': fi === 0 && i === 0 }]} src={s.src} srcset={s.srcset} sizes="(min-width: 980px) 50vw, 100vw" alt={s.alt} width="1600" height="900" loading="lazy" decoding="async" draggable="false" aria-hidden={fi === 0 && i === 0 ? undefined : 'true'} data-works-still data-thumb={s.thumb} />
-                ))}
-              </span>
-            ))}
-            <span class="works__fx" aria-hidden="true">
-              <i class="works__flash" data-works-flash></i>
-              <i class="works__blade works__blade--t" data-works-blade></i>
-              <i class="works__blade works__blade--b" data-works-blade></i>
-              <i class="works__bar" data-works-bar></i>
-              <i class="works__leak" data-works-leak></i>
-              <i class="works__hot"></i>
-              <i class="works__grain"></i>
-              <i class="works__scratch"></i>
-              <i class="works__flicker"></i>
-              <i class="works__vignette"></i>
-            </span>
-            <span class="works__leader" aria-hidden="true" data-works-leader>
-              <i class="works__ring"></i>
-              <i class="works__sweep" data-works-sweep></i>
-              <i class="works__ring works__ring--in"></i>
-              <i class="works__cross"></i>
-              <b data-works-leader-num>3</b>
+        <div class="works__win" role="group" aria-roledescription={d.works.carousel} aria-label={d.works.screens} data-works-win>
+          <a class="works__desk" href={first.href} tabindex="-1" draggable="false" aria-label={`${d.works.open}: ${first.w.title}`}
+             transition:name={`work-${first.slug}`} data-works-desk>
+            <span class="works__zoom">
+              {items.map((it, k) => it.desk.map((m, i) => (
+                <img class:list={['works__shot', { 'is-on': k === 0 && i === 0 }]} src={m.src} srcset={m.srcset} sizes="(min-width: 761px) 60vw, 100vw"
+                  alt={m.alt} width="1600" height="900" decoding="async" loading={k === 0 && i === 0 ? 'eager' : 'lazy'} draggable="false"
+                  hidden={k !== 0} aria-hidden={k === 0 && i === 0 ? undefined : 'true'} data-works-shot={k} />
+              )))}
             </span>
           </a>
-        </div>
-
-        {(['l', 'r'] as const).map((side) => (
-          <span class={`works__curtain works__curtain--${side}`} aria-hidden="true" data-works-curtain={side}>
-            {Array.from({ length: FOLDS }, (_, i) => <i class="works__fold" style={`--i:${i}`} data-works-fold></i>)}
+          <span class="works__phone" aria-hidden="true" hidden={!first.phones.length} data-works-phone>
+            {items.map((it, k) => it.phones.map((m, i) => (
+              <img class:list={['works__pshot', { 'is-on': k === 0 && i === 0 }]} src={m.src} alt="" width="780" height="1688" decoding="async"
+                loading={k === 0 && i === 0 ? 'eager' : 'lazy'} draggable="false" hidden={k !== 0} data-works-pshot={k} />
+            )))}
           </span>
-        ))}
-
-        <span class="works__valance" aria-hidden="true">
-          <svg viewBox={`0 0 ${VW} 132`} preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="wk-vfold" x1="0" x2="56" y1="0" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="repeat">
-                <stop offset="0" stop-color="#2A060C" /><stop offset=".22" stop-color="#5E0F1A" /><stop offset=".5" stop-color="#9E1E2E" /><stop offset=".78" stop-color="#5E0F1A" /><stop offset="1" stop-color="#2A060C" />
-              </linearGradient>
-              <linearGradient id="wk-vshade" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stop-color="#000" stop-opacity=".55" /><stop offset=".3" stop-color="#000" stop-opacity="0" /><stop offset=".8" stop-color="#000" stop-opacity=".1" /><stop offset="1" stop-color="#000" stop-opacity=".45" />
-              </linearGradient>
-            </defs>
-            <path d={valance} fill="url(#wk-vfold)" />
-            <path d={valance} fill="url(#wk-vshade)" />
-            {swags.map((i) => <path d={`M${i * sw + 18} 34Q${i * sw + sw / 2} 92 ${(i + 1) * sw - 18} 34M${i * sw + 40} 16Q${i * sw + sw / 2} 58 ${(i + 1) * sw - 40} 16`} class="works__drape" />)}
-            <path d={fringe} class="works__fringe" />
-            <path d={`M0 15H${VW}`} class="works__rail" />
-            <path d={valance} class="works__valance-light" />
-          </svg>
-        </span>
-
-        <div class="works__apron">
-          {films.map((f, fi) => (
-            <div class="works__reelctl" data-works-ctl={fi} hidden={fi !== 0}>
-              <div class="works__seg">
-                {f.stills.map((_, i) => (
-                  <button type="button" class="works__seg-btn" aria-label={`${ui.frame} ${i + 1} ${ui.of} ${f.stills.length}`} aria-current={fi === 0 && i === 0 ? 'true' : 'false'} data-works-btn>
-                    <i><i data-works-fill></i></i>
-                  </button>
-                ))}
-              </div>
-              <div class="works__subs" aria-live="off" data-works-subs>
-                {f.stills.map((s, i) => <p class:list={['works__sub', { 'is-active': i === 0 }]} aria-hidden={i === 0 ? undefined : 'true'} data-works-sub>{s.caption}</p>)}
-              </div>
-            </div>
-          ))}
         </div>
-      </div>
-    )}
-
-    {films.length > 0 && (
-      <div class="works__bills">
-        {films.map((f, fi) => (
-          <div class="works__bill" data-works-bill={fi} hidden={fi !== 0}>
-            <h3 class="works__name" data-works-name>{f.w.title}</h3>
-            <p class="works__tag" data-works-tag>{f.w.subtitle}</p>
-            <div class="works__bottom">
-              <dl class="works__credits" data-works-credits>
-                <div class="works__year"><dt class="visually-hidden">{d.works.year}</dt><dd>{f.w.year}</dd></div>
-                <div><dt class="visually-hidden">{ui.role}</dt><dd>{f.w.role}</dd></div>
-                <div><dt class="visually-hidden">{d.works.stack}</dt><dd>{f.w.stack.join(', ')}</dd></div>
-              </dl>
-              <a class="works__ticket" href={f.href} data-magnetic="0.18" data-works-open>
-                <span class="works__ticket-main" data-works-ticket>
-                  <span class="works__ticket-label"><span class="works__ticket-ghost" aria-hidden="true">{d.works.open}</span><span data-scramble>{d.works.open}</span></span>
-                </span>
-                <span class="works__ticket-stub" aria-hidden="true" data-works-stub>
-                  <svg viewBox="0 0 16 16"><path d="M4 12L12 4M6 4h6v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                </span>
-              </a>
-            </div>
+        {items.map((it, k) => (
+          <div class="works__ticks" data-works-ticks={k} hidden={k !== 0}>
+            {it.desk.map((_, i) => (
+              <button type="button" class="works__tick" tabindex={i ? -1 : 0} aria-label={screenLabel(i, it.desk.length)}
+                aria-current={i === 0 ? 'true' : 'false'} data-works-tick><i></i></button>
+            ))}
           </div>
         ))}
       </div>
     )}
-
-    <nav class="works__program" aria-label={ui.program}>
-      <ul class="works__sessions">
-        {films.map((f, fi) => (
-          <li data-works-session-item>
-            <button type="button" class="works__session" aria-pressed={fi === 0 ? 'true' : 'false'} data-works-session={fi}>
-              <span class="works__mini"><img src={f.poster} alt="" width="180" height="270" loading="lazy" decoding="async" draggable="false" /></span>
-              <span class="works__session-text">
-                <span class="works__session-name">{f.w.title}</span>
-                <span class="works__session-state"><i class="works__live" aria-hidden="true"></i><span class="works__state-now">{ui.now}</span><span class="works__state-year">{f.w.year}</span></span>
-              </span>
-            </button>
-          </li>
-        ))}
-        <li data-works-session-item>
-          <a class="works__session works__session--soon" href="#contacts" aria-label={`${ui.yours}: ${ui.soon}, ${ui.write}`}>
-            <span class="works__mini works__mini--soon" aria-hidden="true">
-              <i class="works__mini-ring"></i><i class="works__mini-hand"></i><b>?</b>
-            </span>
-            <span class="works__session-text" aria-hidden="true">
-              <span class="works__session-name">{ui.yours}</span>
-              <span class="works__session-state">{ui.soon}</span>
-            </span>
-          </a>
-        </li>
-      </ul>
-    </nav>
   </div>
-
-  <div class="works__rows" aria-hidden="true" data-works-rows>
-    {ROWS.map((row) => (
-      <div class={`works__row works__row--${row.name}`} style={`--n:${row.n}`}>
-        {row.seats.map((s) => (
-          <span class="works__seat" style={`--i:${s.i};--a:${s.arc}`}>
-            {s.person && (
-              <span class="works__p" data-works-p data-act={s.person.act} style={s.person.style}>
-                <span class="works__act" data-works-act>
-                  <span class="works__bob">
-                    <svg class="works__head" viewBox="0 0 100 100">
-                      {s.person.act === 'popcorn' && (
-                        <g class="works__arm" transform="translate(0 46)" data-works-arm>
-                          <path class="works__rimpath" d="M88 100C92 88 90 75 81 65C78 61 73 58 70 60C68 62 69 66 72 69C77 75 79 88 77 100Z" />
-                          <path class="works__bodypath" d="M88 101.5C92 89.5 90 76.5 81 66.5C78 62.5 73 59.5 70 61.5C68 63.5 69 67.5 72 70.5C77 76.5 79 89.5 77 101.5Z" />
-                        </g>
-                      )}
-                      <use href={`#wk-${s.person.shape}`} class="works__rim" />
-                      <use href={`#wk-${s.person.shape}`} class="works__body" />
-                      {(s.person.act === 'turn' || s.person.act === 'whisper') && <path class="works__nose" data-works-nose d="M32.5 43C27 45 24.5 50 26 53.5C27.5 56 31 55.5 33.5 54.5Z" />}
-                    </svg>
-                  </span>
-                </span>
-              </span>
-            )}
-            {s.bucket && (
-              <svg class="works__bucket" viewBox="0 0 40 64">
-                <g class="works__corn">{[[9, 18, 6], [16, 13, 6.5], [24, 14, 6.5], [31, 18, 6], [20, 8, 5.5], [12, 9, 4.5], [28, 9, 4.5]].map(([x, y, r]) => <circle cx={x} cy={y} r={r} />)}</g>
-                <path d="M5 20H35L31 64H9Z" class="works__tub" />
-                <path d="M11 20L13 64M20 20V64M29 20L27 64" class="works__stripes" />
-              </svg>
-            )}
-            <span class="works__back"></span>
-          </span>
-        ))}
-      </div>
-    ))}
-  </div>
-
-  <svg class="works__defs" aria-hidden="true" focusable="false" width="0" height="0">
-    <defs>
-      {Object.entries(SHAPES).map(([k, v]) => <symbol id={`wk-${k}`} viewBox="0 0 100 100" set:html={v} />)}
-    </defs>
-  </svg>
 </section>

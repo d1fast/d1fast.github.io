@@ -51,6 +51,10 @@ export const en: Dict = {
     open: 'View project',
     year: 'Year',
     stack: 'Stack',
+    yours: 'Your project',
+    screens: 'Project screens',
+    screen: 'Screen {n} of {total}',
+    carousel: 'carousel',
   },
   process: {
     title: 'How I work',

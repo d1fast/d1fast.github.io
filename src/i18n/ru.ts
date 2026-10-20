@@ -51,6 +51,10 @@ export const ru: Dict = {
     open: 'Открыть кейс',
     year: 'Год',
     stack: 'Стек',
+    yours: 'Ваш проект',
+    screens: 'Экраны проекта',
+    screen: 'Экран {n} из\u00a0{total}',
+    carousel: 'карусель',
   },
   process: {
     title: 'Как я работаю',

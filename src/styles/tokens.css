@@ -9,7 +9,7 @@
   --font-hand: 'Caveat', 'Comic Sans MS', cursive;           /* пометки от руки, письмо */
   --font-pixel: 'Tiny5', ui-monospace, monospace;            /* что делаю: игровое меню (кириллица без искажений) */
   --font-arcade: 'Press Start 2P', ui-monospace, monospace;  /* мелкие игровые подписи */
-  --font-cond: 'Oswald', 'Arial Narrow', sans-serif;         /* работы: афиша, кино */
+  --font-wide: 'Roboto Flex', 'Arial', sans-serif;           /* работы: широкий гротеск указателя */
   --font-tech: 'Sofia Sans Condensed', 'Arial Narrow', sans-serif; /* как я работаю: надписи чертежа */
   --font-letter: 'Lora', Georgia, serif;                     /* контакты: письмо, в пару к почерку */
   --font-game: 'Tektur', system-ui, sans-serif;              /* что делаю: пункты меню и окно диалога */
@@ -39,7 +39,8 @@
   --forest: #013E37;    --butter: #FFEFB3;
   --cherry: #5C0E2B;    --matcha: #C9DDA6;
   --cobalt: #1D34C9;    --paper: #F3F0E8;    --flame: #FF6A3D;
-  --charcoal: #21262B;  --chalk: #F1F1F1;  --steel: #A9B4C0;  --slate: #5F7389;
+  --charcoal: #21262B;  --slate: #5F7389;
+  --night: #0E0F10;     --frost: #EEECE6;  --amber: #F2B44C;
   --concrete: #EEF0F2;
 
   /* значения по умолчанию = первый экран */
@@ -58,7 +59,7 @@
 [data-theme="hero"]     { --bg: var(--cobalt);   --fg: var(--paper);    --accent: var(--flame);   --accent-fg: #0B1240;         --focus: var(--paper);   --error: #FFC2B3; }
 [data-theme="about"]    { --bg: var(--butter);   --fg: var(--forest);   --accent: var(--forest);  --accent-fg: var(--butter);   --focus: var(--forest);  --error: #8A1400; }
 [data-theme="services"] { --bg: var(--matcha);   --fg: var(--cherry);   --accent: #C8174F;        --accent-fg: var(--matcha);   --focus: var(--cherry);  --error: #8A1400; }
-[data-theme="works"]    { --bg: var(--charcoal); --fg: var(--chalk);    --accent: var(--steel);   --accent-fg: var(--charcoal); --focus: var(--chalk);   --error: #FFB4A8; }
+[data-theme="works"]    { --bg: var(--night);    --fg: var(--frost);    --accent: var(--amber);   --accent-fg: #1A1407;         --focus: var(--frost);   --error: #FFB4A8; }
 [data-theme="process"]  { --bg: var(--concrete); --fg: var(--charcoal); --accent: var(--slate);   --accent-fg: var(--concrete); --focus: var(--charcoal);--error: #B3230D; }
 [data-theme="contacts"] { --bg: var(--powder);   --fg: var(--wine);     --accent: var(--wine);    --accent-fg: var(--powder);   --focus: var(--wine);    --error: #8A1400; }
 [data-theme] { --muted: color-mix(in oklab, var(--fg) 70%, var(--bg)); --line: color-mix(in oklab, var(--fg) 22%, transparent); --line-strong: color-mix(in oklab, var(--fg) 55%, transparent); }

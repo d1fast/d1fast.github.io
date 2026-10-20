@@ -1,512 +1,516 @@
 import { gsap } from 'gsap';
-import { watchBlock, splitChars, splitLines, rise, wrap, type Player } from '../../scripts/block';
-import { createBeam } from './beam';
-import { createAudience } from './audience';
-
-/** Склейки между кадрами. roll: кадр уезжает вбок (палец, стрелки), shutter: обтюратор, wipe: шторка
- *  со световой кромкой, flash: засветка, slip: кадр проскальзывает в окне, cut: жёсткая склейка (флипбук мышью). */
-type Cut = 'roll' | 'shutter' | 'wipe' | 'flash' | 'slip' | 'cut';
-const AUTO: Cut[] = ['shutter', 'wipe', 'flash', 'slip'];
-const HOLD = 3.6; // сколько кадр стоит на экране при автопоказе, с
-const GAP = 14; // промежуток между кадрами при протяжке пальцем, px
-const FOLLOW = 0.85; // насколько кадр идёт за пальцем
-const LEAD = 0.34; // сколько стоит каждая цифра ракорда, с
-const OPEN_R = 0.52; // ширина полотна занавеса в долях сцены (works.css, .works__curtain)
+import { SplitText } from 'gsap/SplitText';
+import { watchBlock, splitChars, rise, wrap, type Player } from '../../scripts/block';
 
 /**
- * Работы: кинозал. При входе в зале гаснет свет и бра, занавес разъезжается, складки сбиваются у краёв,
- * загорается луч проектора, ракорд отсчитывает 3-2-1, и пошёл фильм: кадры работы сменяются сами
- * разными склейками. Мышью по экрану кадры листаются как флипбук, пальцем свайпом, кнопками под экраном
- * напрямую. Каждая работа = сеанс в репертуаре справа; выбор сеанса меняет фильм и афишу.
+ * Работы: поле экранов. Фон блока = наклонная плоскость из настоящих экранов всех работ, приглушённая.
+ * На входе плоскость влетает из глубины, один экран отрывается от неё и встаёт окном с чётким кадром,
+ * рядом поднимается экран телефона, потом набирается текст и печатается «Ваш проект».
+ * В покое ничего не крутится: плоскость стоит, окно плоское, нет ни одного цикла на rAF.
+ * Кадры сменяются сами раз в HOLD секунд (setTimeout, тикер GSAP между сменами засыпает),
+ * и при каждой смене плоскость проезжает на один столбец. Пальцем кадры листаются горизонтальным
+ * свайпом по окну, с клавиатуры стрелками на точках. Строки других работ переключают проект на месте.
  */
+const HOLD = 4.5; // сколько кадр стоит при автопоказе, с (works.css, works-fill)
+const PERIOD = 3; // узор плоскости повторяется каждые 3 столбца: на столько полосу можно незаметно отмотать
+const ROWS = 6; // рядов в кадре плоскости (кандидатов больше, лишние отсекаются замером)
+const VERT = '(max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait)'; // вертикальная раскладка (works.css)
+const TYPE_STEP = 0.035; // печать «Ваш проект»: секунд на букву
+
+type Tile = { src: string; portrait: boolean };
+type Mode = 'fade' | 'slide';
+
 export function init(root: HTMLElement) {
   const q = gsap.utils.selector(root);
-  const screen = q<HTMLAnchorElement>('[data-works-screen]')[0];
-  if (!screen) return;
-  const inner = q<HTMLElement>('[data-works-inner]')[0];
-  const sign = q<HTMLElement>('[data-works-title]')[0];
-  const folds = q<HTMLElement>('[data-works-fold]');
-  const blades = q<HTMLElement>('[data-works-blade]');
-  const bar = q<HTMLElement>('[data-works-bar]')[0];
-  const leak = q<HTMLElement>('[data-works-leak]')[0];
-  const flash = q<HTMLElement>('[data-works-flash]')[0];
-  const leader = q<HTMLElement>('[data-works-leader]')[0];
-  const leaderNum = q<HTMLElement>('[data-works-leader-num]')[0];
-  const sweep = q<HTMLElement>('[data-works-sweep]')[0];
-  const sessions = q<HTMLButtonElement>('[data-works-session]');
+  const one = <T extends Element = HTMLElement>(s: string) => root.querySelector(s) as T;
+  const win = one('[data-works-win]');
+  if (!win) return;
+  const drift = one('[data-works-drift]');
+  const plane = one('[data-works-plane]');
+  const spin = one('[data-works-spin]');
+  const strip = one('[data-works-strip]');
+  const title = one('[data-works-title]');
+  const card = one('[data-works-card]');
+  const list = one('[data-works-list]');
+  const stage = one('[data-works-stage]');
+  const desk = one<HTMLAnchorElement>('[data-works-desk]');
+  const phone = one('[data-works-phone]');
+  const ghost = one('[data-works-ghost]');
+  const caret = one('[data-works-caret]');
+  const rows = q<HTMLElement>('[data-works-row]');
+  const vert = matchMedia(VERT);
   const fine = matchMedia('(hover: hover) and (pointer: fine)');
+  const slugs: string[] = JSON.parse(root.dataset.worksSlugs || '[]');
+  const accents: string[] = JSON.parse(root.dataset.worksAccents || '[]');
 
-  // фильмы: у каждой работы свои кадры, субтитры, кнопки кадров и афиша
-  const films = q<HTMLElement>('[data-works-film]').map((el, i) => {
-    const ctl = q<HTMLElement>(`[data-works-ctl="${i}"]`)[0];
-    const bill = q<HTMLElement>(`[data-works-bill="${i}"]`)[0];
-    const open = bill?.querySelector<HTMLAnchorElement>('[data-works-open]');
+  // работы: карточка, кадры окна, кадры телефона, точки
+  const P = q<HTMLElement>('[data-works-proj]').map((el, k) => {
+    const name = el.querySelector<HTMLElement>('[data-works-name]')!;
     return {
-      el, ctl, bill,
-      stills: [...el.querySelectorAll<HTMLImageElement>('[data-works-still]')],
-      subs: ctl ? [...ctl.querySelectorAll<HTMLElement>('[data-works-sub]')] : [],
-      subsBox: ctl?.querySelector<HTMLElement>('[data-works-subs]') ?? null,
-      btns: ctl ? [...ctl.querySelectorAll<HTMLButtonElement>('[data-works-btn]')] : [],
-      fills: ctl ? [...ctl.querySelectorAll<HTMLElement>('[data-works-fill]')] : [],
-      href: open?.getAttribute('href') || screen.getAttribute('href') || '',
-      slug: (open?.getAttribute('href') || '').split('/').filter(Boolean).pop() || '',
-      amb: [] as ([number, number, number] | null)[],
-      show: null as Player[] | null,
+      el, name,
+      rest: [...el.querySelectorAll<HTMLElement>('[data-works-sub], [data-works-meta], [data-works-open]')],
+      href: el.querySelector('[data-works-open]')!.getAttribute('href') || '',
+      label: el.querySelector<HTMLAnchorElement>('[data-works-open] span')!.textContent + ': ' + name.textContent,
+      shots: q<HTMLImageElement>(`[data-works-shot="${k}"]`),
+      phones: q<HTMLImageElement>(`[data-works-pshot="${k}"]`),
+      box: one(`[data-works-ticks="${k}"]`),
+      ticks: q<HTMLButtonElement>(`[data-works-ticks="${k}"] [data-works-tick]`),
+      slug: slugs[k] || '', accent: accents[k] || '',
     };
   });
-  if (!films.length) return;
-  const allStills = films.flatMap((f) => f.stills);
-  allStills.forEach((img) => { img.loading = 'eager'; });
 
-  const beam = createBeam(q<HTMLCanvasElement>('[data-works-beam]')[0], inner, screen);
-  const crowd = createAudience(root);
+  /* ---------- плоскость ---------- */
+  const tiles: Tile[] = JSON.parse(plane.dataset.worksTiles || '[]');
+  const deskT = tiles.filter((t) => !t.portrait), phoneT = tiles.filter((t) => t.portrait);
+  let step = 0; // ширина столбца с зазором, px
+  let sx = 0; // сдвиг полосы, держится в [-PERIOD*step, 0]
+  let builtV = vert.matches, builtW = 0, built = false;
 
-  /* ---------- цвет кадра: средний цвет миниатюры, приподнятый до заметного света ---------- */
-  const probe = document.createElement('canvas');
-  probe.width = 16; probe.height = 9;
-  const pctx = probe.getContext('2d', { willReadFrequently: true });
-  const lift = ([r, g, b]: number[]): [number, number, number] => {
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const l = (max + min) / 510;
-    const k = Math.min(3.2, 0.62 / Math.max(l, 0.08));
-    // светлее и чуть насыщеннее, но без кислотности
-    const m = (r + g + b) / 3;
-    return [r, g, b].map((c) => Math.max(0, Math.min(255, Math.round((m + (c - m) * 1.35) * k)))) as [number, number, number];
-  };
-  films.forEach((f) => f.stills.forEach((img, i) => {
-    f.amb[i] = null;
-    const src = img.dataset.thumb;
-    if (!src || !pctx) return;
-    const im = new Image();
-    im.decoding = 'async';
-    im.onload = () => {
-      try {
-        pctx.drawImage(im, 0, 0, 16, 9);
-        const d = pctx.getImageData(0, 0, 16, 9).data;
-        let r = 0, g = 0, b = 0;
-        for (let k = 0; k < d.length; k += 4) { r += d[k]; g += d[k + 1]; b += d[k + 2]; }
-        const n = d.length / 4;
-        f.amb[i] = lift([r / n, g / n, b / n]);
-        if (live && f === film() && i === cur) tint(i, 0.6);
-      } catch { /* кадр с другого домена: остаётся цвет по умолчанию */ }
+  /**
+   * Собирает тайлы плоскости. Тип и картинка тайла зависят только от (c % 3, r), поэтому столбец c+3
+   * повторяет столбец c и полосу можно отмотать на период незаметно. Сначала раскладывается щедрая сетка
+   * пустых рамок, потом остаются только те, что видны в позе покоя (при сдвиге 0 и -3 столбца) или в начале
+   * входа: так плоскость покрывает экран любой формы, а узлов и картинок столько, сколько видно.
+   */
+  const build = () => {
+    const v = vert.matches, W = root.clientWidth || innerWidth;
+    builtV = v; builtW = W;
+    const tw = Math.round(v ? gsap.utils.clamp(130, W > 600 ? 250 : 170, W * 0.4) : gsap.utils.clamp(240, 380, W * 0.23));
+    const g = Math.round(tw * 0.06);
+    step = tw + g;
+    const box = v ? 7 : 9; // коробка плоскости в столбцах: задаёт кадр, сами тайлы могут выходить за неё
+    plane.style.setProperty('--pw', `${box * step - g}px`);
+    plane.style.setProperty('--ph', `${Math.round(6 * (0.69 * tw + g) - g)}px`);
+    const deskH = Math.round((tw * 9) / 16), phoneW = Math.round(tw * 0.5), phoneH = Math.round(phoneW / 0.4621);
+    const all: { el: HTMLElement; src: string }[] = [];
+    const frag = document.createDocumentFragment();
+    for (let c = -PERIOD; c < box + PERIOD + 2; c++) {
+      const k = ((c % PERIOD) + PERIOD) % PERIOD;
+      const top = Math.round((1 - k) * 0.33 * tw);
+      const put = (r: number, y: number) => {
+        const tall = phoneT.length > 0 && (((k + r) % 4) + 4) % 4 === 1;
+        const t = tall ? phoneT[(((k + r) % phoneT.length) + phoneT.length) % phoneT.length] : deskT[(((k * 3 + r) % deskT.length) + deskT.length) % deskT.length];
+        const h = tall ? phoneH : deskH;
+        if (t) {
+          const el = document.createElement('span');
+          el.className = 'works__tile';
+          el.style.cssText = `left:${c * step + (tall && k % 2 ? tw - phoneW : 0)}px;top:${y}px;width:${tall ? phoneW : tw}px;height:${h}px`;
+          frag.append(el);
+          all.push({ el, src: t.src });
+        }
+        return h;
+      };
+      for (let r = 0, y = top; r < ROWS; r++) y += put(r, y) + g;
+      for (let r = -1, y = top; r >= -2; r--) { const tall = phoneT.length > 0 && (((k + r) % 4) + 4) % 4 === 1; y -= (tall ? phoneH : deskH) + g; put(r, y); }
+    }
+    strip.replaceChildren(frag);
+    // замер: поза покоя при сдвиге 0 и -3 столбца и поза в начале входа (плоскость дальше и видна шире)
+    const keep = new Set<HTMLElement>();
+    const saved = [plane.style.transform, spin.style.transform, strip.style.transform];
+    const r0 = root.getBoundingClientRect(), m = 28;
+    const look = (pt: string, st: string, sx0: number) => {
+      plane.style.transform = pt; spin.style.transform = st; strip.style.transform = `translateX(${sx0}px)`;
+      for (const { el } of all) {
+        if (keep.has(el)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.right > r0.left - m && r.left < r0.right + m && r.bottom > r0.top - m && r.top < r0.bottom + m) keep.add(el);
+      }
     };
-    im.src = src;
-  }));
-  const LEADER: [number, number, number] = [150, 158, 168];
-  const tint = (i: number | null, duration = 0.9) => {
-    const c = i === null ? LEADER : film().amb[i] ?? [168, 176, 188];
-    // цвет меняется сразу, под склейкой: плавная смена переменной перекрашивала бы весь зал каждый кадр и тормозила
-    void duration;
-    gsap.set(root, { '--amb': `rgb(${c[0]}, ${c[1]}, ${c[2]})` });
-    beam.color(c);
+    look('rotateX(56deg)', 'rotate(-24deg)', 0);
+    look('rotateX(56deg)', 'rotate(-24deg)', -PERIOD * step);
+    [plane.style.transform, spin.style.transform, strip.style.transform] = saved;
+    for (const { el, src } of all) {
+      if (!keep.has(el)) { el.remove(); continue; }
+      const img = document.createElement('img');
+      img.alt = ''; img.decoding = 'async'; img.draggable = false; img.src = src;
+      el.append(img);
+    }
+    strip.dataset.step = String(step);
+    sx = 0;
+    gsap.set(strip, { x: 0 });
+    built = true;
+  };
+
+  let ride: gsap.core.Tween | null = null;
+  /** Плоскость проезжает на один столбец (dir 1 дальше, -1 назад). Перед шагом полоса незаметно отматывается на период. */
+  const stepPlane = (dir: number) => {
+    if (!step) return;
+    ride?.progress(1);
+    if (dir > 0 && sx - step < -PERIOD * step - 0.5) sx += PERIOD * step;
+    if (dir < 0 && sx + step > 0.5) sx -= PERIOD * step;
+    gsap.set(strip, { x: sx });
+    sx -= dir * step;
+    ride = gsap.to(strip, { x: sx, duration: 0.9, ease: 'power2.inOut', onComplete: () => { ride = null; } });
+  };
+
+  /* ---------- название: широкий гротеск, слово никогда не переносится ---------- */
+  const names: Player[] = [];
+  const nameOf = (k: number) => (names[k] ??= splitChars(P[k].name, { yPercent: 110, duration: 0.7, stagger: 0.022 }));
+  /** Сужает ширину шрифта шагами по 5% до 100%, потом уменьшает кегль, пока самое длинное слово
+   *  (если название стоит в одну строку без переноса, то вся строка) не влезет в свою коробку.
+   *  С какой ширины начинать и до какого кегля можно уменьшать, задаёт works.css (--name-st, --name-min). */
+  const fitName = () => {
+    const el = P[pi].name;
+    if (!el.offsetWidth) return;
+    el.style.fontStretch = ''; el.style.fontSize = '';
+    const cs = getComputedStyle(el);
+    const line = cs.whiteSpace === 'nowrap';
+    const words = [...el.querySelectorAll<HTMLElement>('.wd-mask')];
+    const box = el.clientWidth;
+    const wide = () => (line || !words.length ? el.scrollWidth > box + 1 : words.some((w) => w.offsetWidth > box + 1));
+    let s = parseFloat(cs.getPropertyValue('--name-st')) || 151;
+    while (wide() && s > 100) { s = Math.max(100, s - 5); el.style.fontStretch = `${s}%`; }
+    let fs = parseFloat(cs.fontSize);
+    const min = parseFloat(cs.getPropertyValue('--name-min')) || 24;
+    while (wide() && fs > min) { fs -= 1; el.style.fontSize = `${fs}px`; }
+  };
+
+  /* ---------- «Ваш проект»: подсказка в пустом поле с курсором ---------- */
+  const gchars = SplitText.create(ghost, { type: 'chars', charsClass: 'works__gc', aria: 'none' }).chars as HTMLElement[];
+  gchars.forEach((c, i) => c.style.setProperty('--i', String(i)));
+  let offs: number[] = [], gw = 0;
+  // курсор стоит в потоке после текста; печать двигает его только transform: x = правый край буквы минус ширина строки
+  const measureType = () => {
+    const r = ghost.getBoundingClientRect();
+    gw = r.width;
+    offs = gchars.map((c) => c.getBoundingClientRect().right - r.right);
   };
 
   /* ---------- состояние ---------- */
-  let fi = 0; // текущий фильм
-  let cur = 0; // текущий кадр
-  let live = false; // фильм идёт, можно листать
-  let hover = false, focus = false, dragging = false;
-  let busy: gsap.core.Timeline | null = null;
-  let hold: gsap.core.Tween | null = null;
-  let show: gsap.core.Timeline | null = null;
-  let autoIdx = 0;
-  const film = () => films[fi];
-  const stills = () => film().stills;
+  let pi = 0; // активная работа
+  let cur = 0; // активный кадр
+  let active = false; // блок на экране
+  let auto = false; // автопоказ запущен (после входа)
+  let ready = false; // вход доигран, работает параллакс
+  let first = true; // вход по прямой ссылке, без перехода сцены
+  let timer = 0, runRaf = 0;
+  let swap: gsap.core.Timeline | null = null;
+  let flip: gsap.core.Timeline | null = null;
+  const holds = new Set<string>(); // причины паузы автопоказа: hover, focus, touch
 
-  const normalize = () => {
-    stills().forEach((im, k) => {
-      gsap.set(im, { clearProps: 'transform,clipPath,filter,zIndex' });
-      gsap.set(im, { autoAlpha: k === cur ? 1 : 0, zIndex: k === cur ? 1 : 0 });
-    });
-    gsap.set(blades, { scaleY: 0 });
-    gsap.set([bar, leak, flash], { opacity: 0 });
+  const proj = () => P[pi];
+  const stopTimer = () => { clearTimeout(timer); timer = 0; cancelAnimationFrame(runRaf); runRaf = 0; };
+  /** Перезапускает показ кадра: полный HOLD и заполнение точки с нуля. На паузе таймер снят, точка замирает. */
+  const arm = () => {
+    stopTimer();
+    const p = proj();
+    const t = p.ticks[cur];
+    p.ticks.forEach((b) => b !== t && b.classList.remove('is-run'));
+    const paused = !auto || !active || holds.size > 0 || document.hidden || !!flip;
+    root.classList.toggle('is-paused', paused);
+    if (paused || p.shots.length < 2 || !t) return;
+    t.classList.remove('is-run');
+    // класс снимается и ставится в следующем кадре, чтобы CSS-анимация началась заново
+    runRaf = requestAnimationFrame(() => { runRaf = 0; t.classList.add('is-run'); });
+    timer = window.setTimeout(() => show(cur + 1), HOLD * 1000);
   };
-  const mark = (i: number) => {
-    const f = film();
-    f.stills.forEach((im, k) => { im.classList.toggle('is-active', k === i); if (k === i) im.removeAttribute('aria-hidden'); else im.setAttribute('aria-hidden', 'true'); });
-    f.subs.forEach((c, k) => { c.classList.toggle('is-active', k === i); if (k === i) c.removeAttribute('aria-hidden'); else c.setAttribute('aria-hidden', 'true'); });
-    f.btns.forEach((b, k) => { b.classList.toggle('is-active', k === i); b.setAttribute('aria-current', String(k === i)); });
-    f.fills.forEach((el, k) => gsap.set(el, { scaleX: k < i ? 1 : 0, overwrite: true }));
-  };
-  // старый субтитр уходит целиком, и только потом встаёт новый
-  const swapSub = (from: number, to: number) => {
-    const subs = film().subs;
-    if (!subs.length) return;
-    subs.forEach((c, k) => { if (k !== from && k !== to) { gsap.killTweensOf(c); gsap.set(c, { autoAlpha: 0, y: 0 }); } });
-    gsap.to(subs[from], { autoAlpha: 0, y: -5, duration: 0.15, ease: 'power2.in', overwrite: true });
-    gsap.fromTo(subs[to], { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.45, delay: 0.2, ease: 'expo.out', overwrite: true });
-  };
+  const hold = (why: string, on: boolean) => { if (on) holds.add(why); else holds.delete(why); arm(); };
 
-  /* ---------- склейки ---------- */
-  const go = (target: number, kind: Cut, dir = 1) => {
-    const list = stills(), n = list.length;
-    const to = ((target % n) + n) % n;
-    if (to === cur || n < 2) return;
-    busy?.progress(1);
-    const a = list[cur], b = list[to];
-    const from = cur;
-    cur = to;
-    mark(to);
-    swapSub(from, to);
-    tint(to);
-    crowd.react();
-    const W = screen.clientWidth;
-    const tl = gsap.timeline({ onComplete: () => { busy = null; normalize(); } });
-    busy = tl;
-    gsap.set(a, { zIndex: 1 });
-    if (kind === 'roll') {
-      // кадр уезжает вбок, новый въезжает вплотную; если кадр уже тянули пальцем, промежуток не прыгает
-      const ax = Number(gsap.getProperty(a, 'x')) || 0;
-      gsap.set(b, { autoAlpha: 1, zIndex: 2, x: ax, xPercent: (100 + (GAP / W) * 100) * dir });
-      tl.to(a, { xPercent: -(100 + (GAP / W) * 100) * dir, x: 0, duration: 0.8, ease: 'expo.inOut' }, 0)
-        .to(b, { xPercent: 0, x: 0, duration: 0.8, ease: 'expo.inOut' }, 0);
-    } else if (kind === 'shutter') {
-      // обтюратор закрывается и открывается со вспышкой лампы
-      tl.to(blades, { scaleY: 1, duration: 0.2, ease: 'power3.in' }, 0)
-        .add(() => { gsap.set(a, { autoAlpha: 0 }); gsap.set(b, { autoAlpha: 1, zIndex: 2 }); }, 0.2)
-        .to(blades, { scaleY: 0, duration: 0.45, ease: 'power3.out' }, 0.3)
-        .fromTo(flash, { opacity: 0.4 }, { opacity: 0, duration: 0.5, ease: 'power2.out', immediateRender: false }, 0.3);
-    } else if (kind === 'wipe') {
-      // шторка со световой кромкой, старый кадр чуть уходит в сторону
-      gsap.set(b, { autoAlpha: 1, zIndex: 2, clipPath: dir > 0 ? 'inset(0% 0% 0% 100%)' : 'inset(0% 100% 0% 0%)' });
-      tl.to(b, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.85, ease: 'expo.inOut' }, 0)
-        .to(a, { xPercent: -7 * dir, duration: 0.85, ease: 'expo.inOut' }, 0)
-        .fromTo(bar, { x: dir > 0 ? W : 0, opacity: 1 }, { x: dir > 0 ? 0 : W, duration: 0.85, ease: 'expo.inOut' }, 0)
-        .to(bar, { opacity: 0, duration: 0.2 }, 0.68);
-    } else if (kind === 'flash') {
-      // засветка: пятно света проходит по кадру, новый кадр проявляется из пересвета
-      tl.fromTo(leak, { xPercent: -45 * dir, opacity: 0 }, { xPercent: 45 * dir, duration: 0.9, ease: 'power2.inOut' }, 0)
-        .to(leak, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0)
-        .to(leak, { opacity: 0, duration: 0.45, ease: 'power2.in' }, 0.45)
-        .fromTo(b, { autoAlpha: 0, zIndex: 2, filter: 'brightness(2.2) contrast(.85)' }, { autoAlpha: 1, filter: 'brightness(1) contrast(1)', duration: 0.65, ease: 'power2.out' }, 0.2)
-        .set(a, { autoAlpha: 0 }, 0.5);
-    } else if (kind === 'slip') {
-      // кадр проскальзывает в окне проектора, как при сбитой рамке, и встаёт с отскоком
-      gsap.set(b, { autoAlpha: 1, zIndex: 2, yPercent: 100 });
-      tl.to(a, { yPercent: -100, duration: 0.55, ease: 'power3.in' }, 0)
-        .to(b, { yPercent: 0, duration: 0.55, ease: 'power3.in' }, 0)
-        .to(b, { keyframes: { yPercent: [0, -3, 1.2, -0.4, 0] }, duration: 0.45, ease: 'none' }, 0.55)
-        .fromTo(flash, { opacity: 0.18 }, { opacity: 0, duration: 0.3, ease: 'power2.out', immediateRender: false }, 0.55);
-    } else {
-      // жёсткая склейка: кадр меняется сразу, короткий блик
-      gsap.set(a, { autoAlpha: 0 });
-      gsap.set(b, { autoAlpha: 1, zIndex: 2 });
-      tl.fromTo(flash, { opacity: 0.22 }, { opacity: 0, duration: 0.28, ease: 'power2.out' }, 0);
-    }
-  };
-
-  /* ---------- автопоказ ---------- */
-  const paused = () => !live || hover || focus || dragging;
-  const startHold = () => {
-    hold?.kill();
-    hold = null;
-    if (!live) return;
-    const f = film();
-    if (f.stills.length < 2) return;
-    hold = gsap.fromTo(f.fills[cur], { scaleX: 0 }, {
-      scaleX: 1, duration: HOLD, ease: 'none',
-      onComplete: () => { go(cur + 1, AUTO[autoIdx++ % AUTO.length], 1); startHold(); },
-    });
-    if (paused()) hold.pause();
-  };
-  const sync = () => { if (hold) { if (paused()) hold.pause(); else hold.resume(); } };
-  const user = (to: number, kind: Cut, dir: number) => {
-    if (!live) return;
-    film().subsBox?.setAttribute('aria-live', 'polite');
-    go(to, kind, dir);
-    startHold();
-  };
-
-  // наведение на экран и фокус с клавиатуры ставят показ на паузу
-  const stage = q<HTMLElement>('[data-works-stage]')[0];
-  stage.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { hover = true; sync(); } });
-  stage.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { hover = false; sync(); } });
-  stage.addEventListener('focusin', (e) => { focus = (e.target as Element).matches(':focus-visible'); sync(); });
-  stage.addEventListener('focusout', (e) => { if (!stage.contains(e.relatedTarget as Node)) { focus = false; sync(); } });
-
-  // кнопки кадров под экраном и стрелки на них
-  films.forEach((f, k) => f.btns.forEach((b, i) => b.addEventListener('click', () => { if (k === fi) user(i, 'wipe', i > cur ? 1 : -1); })));
-  stage.addEventListener('keydown', (e) => {
-    if (!(e.target as HTMLElement).closest('[data-works-btn]')) return;
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    e.preventDefault();
-    const dir = e.key === 'ArrowRight' ? 1 : -1;
-    user(cur + dir, 'roll', dir);
-    film().btns[cur]?.focus();
+  const markTicks = () => proj().ticks.forEach((b, j) => {
+    const on = j === cur;
+    b.setAttribute('aria-current', String(on));
+    b.tabIndex = on ? 0 : -1;
+    if (!on) b.classList.remove('is-run');
   });
+  const markShots = () => proj().shots.forEach((s, j) => (j === cur ? s.removeAttribute('aria-hidden') : s.setAttribute('aria-hidden', 'true')));
 
-  // мышь: позиция по горизонтали выбирает кадр, как в флипбуке
-  screen.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !live || !fine.matches) return;
-    const n = stills().length;
-    const r = screen.getBoundingClientRect();
-    const i = Math.max(0, Math.min(n - 1, Math.floor(((e.clientX - r.left) / r.width) * n)));
-    if (i !== cur) { film().subsBox?.setAttribute('aria-live', 'polite'); go(i, 'cut', i > cur ? 1 : -1); hold?.kill(); hold = null; }
-  });
-  screen.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && live && !hold) startHold(); });
+  /** Мгновенно ставит первые кадры активной работы. */
+  const showFirst = () => {
+    const p = proj();
+    cur = 0;
+    gsap.killTweensOf([...p.shots, ...p.phones]);
+    p.shots.forEach((s, j) => gsap.set(s, { opacity: j ? 0 : 1, zIndex: j ? 0 : 1, clearProps: 'transform,willChange' }));
+    p.phones.forEach((s, j) => gsap.set(s, { opacity: j ? 0 : 1, zIndex: j ? 0 : 1, clearProps: 'transform,willChange' }));
+    markTicks();
+    markShots();
+  };
 
-  // тачпад: горизонтальный жест по экрану листает кадры
-  let lastWheel = 0;
-  screen.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || Math.abs(e.deltaX) < 6) return;
-    e.preventDefault();
-    const now = performance.now();
-    if (now - lastWheel < 650) { lastWheel = now; return; }
-    lastWheel = now;
-    const dir = e.deltaX > 0 ? 1 : -1;
-    user(cur + dir, 'roll', dir);
-  }, { passive: false });
+  // на время смены кадр получает свой слой: прозрачность и масштаб считает композитор, картинка не перерисовывается каждый кадр
+  const LAYER = 'opacity, transform';
+  /** Проявление кадра поверх прежнего (таймер, точки, клавиши). */
+  const fadeIn = (tl: gsap.core.Timeline, from: HTMLElement, to: HTMLElement, at: number) => {
+    gsap.set(to, { zIndex: 2, willChange: LAYER });
+    tl.fromTo(to, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, at)
+      .fromTo(to, { scale: 1.035 }, { scale: 1, duration: 0.8, ease: 'expo.out', clearProps: 'transform' }, at)
+      .add(() => { gsap.set(from, { opacity: 0, zIndex: 0, clearProps: 'transform,willChange' }); gsap.set(to, { zIndex: 1, clearProps: 'willChange' }); }, at + 0.8);
+  };
 
-  // скриншот не тащится призраком за курсором, а протяжка мышью не открывает кейс
-  screen.addEventListener('dragstart', (e) => e.preventDefault());
-  let mx = 0, my = 0;
-  screen.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') { mx = e.clientX; my = e.clientY; } });
-  screen.addEventListener('click', (e) => { if (e.pointerType === 'mouse' && Math.hypot(e.clientX - mx, e.clientY - my) > 8) e.preventDefault(); });
-
-  // палец: кадр тянется за свайпом, из-за края выезжает соседний; отпустил дальше порога, кадр меняется.
-  // Вертикальный свайп по экрану остаётся сцене и листает блоки, горизонтальный принадлежит кадрам:
-  // его touchend не доходит до сцены.
-  let sx = 0, sy = 0, drag = false, swiped = false, claimed = false, pid = -1, peek = -1;
-  const hidePeek = () => { if (peek >= 0 && peek !== cur) gsap.set(stills()[peek], { autoAlpha: 0, x: 0, xPercent: 0, zIndex: 0 }); peek = -1; };
-  screen.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' || !live) return;
-    busy?.progress(1);
-    sx = e.clientX; sy = e.clientY; drag = true; swiped = false; claimed = false; pid = e.pointerId;
-    dragging = true; sync();
-  });
-  screen.addEventListener('pointermove', (e) => {
-    if (!drag || e.pointerId !== pid) return;
-    const list = stills(), n = list.length;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!claimed) {
-      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
-      claimed = true;
+  /** Смена кадра. mode slide: свайп, кадр уезжает в сторону жеста (dir 1 дальше, -1 назад). */
+  const show = (i: number, mode: Mode = 'fade', dir = 1) => {
+    const p = proj();
+    const n = p.shots.length;
+    if (n < 2 || flip) return;
+    i = ((i % n) + n) % n;
+    if (i === cur) return;
+    swap?.progress(1);
+    const from = p.shots[cur], to = p.shots[i];
+    const tl = gsap.timeline({ onComplete: () => { if (swap === tl) swap = null; } });
+    swap = tl;
+    if (mode === 'fade') fadeIn(tl, from, to, 0);
+    else {
+      const w = desk.clientWidth;
+      gsap.set(to, { zIndex: 2, willChange: LAYER });
+      gsap.set(from, { willChange: LAYER });
+      tl.fromTo(to, { x: dir * 0.12 * w, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'expo.out', clearProps: 'transform' }, 0)
+        .to(from, { x: -dir * 0.12 * w, opacity: 0, duration: 0.3, ease: 'power2.in' }, 0)
+        .add(() => { gsap.set(from, { opacity: 0, zIndex: 0, clearProps: 'transform,willChange' }); gsap.set(to, { zIndex: 1, clearProps: 'willChange' }); }, 0.45);
     }
-    const off = dx * FOLLOW;
-    gsap.set(list[cur], { x: off });
-    const dir = dx < 0 ? 1 : -1;
-    const k = (cur + dir + n) % n;
-    if (n > 1 && k !== cur) {
-      if (k !== peek) { hidePeek(); peek = k; gsap.set(list[k], { autoAlpha: 1, zIndex: 2, xPercent: 0 }); }
-      gsap.set(list[k], { x: off + dir * (screen.clientWidth + GAP) });
-    }
-  });
-  const endDrag = (e: PointerEvent) => {
-    if (!drag || e.pointerId !== pid) return;
-    drag = false; dragging = false;
-    const list = stills(), n = list.length;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (e.type === 'pointerup' && claimed && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      swiped = true;
-      const dir = dx < 0 ? 1 : -1;
-      if (peek !== (cur + dir + n) % n) hidePeek();
-      peek = -1;
-      user(cur + dir, 'roll', dir);
-    } else {
-      const k = peek, dir = dx < 0 ? 1 : -1;
-      peek = -1;
-      gsap.to(list[cur], { x: 0, duration: 0.5, ease: 'expo.out' });
-      if (k >= 0) gsap.to(list[k], { x: dir * (screen.clientWidth + GAP), duration: 0.5, ease: 'expo.out', onComplete: () => { if (k !== cur) gsap.set(list[k], { autoAlpha: 0, x: 0, zIndex: 0 }); } });
-      sync();
-    }
-  };
-  screen.addEventListener('pointerup', endDrag);
-  screen.addEventListener('pointercancel', endDrag);
-  screen.addEventListener('touchend', (e) => { if (claimed) e.stopPropagation(); });
-  screen.addEventListener('click', (e) => { if (swiped) { e.preventDefault(); swiped = false; } });
-
-  /* ---------- занавес ---------- */
-  const N = folds.length / 2;
-  const legR = () => (parseFloat(getComputedStyle(root).getPropertyValue('--leg')) || 0.085) / OPEN_R;
-  const idx = (k: number) => k % N; // складки левого и правого полотна идут подряд, правое зеркально в CSS
-  const closeCurtains = () => gsap.set(folds, { x: 0, xPercent: (k: number) => idx(k) * 74.07, scaleX: 1, skewX: 0 });
-  const setOpen = () => { const r = legR(); gsap.set(folds, { x: 0, xPercent: (k: number) => idx(k) * 74.07 * r, scaleX: r * 1.75, skewX: 0 }); };
-  // полотно тянут за передний край: ближние к середине складки трогаются первыми, дальние догоняют
-  // и сбиваются плотнее; низ полотна отстаёт от верха и раскачивается, пока ткань не успокоится
-  const openCurtains = () => {
-    const r = legR();
-    const tl = gsap.timeline();
-    folds.forEach((el, k) => {
-      const i = idx(k), at = (N - 1 - i) * 0.045;
-      tl.to(el, { xPercent: i * 74.07 * r, scaleX: r * 1.75, duration: 1.55, ease: 'power3.inOut' }, at)
-        .to(el, { keyframes: { skewX: [0, 4.5 + i * 0.35, -2.2, 0.8, 0] }, duration: 2.1, ease: 'sine.inOut' }, at + 0.05);
-    });
-    return tl;
+    // телефон: кадр i % число телефонных кадров
+    const np = p.phones.length;
+    if (np > 1 && cur % np !== i % np) fadeIn(tl, p.phones[cur % np], p.phones[i % np], 0.08);
+    cur = i;
+    markTicks();
+    markShots();
+    stepPlane(dir);
+    arm();
   };
 
-  /* ---------- вывеска ---------- */
-  const bulbs = q<HTMLElement>('[data-works-bulb]');
-  const signOn = (tl: gsap.core.Timeline, at: number) => {
-    // лампочки вспыхивают вразнобой, потом бежит огонь
-    tl.add(() => sign.classList.add('is-lit'), at)
-      .fromTo(bulbs, { opacity: 0.2 }, { opacity: 1, duration: 0.05, stagger: { each: 0.012, from: 'random' }, ease: 'none', clearProps: 'opacity' }, at)
-      .add(() => sign.classList.add('is-chase'), at + 0.55);
-  };
+  /* ---------- вход ---------- */
+  const tracks = P[0].ticks.map((b) => b.firstElementChild as HTMLElement);
+  const entry = gsap.timeline({ paused: true });
+  entry
+    .fromTo(plane, { rotationX: 74, z: -700 }, { rotationX: 56, z: 0, duration: 1.1, ease: 'expo.out' }, 0)
+    .fromTo(spin, { rotation: -8 }, { rotation: -24, duration: 1.1, ease: 'expo.out' }, 0)
+    .fromTo(plane, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power2.out' }, 0)
+    .fromTo(title, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' }, 0.05)
+    // отрыв: экран в позе плоскости встаёт в плоскость экрана и становится окном
+    .fromTo(win, { rotationX: 56, rotation: -24, scale: 0.42, yPercent: 18, transformPerspective: () => (vert.matches ? 700 : 1100) },
+      { rotationX: 0, rotation: 0, scale: 1, yPercent: 0, duration: 1, ease: 'expo.inOut',
+        onStart: () => { win.style.willChange = 'transform'; },
+        onComplete: () => gsap.set(win, { clearProps: 'transform,willChange' }) }, 0.35)
+    .fromTo(win, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power1.out' }, 0.35)
+    .to(plane, { opacity: () => (vert.matches ? 0.38 : 0.34), duration: 0.6, ease: 'power2.inOut' }, 0.75)
+    .fromTo(phone, { yPercent: 14, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.6, ease: 'expo.out' }, 1.1)
+    .fromTo(tracks, { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: 'power3.out', stagger: 0.04 }, 1.15)
+    .call(measureType, [], 1.25);
+  // «Ваш проект» печатается по букве, курсор идёт за последней буквой
+  gchars.forEach((c, k) => entry.call(() => { gsap.set(c, { opacity: 1 }); gsap.set(caret, { x: offs[k] ?? 0 }); }, [], 1.25 + (k + 1) * TYPE_STEP));
+  entry
+    .call(() => { ready = true; auto = true; arm(); }, [], 1.6)
+    .call(() => caret.classList.add('is-blink'), [], 1.3 + gchars.length * TYPE_STEP);
+  const intro = wrap(entry);
+  const restIn = rise([...P[0].rest, list], { y: 16, stagger: 0.06, duration: 0.5, ease: 'expo.out' });
 
-  /* ---------- ракорд и первый кадр ---------- */
-  const countdown = (tl: gsap.core.Timeline, at: number) => {
-    tl.set(leader, { visibility: 'inherit', opacity: 0 }, at)
-      .to(leader, { keyframes: { opacity: [0.8, 0.3, 1], easeEach: 'steps(1)' }, duration: 0.3, ease: 'none' }, at);
-    [3, 2, 1].forEach((k, j) => {
-      const t = at + 0.1 + j * LEAD;
-      tl.add(() => { leaderNum.textContent = String(k); }, t)
-        .fromTo(sweep, { '--a': '0deg' }, { '--a': '360deg', duration: LEAD, ease: 'none', immediateRender: false }, t)
-        .fromTo(leaderNum, { scale: 1.3, opacity: 0.35 }, { scale: 1, opacity: 1, duration: 0.24, ease: 'power3.out', immediateRender: false }, t);
-    });
-    return at + 0.1 + 3 * LEAD;
-  };
-  const filmIn = (tl: gsap.core.Timeline, on: number, k: number) => {
-    const first = films[k].stills[0], sub = films[k].subs[0];
-    tl.set(leader, { autoAlpha: 0 }, on)
-      .set(first, { visibility: 'inherit', zIndex: 1 }, on)
-      .add(() => tint(0, 0.5), on)
-      .to(first, { keyframes: { opacity: [0, 0.9, 0.15, 0.75, 0.3, 1], easeEach: 'steps(1)' }, duration: 0.5, ease: 'none' }, on)
-      .to(root, { keyframes: { '--lit': [0.4, 1, 0.5, 0.9, 0.6, 1], easeEach: 'steps(1)' }, duration: 0.5, ease: 'none' }, on)
-      .fromTo(first, { filter: 'blur(10px) brightness(1.5)', scale: 1.08 }, { filter: 'blur(0px) brightness(1)', scale: 1, duration: 1.3, ease: 'expo.out', clearProps: 'filter,transform', immediateRender: false }, on)
-      .add(() => { live = true; startHold(); }, on + 0.55);
-    if (sub) tl.fromTo(sub, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'expo.out', immediateRender: false }, on + 0.5);
-  };
-
-  /* ---------- афиша и сеансы ---------- */
-  const billPlayers = (k: number): Player[] => {
-    const f = films[k];
-    if (f.show || !f.bill) return f.show ?? [];
-    const b = gsap.utils.selector(f.bill);
-    f.show = [
-      splitLines(b('[data-works-name]')[0], { yPercent: 105, scaleY: 1.6, transformOrigin: '50% 100%', stagger: 0.13, duration: 1.15 }),
-      splitLines(b('[data-works-tag]')[0], { stagger: 0.07 }),
-      rise(b('[data-works-credits] dd'), { y: 14, stagger: 0.05, duration: 0.7 }),
-      wrap(gsap.timeline({ paused: true })
-        .fromTo(b('[data-works-ticket]'), { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.8, ease: 'expo.inOut' }, 0)
-        .fromTo(b('[data-works-stub]'), { rotate: 28, yPercent: -40, opacity: 0 }, { rotate: 0, yPercent: 0, opacity: 1, duration: 1, ease: 'elastic.out(1, 0.55)', clearProps: 'transform,opacity' }, 0.45)),
-    ];
-    return f.show;
-  };
-  const playBill = (k: number, d: number) => { const [name, tag, credits, ticket] = billPlayers(k); name?.play(d); tag?.play(d + 0.3); credits?.play(d + 0.45); ticket?.play(d + 0.55); };
-  const title = splitChars(q('[data-works-sign]')[0], { stagger: 0.04, duration: 0.85 });
-  const program = rise(q('[data-works-session-item]'), { y: 22, stagger: 0.1, duration: 0.9 });
-
-  const showFilm = (k: number) => {
-    films.forEach((f, j) => {
-      const on = j === k;
-      f.el.style.display = on ? '' : 'none';
-      if (f.ctl) f.ctl.hidden = !on;
-      if (f.bill) f.bill.hidden = !on;
-    });
-    sessions.forEach((s) => s.setAttribute('aria-pressed', String(Number(s.dataset.worksSession) === k)));
-    const f = films[k];
-    screen.href = f.href;
-    if (f.slug) screen.style.setProperty('view-transition-name', `work-${f.slug}`);
-  };
-
-  // сеанс: смена фильма. Тот же сеанс ещё раз перематывает фильм на начало с ракордом
-  const reelTo = (k: number) => {
-    if (!live && show) return;
-    const same = k === fi;
-    show?.kill(); busy?.progress(1); hold?.kill(); hold = null;
-    live = false;
-    const old = film();
-    const tl = gsap.timeline({ onComplete: () => { show = null; } });
-    show = tl;
-    if (!same && old.bill) tl.to(old.bill, { autoAlpha: 0, y: -10, duration: 0.3, ease: 'power2.in' }, 0);
-    tl.to(old.stills, { autoAlpha: 0, duration: 0.25, ease: 'power2.in' }, 0)
-      .to(root, { '--lit': 0.35, duration: 0.3 }, 0)
-      .add(() => {
-        old.subs.forEach((s) => gsap.set(s, { autoAlpha: 0 }));
-        if (!same && old.bill) gsap.set(old.bill, { clearProps: 'opacity,visibility,transform' });
-        fi = k; cur = 0; autoIdx = 0;
-        showFilm(k);
-        mark(0);
-        gsap.set(film().fills, { scaleX: 0 });
-        normalize();
-        gsap.set(film().stills[0], { autoAlpha: 0 });
-        gsap.set(film().subs, { autoAlpha: 0 });
-        tint(null, 0.3);
-        if (!same) playBill(k, 0);
-      }, 0.3);
-    const on = countdown(tl, 0.32);
-    filmIn(tl, on, k);
-  };
-  sessions.forEach((s) => s.addEventListener('click', () => reelTo(Number(s.dataset.worksSession) || 0)));
-
-  /* ---------- один тикер на луч ---------- */
-  const tick = (t: number) => beam.draw(t);
-  let measured = 0;
-  const measure = () => { beam.measure(); crowd.measure(); };
-  addEventListener('resize', () => {
-    cancelAnimationFrame(measured);
-    measured = requestAnimationFrame(() => {
-      measure();
-      if (live || show) setOpen();
-    });
+  /* ---------- параллакс за мышью: сдвиг поля без поворота, плоскость не перерисовывается ---------- */
+  const px = gsap.quickTo(drift, 'x', { duration: 0.9, ease: 'power3.out' });
+  const py = gsap.quickTo(drift, 'y', { duration: 0.9, ease: 'power3.out' });
+  root.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || !ready || !fine.matches) return;
+    px(-(e.clientX / innerWidth * 2 - 1) * 24);
+    py(-(e.clientY / innerHeight * 2 - 1) * 16);
   }, { passive: true });
-  document.fonts?.ready.then(() => measure());
+  root.addEventListener('pointerleave', () => { if (ready) { px(0); py(0); } });
 
-  // до входа: в зале горит свет, занавес закрыт, проектор выключен
+  /* ---------- окно и телефон рядом: мышь, палец, клик. Жесты слушает общая обёртка, поэтому телефон, свисающий
+     ниже окна, тоже листает кадры и открывает кейс ---------- */
+  win.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { card.classList.add('is-hot'); hold('hover', true); } });
+  win.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { card.classList.remove('is-hot'); hold('hover', false); } });
+  // пауза только для фокуса с клавиатуры: клик мышью по точке не останавливает показ насовсем
+  stage.addEventListener('focusin', (e) => { if ((e.target as Element).matches(':focus-visible')) hold('focus', true); });
+  stage.addEventListener('focusout', (e) => { if (!stage.contains(e.relatedTarget as Node)) hold('focus', false); });
+
+  let down: { x: number; y: number } | null = null; // мышь: клик после смещения отменяется
+  let drag: { id: number; x: number; y: number; dx: number; dy: number; on: boolean; off: boolean } | null = null;
+  let caught = false; // жест забрало окно: сцена не листает блок, клик не открывает кейс
+  win.addEventListener('dragstart', (e) => e.preventDefault());
+  win.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') { down = { x: e.clientX, y: e.clientY }; return; }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, on: false, off: false };
+    caught = false;
+    hold('touch', true);
+  });
+  win.addEventListener('pointermove', (e) => {
+    const d = drag;
+    if (!d || e.pointerId !== d.id || d.off || flip) return;
+    d.dx = e.clientX - d.x; d.dy = e.clientY - d.y;
+    if (!d.on) {
+      const ax = Math.abs(d.dx), ay = Math.abs(d.dy);
+      // вертикальный жест остаётся у сцены и листает блоки
+      if (ay > 8 && ay >= ax) { d.off = true; return; }
+      if (ax <= 8) return;
+      d.on = caught = true;
+      swap?.progress(1);
+      gsap.killTweensOf(proj().shots[cur]);
+      gsap.set(proj().shots[cur], { willChange: LAYER });
+      try { win.setPointerCapture(e.pointerId); } catch { /* палец уже отпущен */ }
+    }
+    const w = desk.clientWidth || 1;
+    gsap.set(proj().shots[cur], { x: d.dx * 0.6, opacity: 1 - Math.min(1, Math.abs(d.dx) / w) * 0.5 });
+  });
+  const release = (e: PointerEvent, cancel: boolean) => {
+    const d = drag;
+    if (!d || e.pointerId !== d.id) return;
+    drag = null;
+    if (d.on) {
+      const dir = d.dx < 0 ? 1 : -1;
+      if (!cancel && Math.abs(d.dx) > 40 && Math.abs(d.dx) > 1.2 * Math.abs(d.dy) && proj().shots.length > 1) show(cur + dir, 'slide', dir);
+      else gsap.to(proj().shots[cur], { x: 0, opacity: 1, duration: 0.4, ease: 'expo.out', clearProps: 'transform,willChange' });
+    }
+    hold('touch', false);
+  };
+  win.addEventListener('pointerup', (e) => release(e, false));
+  win.addEventListener('pointercancel', (e) => release(e, true));
+  win.addEventListener('touchend', (e) => { if (caught) e.stopPropagation(); });
+  win.addEventListener('click', (e) => {
+    const moved = down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8;
+    const skip = caught || moved;
+    caught = false; down = null;
+    if (skip) { e.preventDefault(); return; }
+    // клик по телефону передаётся ссылке окна (у неё же view-transition и адрес активной работы)
+    if (!desk.contains(e.target as Node)) desk.click();
+  });
+
+  /* ---------- точки: клик, Enter и Space выбирают кадр; ←/→ переводят фокус и выбирают (одна точка в Tab) ---------- */
+  stage.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('[data-works-tick]');
+    if (!b) return;
+    const i = proj().ticks.indexOf(b);
+    if (i >= 0 && i !== cur) show(i, 'fade', i > cur ? 1 : -1);
+  });
+  stage.addEventListener('keydown', (e) => {
+    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !(e.target as Element).closest?.('[data-works-tick]')) return;
+    e.preventDefault();
+    const p = proj(), n = p.ticks.length, dir = e.key === 'ArrowRight' ? 1 : -1;
+    const i = (cur + dir + n) % n;
+    show(i, 'fade', dir);
+    p.ticks[i].focus();
+  });
+
+  /* ---------- другие работы: строка переключает проект на месте ---------- */
+  const markRows = () => rows.filter((r) => !r.hidden).forEach((r, j) => r.classList.toggle('is-extra', j >= 2));
+  /** Ставит работу k без анимации: карточка, кадры, точки, ссылка окна, акцент. */
+  const setProject = (k: number) => {
+    const a = proj(), b = P[k];
+    if (a !== b) {
+      a.el.hidden = true; b.el.hidden = false;
+      a.shots.forEach((s) => (s.hidden = true)); b.shots.forEach((s) => (s.hidden = false));
+      a.phones.forEach((s) => (s.hidden = true)); b.phones.forEach((s) => (s.hidden = false));
+      a.box.hidden = true; b.box.hidden = false;
+      a.ticks.forEach((t) => t.classList.remove('is-run'));
+      rows.forEach((r) => (r.hidden = Number(r.dataset.worksRow) === k));
+    }
+    pi = k;
+    phone.hidden = !b.phones.length;
+    desk.href = b.href;
+    desk.setAttribute('aria-label', b.label);
+    desk.style.setProperty('view-transition-name', `work-${b.slug}`);
+    if (b.accent) root.style.setProperty('--accent', b.accent); else root.style.removeProperty('--accent');
+    markRows();
+    showFirst();
+    fitName();
+  };
+  const pick = (k: number) => {
+    if (k === pi || flip) return;
+    const a = proj();
+    const refocus = list.contains(document.activeElement);
+    swap?.progress(1);
+    stopTimer();
+    const tl = gsap.timeline({ onComplete: () => { flip = null; arm(); } });
+    flip = tl;
+    root.classList.add('is-paused');
+    tl.to(a.name.querySelectorAll('.ch'), { yPercent: -110, duration: 0.25, ease: 'power2.in', stagger: 0.008 }, 0)
+      .to(a.rest, { opacity: 0, y: -8, duration: 0.25, ease: 'power2.in' }, 0)
+      .to(proj().shots[cur], { opacity: 0, duration: 0.25, ease: 'power2.in' }, 0)
+      .add(() => {
+        names[pi]?.reset();
+        gsap.set(a.rest, { clearProps: 'opacity,transform' });
+        setProject(k);
+        const b = proj();
+        nameOf(k).play(0);
+        // новые кадры проявляются в окне, текст поднимается
+        tl.fromTo(b.shots[0], { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.3)
+          .fromTo(b.shots[0], { scale: 1.035 }, { scale: 1, duration: 0.8, ease: 'expo.out', clearProps: 'transform' }, 0.3)
+          .fromTo(b.rest, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out', stagger: 0.06, clearProps: 'transform' }, 0.3);
+        if (refocus) b.rest[b.rest.length - 1]?.focus({ preventScroll: true });
+        stepPlane(1);
+      }, 0.27)
+      .set({}, {}, 1.1); // длина смены, пока внутри добавляются твины новой работы
+  };
+  list.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('[data-works-pick]');
+    if (b) pick(Number(b.dataset.worksPick) || 0);
+  });
+  markRows();
+
+  /* ---------- сброс в позу до входа (идемпотентный) ---------- */
   const prime = () => {
-    show?.kill(); show = null;
-    busy?.kill(); busy = null;
-    hold?.kill(); hold = null;
-    live = false;
-    fi = 0; cur = 0; autoIdx = 0;
-    showFilm(0);
-    films.forEach((f, k) => {
-      f.stills.forEach((im) => gsap.set(im, { clearProps: 'transform,clipPath,filter,zIndex', autoAlpha: 0 }));
-      f.subs.forEach((s) => gsap.set(s, { autoAlpha: 0, y: 0 }));
-      f.subsBox?.setAttribute('aria-live', 'off');
-      if (f.bill) gsap.set(f.bill, { clearProps: 'opacity,visibility,transform' });
-      if (k === 0) { mark(0); gsap.set(f.fills, { scaleX: 0 }); }
-    });
-    gsap.set(blades, { scaleY: 0 });
-    gsap.set([bar, leak, flash], { opacity: 0 });
-    gsap.set(leader, { autoAlpha: 0 });
-    leaderNum.textContent = '3';
-    closeCurtains();
-    gsap.set(root, { '--house': 1, '--lit': 0 });
-    beam.state.on = 0;
-    beam.clear();
-    sign.classList.remove('is-lit', 'is-chase');
-    tint(null, 0);
+    ready = false; auto = false;
+    // палец, ушедший вместе с блоком (вертикальный свайп по окну), не держит автопоказ на паузе после возвращения
+    drag = null; caught = false; holds.delete('touch');
+    stopTimer();
+    swap?.kill(); swap = null;
+    flip?.kill(); flip = null;
+    ride?.kill(); ride = null;
+    intro.reset(); restIn.reset();
+    names.forEach((n) => n?.reset());
+    if (pi !== 0) { gsap.set(proj().rest, { clearProps: 'opacity,transform' }); setProject(0); }
+    else showFirst();
+    gsap.set(P[0].shots[0], { opacity: 1 });
+    sx = 0;
+    gsap.set(strip, { x: 0 });
+    gsap.set(gchars, { opacity: 0 });
+    caret.classList.remove('is-blink');
+    gsap.set(caret, { x: 0, opacity: 0 });
+    px.tween.pause(); py.tween.pause();
+    gsap.set(drift, { x: 0, y: 0 });
+    root.classList.add('is-paused');
   };
 
-  const enter = (d: number) => {
-    const tl = gsap.timeline({ delay: d, onComplete: () => { show = null; } });
-    show = tl;
-    signOn(tl, 0.05);
-    // свет в зале гаснет с подмигиванием бра, потом едет занавес, загорается луч и пошёл ракорд
-    tl.to(root, { keyframes: { '--house': [1, 0.72, 0.86, 0.4, 0.55, 0.15, 0] }, duration: 1.1, ease: 'none' }, 0.3)
-      .add(openCurtains(), 1.0)
-      .add(() => tint(null, 0.4), 1.1)
-      .to(beam.state, { keyframes: { on: [0, 0.8, 0.15, 0.9, 0.45, 1] }, duration: 0.5, ease: 'none' }, 1.1)
-      .to(root, { '--lit': 0.45, duration: 0.4, ease: 'power2.out' }, 1.2);
-    const on = countdown(tl, 1.15);
-    filmIn(tl, on, 0);
+  /* ---------- перестройка плоскости: смена раскладки или ширина изменилась больше чем на 10% ---------- */
+  let rt = 0, pending = false;
+  const rebuild = () => {
+    if (entry.isActive()) { pending = true; return; }
+    pending = false;
+    if (vert.matches === builtV && Math.abs(root.clientWidth - builtW) <= builtW * 0.1) return;
+    ride?.kill(); ride = null;
+    build();
+    entry.invalidate();
+    if (entry.progress() === 1) gsap.set(plane, { opacity: vert.matches ? 0.38 : 0.34 });
   };
+  entry.eventCallback('onComplete', () => { if (pending) rebuild(); });
+  new ResizeObserver(() => {
+    fitName();
+    clearTimeout(rt);
+    rt = window.setTimeout(rebuild, 150);
+  }).observe(root);
+  document.fonts?.addEventListener?.('loadingdone', () => fitName());
 
+  /* ---------- жизненный цикл ---------- */
+  nameOf(0);
+  fitName();
   prime();
+  root.classList.add('is-primed');
 
-  // Если блок открылся переходом сцены (не по прямой ссылке), круг перехода раскрывается ещё ~0,6 с:
-  // свет и занавес ждут, чтобы не отыграть под ним. Слушатель стоит раньше watchBlock.
-  let viaStage = false;
-  root.addEventListener('block:enter', (e) => { viaStage = !(e as CustomEvent<{ first?: boolean }>).detail?.first; });
-
+  // Блок открылся переходом сцены: ирис ещё ~0,4 с раскрывается поверх, вход ждёт. Слушатель стоит раньше watchBlock.
+  root.addEventListener('block:enter', (e) => { first = !!(e as CustomEvent<{ first?: boolean }>).detail?.first; });
   watchBlock(root, () => {
-    const d = viaStage ? 0.5 : 0;
-    viaStage = false;
+    const S = first ? 0.1 : 0.25;
+    first = true;
+    active = true;
+    if (!built) build();
     prime();
-    measure();
-    gsap.ticker.add(tick);
-    crowd.start();
-    enter(d);
-    title.play(0.05 + d * 0.4);
-    playBill(0, 0.3 + d * 0.4);
-    program.play(0.55 + d * 0.4);
+    measureType();
+    gsap.set(caret, { x: -gw, opacity: 1 });
+    intro.play(S);
+    nameOf(0).play(S + 0.5);
+    restIn.play(S + 0.75);
   }, () => {
-    gsap.ticker.remove(tick);
-    crowd.stop();
-    title.reset();
-    program.reset();
-    films.forEach((f) => f.show?.forEach((p) => p.reset()));
+    active = false;
     prime();
   });
+  document.addEventListener('visibilitychange', () => { if (active) arm(); });
+
+  // Плоскость собирается отдельной задачей, чтобы не складывать её с остальной настройкой в одну длинную.
+  // Сцена ждёт, пока первые кадры окна и телефона и файлы плоскости декодируются, но не дольше 350 мс.
+  const decoded = (list: (HTMLImageElement | undefined)[]) => {
+    const seen = new Set<string>();
+    return Promise.all(list.filter((im): im is HTMLImageElement => !!im && !seen.has(im.src) && !!seen.add(im.src)).map((im) => im.decode().catch(() => {})));
+  };
+  return Promise.race([
+    new Promise((r) => setTimeout(r)).then(() => {
+      if (!built) build();
+      return decoded([P[0].shots[0], P[0].phones[0], ...strip.querySelectorAll('img')]);
+    }),
+    new Promise((r) => setTimeout(r, 350)),
+  ]).then(() => {});
 }
