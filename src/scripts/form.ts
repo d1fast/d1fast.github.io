@@ -23,6 +23,19 @@ export function initForm(root: ParentNode = document) {
   const consentBox = form.querySelector<HTMLElement>('[name="consent"]')!;
   const via = [...form.querySelectorAll<HTMLInputElement>('input[name="via"]')];
   const viaInput = (v: string) => form.querySelector<HTMLInputElement>(`[name="c_${v}"]`);
+  // у ника и телефона знак «@» и код страны стоят в строке: добавляем их к введённому, если человек не вписал их сам
+  const contactOf = (inp: HTMLInputElement | null) => {
+    if (!inp) return '';
+    let v = inp.value.trim();
+    const pre = inp.dataset.prefix || '';
+    if (!v || !pre) return v;
+    if (pre === '@') return '@' + v.replace(/^@+/, '');
+    const digits = v.replace(/\D/g, '');
+    if (v.startsWith('+')) return v;
+    // российский номер, начатый с 8 или 7: код страны уже стоит в строке, лишнюю первую цифру убираем
+    if (pre === '+7' && digits.length === 11 && /^[78]/.test(digits)) v = v.replace(/^\D*[78]\D*/, '');
+    return pre === '+' ? `+${v}` : `${pre} ${v}`;
+  };
   const show = (text: string, kind: 'ok' | 'err' | '', field?: HTMLElement | null) => {
     status.textContent = text;
     status.dataset.kind = kind;
@@ -42,7 +55,7 @@ export function initForm(root: ParentNode = document) {
     if (website) return; // ловушка для ботов
     // куда ответить: только отмеченные способы с заполненной строкой
     const contacts: Record<string, string> = {};
-    for (const box of via) { const v = viaInput(box.value)?.value.trim(); if (box.checked && v) contacts[box.value] = v; }
+    for (const box of via) { const v = contactOf(viaInput(box.value)); if (box.checked && v) contacts[box.value] = v; }
     if (via.length && !Object.keys(contacts).length) {
       const empty = via.find((b) => b.checked);
       show(labels.errorContact, 'err', empty ? viaInput(empty.value) : via[0]);

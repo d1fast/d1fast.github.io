@@ -18,12 +18,12 @@ export interface Dict {
   contacts: {
     title: string; lead: string;
     formTitle: string; nameLabel: string; namePlaceholder: string; messageLabel: string; messagePlaceholder: string;
-    replyLabel: string; via: { id: 'tg' | 'email' | 'phone'; label: string; placeholder: string }[]; errorContact: string;
+    replyLabel: string; via: { id: 'tg' | 'email' | 'phone'; label: string; placeholder: string; prefix?: string }[]; errorContact: string;
     consent: string; consentLink: string; submit: string;
     sending: string; success: string; error: string; errorConsent: string; errorEmpty: string;
     policy: string;
   };
   notFound: { title: string; text: string; home: string; works: string };
-  policy: { title: string; updated: string; body: string[]; back: string };
+  policy: { title: string; updated: string; intro: string; sections: { h: string; p: string[] }[]; back: string };
   a11y: { close: string; openMenu: string; closeMenu: string; videoPreview: string };
 }

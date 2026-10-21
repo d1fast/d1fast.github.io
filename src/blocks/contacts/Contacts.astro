@@ -32,7 +32,7 @@ const planeKeel = 'M18 0 L-7 1';
 const cloudA = 'M8 58 C6 47 16 40 27 44 C29 29 47 22 58 32 C64 20 86 21 90 37 C103 34 114 45 110 58 Z';
 // волнистая черта под полем при фокусе и галочка: ровная, чуть выгнутая, внутри квадрата
 const wave = 'M0 4 ' + 'q6 -2.6 12 0 t12 0 '.repeat(12).trim() + ' t12 0';
-const tick = 'M6 12.6 C 7.4 13.9, 8.7 15.3, 10 16.9 C 12.4 13.2, 15 10, 18.2 7.2';
+const tick = 'M6.6 12.4 L10.3 16.1 L17.6 8.2';
 const kinds = {
   tg: { type: 'text', mode: 'text', auto: 'off' },
   email: { type: 'email', mode: 'email', auto: 'email' },
@@ -103,14 +103,15 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
             {d.contacts.via.map((v, i) => (
               <label class="check">
                 <input class="check__box" type="radio" name="via" value={v.id} checked={i === 0} aria-controls={`cf-${v.id}`} />
-                <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path pathLength="1" d={tick} /></svg></span>
+                <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d={tick} /></svg></span>
                 <span class="check__text">{v.label}</span>
               </label>
             ))}
           </div>
           {d.contacts.via.map((v, i) => (
-            <div class="reply__line" data-via={v.id} hidden={i !== 0}>
-              <input class="field__input" id={`cf-${v.id}`} name={`c_${v.id}`} type={kinds[v.id].type} inputmode={kinds[v.id].mode} autocomplete={kinds[v.id].auto} maxlength="160" placeholder={v.placeholder} aria-label={v.label} />
+            <div class="reply__line" class:list={[{ 'has-prefix': !!v.prefix }]} data-via={v.id} hidden={i !== 0}>
+              {v.prefix && <span class="reply__prefix" aria-hidden="true">{v.prefix}</span>}
+              <input class="field__input" id={`cf-${v.id}`} name={`c_${v.id}`} data-prefix={v.prefix} type={kinds[v.id].type} inputmode={kinds[v.id].mode} autocomplete={kinds[v.id].auto} maxlength="160" placeholder={v.placeholder} aria-label={v.label} />
               <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d={wave} /></svg>
             </div>
           ))}
@@ -125,7 +126,7 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         </div>
         <label class="check consent">
           <input class="check__box" type="checkbox" name="consent" required />
-          <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path pathLength="1" d={tick} /></svg></span>
+          <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d={tick} /></svg></span>
           <span class="check__text">{d.contacts.consent} <a href={policyHref}>{d.contacts.consentLink}</a></span>
         </label>
         <div class="contact-form__actions">

@@ -73,12 +73,12 @@ export const en: Dict = {
     namePlaceholder: 'Name',
     replyLabel: 'Where to reply',
     via: [
-      { id: 'tg', label: 'Telegram', placeholder: '@handle' },
+      { id: 'tg', label: 'Telegram', placeholder: 'handle', prefix: '@' },
       { id: 'email', label: 'Email', placeholder: 'name@mail.com' },
-      { id: 'phone', label: 'Phone', placeholder: '+1 555 000 0000' },
+      { id: 'phone', label: 'Phone', placeholder: '1 555 000 0000', prefix: '+' },
     ],
     messageLabel: 'What needs doing',
-    messagePlaceholder: 'For example: a site for a coffee shop, needed by December',
+    messagePlaceholder: 'A site for a coffee shop, needed by December',
     consent: 'I agree to the',
     consentLink: 'privacy policy',
     submit: 'Send',
@@ -98,16 +98,50 @@ export const en: Dict = {
   },
   policy: {
     title: 'Privacy policy',
-    updated: 'Updated 12 October 2026',
-    body: [
-      'Data controller: Saveliy Alekseevich Lopatin, email saveliylopatin@yandex.ru.',
-      'What is collected: only what you type into the form on this site. Usually a name or contact (a Telegram handle or an email) and the text of your message.',
-      'Why: to answer your message and discuss the task. Nothing else.',
-      'Where it goes: a message from the form is delivered to my Telegram, or to my email if the form opened a letter. Telegram and the email service store it under their own rules. There is no separate database, and I never share or sell it.',
-      'How long: for as long as we are talking. Write to me and I will delete the message.',
-      'Legal basis: your consent, given by ticking the box before sending (Article 9 of Russian Federal Law 152-FZ). You can withdraw it by writing to the email above.',
-      'Your rights: to find out what data I hold, and to ask me to correct or delete it. I answer such requests within 10 days.',
-      'The site sets no advertising trackers or analytics counters and stores nothing in your browser.',
+    updated: 'Version of 21 October 2026',
+    intro: 'This policy describes how personal data of visitors to d1fast.github.io is processed and protected. It is written in accordance with Russian Federal Law No. 152-FZ of 27 July 2006 “On Personal Data”.',
+    sections: [
+      { h: 'General provisions', p: [
+        'By sending the form on this site, the user confirms they have read and agree to this policy.',
+        'The policy applies only to data the user enters into the contact form on this site.',
+      ] },
+      { h: 'Data controller', p: [
+        'Saveliy Alekseevich Lopatin. Email for personal data requests: saveliylopatin@yandex.ru.',
+      ] },
+      { h: 'What data is processed', p: [
+        'The name or form of address the user provides.',
+        'A contact for the reply: a Telegram username, an email address or a phone number.',
+        'The text of the message.',
+      ] },
+      { h: 'Purposes', p: [
+        'To answer the user’s request and discuss the task and terms of work.',
+        'The data is not used for mailings or advertising.',
+      ] },
+      { h: 'Legal basis', p: [
+        'The user’s consent, given by ticking the box before sending the form (Article 9 of Federal Law No. 152-FZ).',
+      ] },
+      { h: 'How data is processed', p: [
+        'A message from the form is passed through Cloudflare Workers to Telegram, where the controller receives it. No separate database is kept.',
+        'Cloudflare and Telegram servers may be located outside the Russian Federation, so sending the form involves a cross-border transfer of data. By sending the form, the user consents to it as well.',
+        'The controller does not share or sell the data to third parties, except where required by law.',
+      ] },
+      { h: 'Retention', p: [
+        'Data is kept while the request is being discussed and deleted afterwards or at the user’s request.',
+      ] },
+      { h: 'User rights', p: [
+        'To find out what data about them is processed.',
+        'To ask for the data to be corrected, blocked or deleted.',
+        'To withdraw consent by writing to the controller’s email. Such requests are answered within 10 working days.',
+      ] },
+      { h: 'Data protection', p: [
+        'Data is transmitted over a secure connection (HTTPS). Only the controller has access to it.',
+      ] },
+      { h: 'Cookies and analytics', p: [
+        'The site uses no cookies, visit counters or advertising trackers and stores nothing in the browser.',
+      ] },
+      { h: 'Final provisions', p: [
+        'The controller may update this policy. A new version takes effect when it is published on this page.',
+      ] },
     ],
     back: 'Home',
   },

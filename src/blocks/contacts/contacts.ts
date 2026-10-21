@@ -46,6 +46,9 @@ export function init(root: HTMLElement) {
   const flap = q('[data-flap]');
   const folds = q('[data-folds]');
   const postmark = q('[data-postmark]');
+  const postInk = [...postmark.querySelectorAll<SVGGeometryElement>('circle, path')];
+  const seal = q('.contacts__seal');
+  const stampEl = q('.contacts__stamp');
   const status = q('[data-form-status]');
   const send = q<SVGSVGElement>('[data-send]');
   const sendG = q<SVGGElement>('[data-send-g]');
@@ -79,7 +82,6 @@ export function init(root: HTMLElement) {
     return { l, t, r: l + w, b: t + h, w, h };
   };
   const setRoute = (r: Route, pts: Pt[]) => { r.el.setAttribute('d', smooth(pts)); r.len = r.el.getTotalLength(); };
-  const measure = (pts: Pt[]) => { ruler.setAttribute('d', smooth(pts)); return ruler.getTotalLength(); };
 
   const build = () => {
     W = root.clientWidth; H = root.clientHeight;
@@ -95,13 +97,19 @@ export function init(root: HTMLElement) {
     const last = lb[lb.length - 1];
     const x0 = Math.min(...lb.map((b) => b.l)) + fs * 0.12, x1 = Math.max(...lb.map((b) => b.r)) - fs * 0.3;
     const y = last.t + last.h * 0.8;
-    const pts: Pt[] = [[-90, y + fs * 0.35], [x0 - fs * 0.7, y + fs * 0.08]];
-    const n = Math.max(2, Math.round((x1 - x0) / 90));
-    for (let k = 0; k <= n; k++) pts.push([x0 + (x1 - x0) * k / n, y]);
-    const along = [measure(pts.slice(0, 3)), measure(pts)];
-    spans = lb.map(() => along as [number, number]);
-    pts.push([x1 + fs * 1.1, y - fs * 0.3], [W + 160, Math.max(top, y - fs * 1.6)]);
-    setRoute(routes.write, pts);
+    // одна плавная линия: подлёт снизу слева по дуге, ровно вдоль строки, уход вправо-вверх по широкой дуге.
+    // Касательные на стыках совпадают (горизонталь), поэтому самолётик нигде не дёргается и не делает резкий поворот.
+    const S: Pt = [-70, y + fs * 0.55], A: Pt = [x0, y], B: Pt = [x1, y];
+    const E: Pt = [W + 140, Math.max(top + 20, y - fs * 1.4)];
+    const f = (p: Pt) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
+    const entry = `M ${f(S)} C ${f([S[0] + (A[0] - S[0]) * 0.55, S[1]])}, ${f([A[0] - Math.min(180, (A[0] - S[0]) * 0.45), A[1]])}, ${f(A)}`;
+    const dx = E[0] - B[0];
+    const d = `${entry} L ${f(B)} C ${f([B[0] + dx * 0.4, B[1]])}, ${f([B[0] + dx * 0.72, E[1] + (B[1] - E[1]) * 0.12])}, ${f(E)}`;
+    ruler.setAttribute('d', entry);
+    const a0 = ruler.getTotalLength();
+    spans = lb.map(() => [a0, a0 + (x1 - x0)] as [number, number]);
+    routes.write.el.setAttribute('d', d);
+    routes.write.len = routes.write.el.getTotalLength();
     lineLeft = lb.map((b) => b.l);
 
     // дальше самолётик изредка спокойно пересекает небо по свободной полосе: над содержимым,
@@ -234,14 +242,18 @@ export function init(root: HTMLElement) {
   const lead = splitLines(q('[data-lead]'), { duration: 0.9 });
   // явные конечные значения: у .btn есть CSS-переход transform, from() с ним путается
   const foot = rise(footer, { y: 0, duration: 0.8 });
+  // конверт: ложится на стол, печать лопается, клапан на петле откидывается назад, письмо проявляется по строкам,
+  // марка приклеивается, а штемпель отпечатывается ровно на своём месте (рисуется, а не прилетает)
   const envelope = wrap(gsap.timeline({ paused: true })
-    .fromTo(letter, { y: 70, rotation: -3, opacity: 0 }, { y: 0, rotation: 0, opacity: 1, duration: 0.9, ease: 'expo.out' }, 0)
-    .fromTo(flap, { opacity: 1, rotationX: 0, transformPerspective: 1100 }, { rotationX: 90, duration: 0.55, ease: 'power2.in' }, 0.55)
-    .to(flap, { opacity: 0, duration: 0.2, ease: 'power1.in' }, 0.85)
-    .fromTo(folds, { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0.7)
-    .fromTo(items, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out', stagger: 0.055 }, 0.9)
-    .fromTo(postmark, { scale: 1.8, opacity: 0, rotation: -24 }, { scale: 1, opacity: 0.8, rotation: -8, duration: 0.26, ease: 'power4.in' }, 1.45)
-    .to(letter, { keyframes: { y: [0, 3, -1, 0] }, duration: 0.24, ease: 'none' }, 1.71));
+    .fromTo(letter, { y: 56, rotation: -5, scale: 0.97, opacity: 0 }, { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.95, ease: 'expo.out', immediateRender: true }, 0)
+    .fromTo(seal, { scale: 1, opacity: 1 }, { keyframes: { scale: [1, 1.22, 0], opacity: [1, 1, 0] }, duration: 0.3, ease: 'power2.in', immediateRender: true }, 0.5)
+    .fromTo(flap, { opacity: 1, rotationX: 0, transformPerspective: 900 }, { rotationX: -176, duration: 0.7, ease: 'power2.inOut', immediateRender: true }, 0.68)
+    .to(flap, { opacity: 0, duration: 0.18, ease: 'power1.in' }, 1.22)
+    .fromTo(folds, { opacity: 1 }, { opacity: 0, duration: 0.4, immediateRender: true }, 0.8)
+    .fromTo(items, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out', stagger: 0.05, immediateRender: true }, 0.95)
+    .fromTo(stampEl, { scale: 1.35, rotation: 16, opacity: 0 }, { scale: 1, rotation: 4, opacity: 1, duration: 0.45, ease: 'back.out(2)', immediateRender: true }, 1.3)
+    .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.32, ease: 'power2.out', stagger: 0.04, immediateRender: true }, 1.72)
+    .to(letter, { keyframes: { y: [0, 2, 0] }, duration: 0.2, ease: 'none' }, 1.72));
 
   // ---------- отправка: письмо складывается в самолётик и улетает ----------
   let sending: gsap.core.Timeline | null = null;

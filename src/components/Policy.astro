@@ -4,10 +4,22 @@ interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+// короткие слова (предлоги, союзы, «№») держатся со следующим словом: не висят в конце строки
+const nb = (s: string) => s.replace(/(^|[\s(«])([А-Яа-яЁёA-Za-z№]{1,2})\s+/g, '$1$2\u00a0').replace(/(^|[\s(«])([А-Яа-яЁёA-Za-z№]{1,2})\s+/g, '$1$2\u00a0');
 ---
 <article class="policy container">
   <h1 class="policy__title">{d.policy.title}</h1>
   <p class="policy__date">{d.policy.updated}</p>
-  <div class="policy__body">{d.policy.body.map((p) => <p>{p}</p>)}</div>
+  <div class="policy__body">
+    <p class="policy__intro">{nb(d.policy.intro)}</p>
+    <ol class="policy__list">
+      {d.policy.sections.map((sec, i) => (
+        <li class="policy__sec">
+          <h2 class="policy__h"><span class="policy__n">{i + 1}.</span> {nb(sec.h)}</h2>
+          {sec.p.map((p, k) => <p class="policy__p"><span class="policy__n">{i + 1}.{k + 1}.</span><span>{nb(p)}</span></p>)}
+        </li>
+      ))}
+    </ol>
+  </div>
   <a class="policy__back" href={`${base}${langPrefix(lang)}/`}>← {d.policy.back}</a>
 </article>
