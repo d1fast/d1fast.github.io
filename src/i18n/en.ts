@@ -60,9 +60,9 @@ export const en: Dict = {
     title: 'How I work',
     steps: [
       { title: 'Understand', text: 'I find out why the business needs it and who will use it.' },
-      { title: 'Specify', text: 'I write a spec so we agree on the result up front.' },
-      { title: 'Build', text: 'I show a working version early and we refine it together.' },
-      { title: 'Polish', text: 'I polish it and test on phones and slow networks.' },
+      { title: 'Specify', text: 'I learn all your requirements and suggest my own takes.' },
+      { title: 'Build', text: 'I get a live version up fast so you can see it for yourself.' },
+      { title: 'Polish', text: 'Final tweaks, testing, and the finished product is yours.' },
     ],
   },
   contacts: {

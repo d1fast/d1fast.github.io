@@ -2,7 +2,7 @@ import { gsap } from 'gsap';
 import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import { watchBlock } from '../../scripts/block';
+import { watchBlock, pointerArm } from '../../scripts/block';
 import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, type P } from './lamp';
 
 gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
@@ -541,9 +541,11 @@ export function init(root: HTMLElement) {
 
   /* ---------- управление ---------- */
   let lastPointer = 'mouse';
+  // после входа шаги всегда идут с первого; пост выбирает только курсор, который двинулся уже здесь
+  const arm = pointerArm();
   list.addEventListener('pointerdown', (e) => { lastPointer = e.pointerType; });
   btns.forEach((b, i) => {
-    b.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && isOn()) go(i, true); });
+    b.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && isOn() && arm.armed && cur !== i) go(i, true); });
     b.addEventListener('focus', () => { if (isOn()) go(i, true); });
     b.addEventListener('click', () => {
       if (!isOn()) return;
@@ -562,7 +564,7 @@ export function init(root: HTMLElement) {
     e.preventDefault();
     btns[(k + (e.key === 'ArrowRight' ? 1 : -1) + N) % N].focus();
   });
-  list.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hold('hover', true); });
+  list.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && arm.armed && !holds.has('hover')) hold('hover', true); });
   list.addEventListener('pointerleave', () => hold('hover', false));
   list.addEventListener('focusin', (e) => { if ((e.target as HTMLElement).matches(':focus-visible')) hold('focus', true); });
   list.addEventListener('focusout', (e) => { if (!list.contains(e.relatedTarget as Node)) hold('focus', false); });
@@ -618,7 +620,7 @@ export function init(root: HTMLElement) {
     // блок мог открыться потому, что на шаг перешёл фокус с клавиатуры, или курсор уже стоит над линией
     const fe = document.activeElement as HTMLElement | null;
     if (fe && list.contains(fe) && fe.matches(':focus-visible')) holds.add('focus');
-    if (fine.matches && list.matches(':hover')) holds.add('hover');
+    arm.reset();
     tick(false);
     lensOn = false; partsOn = false; sk = 'off'; cur = -1;
     killEach([...lines, ...allMarks, ...ink, ...partEls, spring, lamp, tipL, tipR, nod, ...lit, bulb, shine, checkC, checkM, ...snaps, lens, L, beltP, belt, roll, ...says, cart, done, prog]);

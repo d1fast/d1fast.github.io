@@ -73,3 +73,22 @@ export function wrap(anim: gsap.core.Animation): Player {
 }
 
 export const nn = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Мышь «взведена», когда после входа в блок курсор действительно сдвинулся. Пока он просто стоит там,
+ * где оказался после перелистывания, наведение не считается: блок всегда начинает с первого пункта.
+ */
+const mouse = { x: -1, y: -1 };
+addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; } }, { passive: true });
+export function pointerArm() {
+  let from = { x: -1, y: -1 }, armed = false;
+  addEventListener('pointermove', (e) => {
+    if (armed || e.pointerType !== 'mouse') return;
+    if (from.x < 0 || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 6) armed = true;
+  }, { passive: true });
+  return {
+    get armed() { return armed; },
+    /** при входе в блок: курсор там, где был, ещё не наведение */
+    reset() { from = { ...mouse }; armed = false; },
+  };
+}
