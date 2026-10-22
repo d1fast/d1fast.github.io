@@ -30,11 +30,16 @@ export const en: Dict = {
   about: {
     title: 'About',
     photoAlt: 'Photo of Saveliy Lopatin',
-    lead: 'I’m Saveliy. I love building quality products and seeing *your delight* at the result. It genuinely makes me happy.',
-    notes: ['I dive in head first', 'I learn every process', 'I see it through'],
+    lead: 'I love building quality products and seeing *your delight* at the result.',
+    reviewsLabel: 'Reviews',
+    reviews: [
+      { text: 'Delivered faster than promised and suggested a couple of ideas we ended up keeping.', name: 'Anna', role: 'coffee shop owner' },
+      { text: 'Takes feedback calmly and is always in touch. The site came out exactly as we wanted.', name: 'Dmitry', role: 'marketer' },
+      { text: 'The booking bot took the load off our admin: clients book themselves, no calls needed.', name: 'Irina', role: 'nail studio' },
+    ],
     stickers: ['feedback? sure', 'hard means fun', 'always in touch'],
-    aka: 'aka d1fast',
   },
+
   services: {
     title: 'What I do',
     items: [

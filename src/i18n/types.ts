@@ -10,7 +10,7 @@ export interface Dict {
   };
   hero: { name: string; nick: string; tagline: string; ctaContact: string; ctaWorks: string };
   /** lead: одно короткое вступление; notes: пометки от руки; stickers: короткие наклейки-факты */
-  about: { title: string; photoAlt: string; lead: string; notes: string[]; stickers: string[]; aka: string };
+  about: { title: string; photoAlt: string; lead: string; reviewsLabel: string; reviews: { text: string; name: string; role: string }[]; stickers: string[] };
   services: { title: string; items: { title: string; text: string }[] };
   /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера */
   works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string };

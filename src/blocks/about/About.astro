@@ -106,19 +106,22 @@ const doodles = [
 
       <p class="about__lead" data-about-lead>{leadA}{emph && <em class="about__em">{emph}</em>}{leadB}</p>
 
-      <ul class="about__notes" data-about-notes>
-        {d.about.notes.slice(0, 3).map((n, i) => (
-          <li class={`about__note about__note--${i + 1}`} data-about-note-item>
-            <span class="about__note-t" data-about-note>{n}</span>
-            {i === 0 && <svg class="about__doodle about__doodle--double" viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M4,7 C50,3 120,4 196,6 M12,15 C70,12 128,13 186,15" /></svg>}
-            {i === 1 && <svg class="about__doodle about__doodle--wave" viewBox="0 0 200 16" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M3,10 C18,4 30,14 46,8 C62,2 74,13 90,8 C106,3 118,13 134,8 C150,3 162,12 178,7 C186,5 192,6 197,8" /></svg>}
-            {i === 2 && <svg class="about__doodle about__doodle--loop" viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true"><path data-about-doodle d="M42,11 C92,4 156,2 183,8 C202,14 201,58 189,69 C168,80 60,82 18,75 C0,70 -1,22 14,12 C28,5 62,3 98,6" /></svg>}
-          </li>
-        ))}
-      </ul>
-      <svg class="about__links" aria-hidden="true">
-        {[0, 1].map(() => <g data-about-link><path class="about__link-line" d="" /><path class="about__link-head" d="" /></g>)}
-      </svg>
+      <!-- отзывы: вырезки на листе, прихваченные скотчем. На телефоне видна одна, остальные по очереди -->
+      <div class="about__reviews" data-about-reviews>
+        <h3 class="visually-hidden">{d.about.reviewsLabel}</h3>
+        <ul class="about__rv-list" role="list">
+          {d.about.reviews.map((r, i) => (
+            <li class={`about__review about__review--${i + 1}`} class:list={[{ 'is-on': i === 0 }]} data-about-review>
+              <figure class="about__rv">
+                <span class="about__rv-tape" aria-hidden="true"></span>
+                <blockquote class="about__rv-q"><p>{r.text}</p></blockquote>
+                <figcaption class="about__rv-by"><b>{r.name}</b>, {r.role}</figcaption>
+              </figure>
+            </li>
+          ))}
+        </ul>
+        <div class="about__rv-dots" aria-hidden="true">{d.about.reviews.map((_, i) => <button type="button" tabindex="-1" class:list={['about__rv-dot', { 'is-on': i === 0 }]} data-about-rv-dot={i}></button>)}</div>
+      </div>
     </div>
 
     <div class="about__photo">
@@ -136,7 +139,7 @@ const doodles = [
               )}
               <span class="about__dev" data-about-dev aria-hidden="true"></span>
             </div>
-            <figcaption class="about__name"><span class="about__name-t" data-about-write>{d.hero.name}</span><span class="about__aka" data-about-aka>{d.about.aka}</span></figcaption>
+            <figcaption class="about__name"><span class="about__name-t" data-about-write>{d.hero.name}</span></figcaption>
           </figure>
         </div>
       </div>

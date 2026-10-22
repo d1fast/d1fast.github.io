@@ -85,71 +85,6 @@ function liveDraw(paths: SVGPathElement[], duration: number, ease = 'power2.inOu
   };
 }
 
-type Box = { l: number; t: number; r: number; b: number };
-type Pt = [number, number];
-const f1 = (n: number) => Math.round(n * 10) / 10;
-const pt = (p: Pt) => `${f1(p[0])},${f1(p[1])}`;
-
-type Curve = [Pt, Pt, Pt, Pt];
-const bez = ([S, c1, c2, E]: Curve, t: number): Pt => {
-  const u = 1 - t;
-  return [u * u * u * S[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * E[0], u * u * u * S[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * E[1]];
-};
-/** Кривая не задевает чужой текст (с запасом в несколько пикселей). */
-const clear = (c: Curve, obstacles: Box[], m = 5) => {
-  for (let i = 1; i < 24; i++) {
-    const [x, y] = bez(c, i / 24);
-    if (obstacles.some((o) => x > o.l - m && x < o.r + m && y > o.t - m && y < o.b + m)) return false;
-  }
-  return true;
-};
-
-/**
- * Стрелка от руки между двумя пометками: дугой вбок, если они рядом, вниз, если одна под другой.
- * Берётся первый вариант, который не задевает лид и другие пометки; если чисто провести нельзя, стрелки нет.
- */
-function linkPath(A: Box, B: Box, obstacles: Box[]): { line: string; head: string } | null {
-  const pad = 7;
-  const acx = (A.l + A.r) / 2, bcx = (B.l + B.r) / 2;
-  const right = bcx >= acx;
-  const vOver = Math.min(A.b, B.b) - Math.max(A.t, B.t);
-  const tries: Curve[] = [];
-  if (vOver > 0 && (right ? B.l - A.r : A.l - B.r) >= 30) {
-    // рядом по горизонтали: дуга над промежутком
-    const sx = right ? A.r + pad : A.l - pad, ex = right ? B.l - pad : B.r + pad;
-    const sy = A.t + (A.b - A.t) * 0.42, ey = B.t + (B.b - B.t) * 0.5;
-    const k = (ex - sx) * 0.42, lift = Math.min(18, Math.abs(ex - sx) * 0.22);
-    tries.push([[sx, sy], [sx + k, sy - lift], [ex - k, ey - lift], [ex, ey]]);
-  }
-  if (B.t - A.b >= 18) {
-    // одна под другой: мягкая S-кривая в промежутке
-    const sx = right ? A.l + (A.r - A.l) * 0.55 : A.l + Math.min(28, (A.r - A.l) * 0.2);
-    const ex0 = right ? B.l + Math.min(40, (B.r - B.l) * 0.3) : B.r - Math.min(48, (B.r - B.l) * 0.3);
-    const ex = gsap.utils.clamp(B.l + 14, B.r - 14, ex0);
-    const S: Pt = [sx, A.b + pad * 0.5], E: Pt = [ex, B.t - pad * 0.6];
-    const dx = E[0] - S[0], dy = E[1] - S[1];
-    // плавная дуга: выходит почти вниз и приходит сверху, без петель и крюков
-    tries.push([S, [S[0] + dx * 0.15, S[1] + dy * 0.55], [E[0] - dx * 0.1, E[1] - dy * 0.5], E]);
-  }
-  if (B.r < A.l - 20 || B.l > A.r + 20) {
-    // наискосок вниз: выходит из-под пометки вниз и подходит к следующей сбоку, четверть окружности
-    const toLeft = B.r < A.l;
-    const S: Pt = [toLeft ? A.l + Math.min(30, (A.r - A.l) * 0.25) : A.r - Math.min(30, (A.r - A.l) * 0.25), A.b + pad * 0.5];
-    const E: Pt = [toLeft ? B.r + pad : B.l - pad, B.t + (B.b - B.t) * 0.45];
-    if (E[1] - S[1] >= 10) tries.push([S, [S[0], S[1] + (E[1] - S[1]) * 0.75], [E[0] + (S[0] - E[0]) * 0.35, E[1]], E]);
-  }
-  const c = tries.find((t) => Math.hypot(t[3][0] - t[0][0], t[3][1] - t[0][1]) >= 18 && clear(t, obstacles));
-  if (!c) return null;
-  const [S, c1, c2, E] = c;
-  // наконечник по касательной в конце
-  let dx = E[0] - c2[0], dy = E[1] - c2[1];
-  if (Math.hypot(dx, dy) < 1) { dx = E[0] - c1[0]; dy = E[1] - c1[1]; }
-  const a = Math.atan2(dy, dx), h = 10, w = 0.48;
-  const h1: Pt = [E[0] - h * Math.cos(a - w), E[1] - h * Math.sin(a - w)];
-  const h2: Pt = [E[0] - h * Math.cos(a + w), E[1] - h * Math.sin(a + w)];
-  return { line: `M${pt(S)} C${pt(c1)} ${pt(c2)} ${pt(E)}`, head: `M${pt(h1)} L${pt(E)} L${pt(h2)}` };
-}
-
 /**
  * Где у курсивной буквы краска: самый тесный наклонный эллипс, в который она целиком входит.
  * Считается по пикселям один раз на шрифт, в долях кегля от начала буквы и базовой линии.
@@ -193,11 +128,13 @@ function inkEllipse(ch: string, font: string) {
   return { cx: (cx - X) / S, cy: (cy - Y) / S, a: best.a / S, b: best.b / S, tilt: best.tilt, fa, fd };
 }
 
+const f1 = (n: number) => Math.round(n * 10) / 10;
+
 /**
- * Обо мне: заголовок поднимается по буквам и первую букву обводит рука, полароид падает на
- * страницу, его прихватывает скотч, снимок проявляется. Лид по строкам, ник подчёркивается,
- * пометки пишутся от руки одна за другой, и стрелка ведёт от каждой к следующей. Наклейки
- * шлёпаются с отскоком, их можно таскать и бросать по блоку, а с клавиатуры двигать стрелками.
+ * Обо мне: всё появляется по очереди, чтобы глаз шёл за одним действием. Лист в клетку ложится на стол,
+ * заголовок поднимается по буквам, рука обводит первую букву, полароид падает и проявляется, лид
+ * поднимается по строкам, вырезки с отзывами ложатся на лист, в конце шлёпаются наклейки. Снимок
+ * отходит от курсора, наклейки можно таскать и бросать по блоку, а с клавиатуры двигать стрелками.
  */
 export function init(root: HTMLElement) {
   const q = gsap.utils.selector(root);
@@ -282,18 +219,15 @@ export function init(root: HTMLElement) {
     .fromTo(tape, { scaleX: 0 }, { scaleX: 1, duration: 0.32, ease: 'power3.out', immediateRender: true }, 0.62)
     .fromTo(dev, { opacity: 1 }, { opacity: 0, duration: 2.4, ease: 'power2.inOut', immediateRender: true }, 0.7));
   const nameW = handwrite(q<HTMLElement>('[data-about-write]')[0], 0.05);
-  const akaW = handwrite(q<HTMLElement>('[data-about-aka]')[0], 0.05);
 
   /* лист в клетку: ложится под текст, скотч прихватывает углы; за мышью чуть смещается, как нижний слой */
   const sheet = q<HTMLElement>('[data-about-sheet]')[0];
   const sheetIn = wrap(gsap.timeline({ paused: true })
     .fromTo(sheet, { autoAlpha: 0, y: 46, rotation: 2.6 }, { autoAlpha: 1, y: 0, rotation: 0, duration: 0.9, ease: 'expo.out', immediateRender: true }, 0)
     .fromTo(q('[data-about-sheet-tape]'), { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: 'power3.out', stagger: 0.1, immediateRender: true }, 0.45));
-  const marginsEl = q<HTMLElement>('.about__margins')[0];
   // смещение в процентах: не спорит с x/y анимации входа
   const px = [gsap.quickTo(sheet, 'xPercent', { duration: 0.9, ease: 'power3' }), gsap.quickTo(sheet, 'yPercent', { duration: 0.9, ease: 'power3' })];
-  const mx = [gsap.quickTo(marginsEl, 'x', { duration: 1.2, ease: 'power3' }), gsap.quickTo(marginsEl, 'y', { duration: 1.2, ease: 'power3' })];
-  const depth = (nx: number, ny: number) => { px[0](nx * -0.9); px[1](ny * -0.8); mx[0](nx * 14); mx[1](ny * 10); };
+  const depth = (nx: number, ny: number) => { px[0](nx * -0.7); px[1](ny * -0.6); };
 
   // пружина: полароид висит на скотче, мышь его раскачивает, потом он успокаивается
   let ang = 0, vel = 0, target = 0, raf = 0, last = 0;
@@ -331,81 +265,64 @@ export function init(root: HTMLElement) {
   // выделенные слова в лиде подчёркиваются от руки
   const emLine = wrap(gsap.fromTo(leadEl, { '--u': 0 }, { '--u': 1, duration: 0.7, ease: 'power2.inOut', paused: true, immediateRender: true }));
 
-  const noteItems = q<HTMLElement>('[data-about-note-item]');
-  const notes = noteItems.map((li) => {
-    const text = li.querySelector<HTMLElement>('[data-about-note]')!;
-    const w = handwrite(text, 0.022, 0.22);
-    const marks = [...li.querySelectorAll<SVGSVGElement>('.about__doodle')];
-    const doodle = draw([...li.querySelectorAll('[data-about-doodle]')], 0.5);
-    return { li, text, marks, w, doodle };
-  });
-
-  // стрелки между пометками: путь по тому, где пометки реально встали на этой ширине
-  const linksSvg = q<SVGSVGElement>('.about__links')[0];
-  const links = q<SVGGElement>('[data-about-link]').map((g) => {
-    const [line, head] = [...g.querySelectorAll<SVGPathElement>('path')];
-    return { line, head, draw: liveDraw([line, head], 0.32, 'power1.inOut', 0.26) };
-  });
-  const layoutLinks = () => {
-    if (!linksSvg) return;
-    const o = linksSvg.getBoundingClientRect();
-    if (!o.width) return;
-    const boxes: (Box | null)[] = notes.map((n) => {
-      const rs = [n.text, ...n.marks].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
-      if (!rs.length) return null;
-      return { l: Math.min(...rs.map((r) => r.left)) - o.left, t: Math.min(...rs.map((r) => r.top)) - o.top, r: Math.max(...rs.map((r) => r.right)) - o.left, b: Math.max(...rs.map((r) => r.bottom)) - o.top };
-    });
-    // лид по строкам самого текста: стрелки обходят его. Высоту строки берём у маски: сама строка
-    // во время входа сдвинута вниз
-    const rg = document.createRange();
-    const lines = [...leadEl.querySelectorAll<HTMLElement>('.ln')];
-    const leadBoxes: Box[] = (lines.length ? lines : [leadEl]).map((ln) => {
-      rg.selectNodeContents(ln);
-      const rs = [...rg.getClientRects()].filter((r) => r.width > 2);
-      const m = (lines.length ? ln.parentElement ?? ln : ln).getBoundingClientRect();
-      const l = rs.length ? Math.min(...rs.map((r) => r.left)) : m.left, r = rs.length ? Math.max(...rs.map((r) => r.right)) : m.right;
-      return { l: l - o.left, t: m.top - o.top, r: r - o.left, b: m.bottom - o.top };
-    });
-    links.forEach((ln, i) => {
-      const others = boxes.filter((b, j): b is Box => !!b && j !== i && j !== i + 1);
-      const a = boxes[i], b = boxes[i + 1];
-      const p = a && b ? linkPath(a, b, [...leadBoxes, ...others]) : null;
-      ln.line.setAttribute('d', p?.line ?? '');
-      ln.head.setAttribute('d', p?.head ?? '');
-      ln.draw.refresh();
-    });
+  /* ---------- отзывы ---------- */
+  // на широком экране вырезки ложатся на лист по одной; на узком видна одна, остальные сменяют её по очереди
+  const reviews = q<HTMLElement>('[data-about-review]');
+  const dots = q<HTMLButtonElement>('[data-about-rv-dot]');
+  const dotsBox = q<HTMLElement>('.about__rv-dots')[0];
+  const single = () => !!dotsBox && getComputedStyle(dotsBox).display !== 'none';
+  const reviewsIn = wrap(gsap.timeline({ paused: true })
+    .fromTo(reviews, { y: 26, rotation: (i) => [-5, 4, -3][i % 3] }, { y: 0, rotation: 0, duration: 0.7, ease: 'expo.out', stagger: 0.28, immediateRender: true }, 0)
+    .fromTo(reviews, { autoAlpha: 0 }, { autoAlpha: (_i, el: HTMLElement) => (!single() || el.classList.contains('is-on') ? 1 : 0), duration: 0.3, ease: 'none', stagger: 0.28, immediateRender: true }, 0));
+  let rv = 0;
+  let rvTimer: gsap.core.Tween | undefined;
+  const showReview = (i: number, user = false) => {
+    if (!single()) return;
+    const to = (i + reviews.length) % reviews.length;
+    if (to === rv) return;
+    const from = reviews[rv];
+    rv = to;
+    reviews.forEach((r, k) => r.classList.toggle('is-on', k === to));
+    dots.forEach((dt, k) => dt.classList.toggle('is-on', k === to));
+    gsap.killTweensOf([from, reviews[to]]);
+    gsap.to(from, { autoAlpha: 0, x: -24, duration: 0.3, ease: 'power2.in' });
+    gsap.fromTo(reviews[to], { autoAlpha: 0, x: 28 }, { autoAlpha: 1, x: 0, duration: 0.55, ease: 'expo.out', delay: 0.18 });
+    nextReview(user ? 9 : 5.5);
   };
-
-  // наведение на пометку: рука заново обводит её и ведёт стрелку к следующей
-  if (fine.matches) notes.forEach((n, i) => n.li.addEventListener('pointerenter', () => {
-    if (!titleDone) return;
-    n.doodle.play(0);
-    links[i]?.draw.play(0.1);
-  }));
+  const nextReview = (wait: number) => { rvTimer?.kill(); if (active && single()) rvTimer = gsap.delayedCall(wait, () => showReview(rv + 1)); };
+  dots.forEach((dt, k) => dt.addEventListener('click', () => showReview(k, true)));
+  reviews.forEach((r) => r.addEventListener('click', () => showReview(rv + 1, true)));
+  const resetReviews = () => {
+    rvTimer?.kill();
+    rv = 0;
+    gsap.killTweensOf(reviews);
+    reviews.forEach((r, k) => r.classList.toggle('is-on', k === 0));
+    dots.forEach((dt, k) => dt.classList.toggle('is-on', k === 0));
+    gsap.set(reviews, { clearProps: 'x' });
+  };
 
   const hint = handwrite(q<HTMLElement>('[data-about-hint]')[0], 0.04);
   const hintArrow = draw(q('[data-about-hint-arrow]'), 0.4);
 
-  // раскладку колец и стрелок пересчитываем, когда меняются размеры (ширина окна, догрузка шрифтов)
+  // кольцо пересчитываем, когда меняются размеры (ширина окна, догрузка шрифтов)
   let relayoutQueued = 0;
   const relayout = () => {
     if (relayoutQueued) return;
-    relayoutQueued = requestAnimationFrame(() => { relayoutQueued = 0; fitRing(); layoutLinks(); });
+    relayoutQueued = requestAnimationFrame(() => { relayoutQueued = 0; fitRing(); });
   };
-  const ro = new ResizeObserver(relayout);
-  [leadEl, ...noteItems, linksSvg, capbox].forEach((el) => el && ro.observe(el));
+  if (capbox) new ResizeObserver(relayout).observe(capbox);
   document.fonts.ready.then(relayout);
   document.fonts.addEventListener?.('loadingdone', relayout);
   fitRing();
-  layoutLinks();
 
   /* ---------- наклейки ---------- */
   const desk = q<HTMLElement>('[data-about-desk]')[0];
   const stickers = q<HTMLElement>('[data-about-sticker]');
   const ins = stickers.map((s) => s.querySelector<HTMLElement>('.about__st-in')!);
+  // наклейки шлёпаются по одной, когда всё остальное уже на месте
   const slap = wrap(gsap.timeline({ paused: true })
-    .fromTo(ins, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.14, stagger: 0.16, ease: 'none', immediateRender: true }, 0)
-    .fromTo(ins, { scale: 1.9, rotation: (i) => [28, -34, -26][i % 3], y: -24 }, { scale: 1, rotation: 0, y: 0, duration: 1.05, stagger: 0.16, ease: 'elastic.out(1, .48)', immediateRender: true }, 0));
+    .fromTo(ins, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.14, stagger: 0.32, ease: 'none', immediateRender: true }, 0)
+    .fromTo(ins, { scale: 1.7, rotation: (i) => [24, -28, -22][i % 3], y: -20 }, { scale: 1, rotation: 0, y: 0, duration: 0.9, stagger: 0.32, ease: 'elastic.out(1, .55)', immediateRender: true }, 0));
 
   const hops = new WeakMap<HTMLElement, gsap.core.Animation>();
   const hop = (el: HTMLElement) => {
@@ -488,45 +405,30 @@ export function init(root: HTMLElement) {
   let lastW = innerWidth;
   addEventListener('resize', () => { if (innerWidth !== lastW) { lastW = innerWidth; homeStickers(); } }, { passive: true });
 
-  const all: Player[] = [title, ring, photoIn, nameW, akaW, sheetIn, lead, emLine, slap, hint, hintArrow, ...notes.flatMap((n) => [n.w, n.doodle]), ...links.map((l) => l.draw)];
+  const all: Player[] = [title, ring, photoIn, nameW, sheetIn, lead, emLine, reviewsIn, slap, hint, hintArrow];
   all.forEach((p) => p.reset());
 
-  // пометки на полях: карандаш дорисовывает их по одной, когда основное уже на месте
-  const margins = q<SVGPathElement>('[data-about-mg]');
-  const stain = q<SVGSVGElement>('[data-about-stain]')[0];
-  const marginTl = gsap.timeline({ paused: true })
-    .fromTo(stain, { opacity: 0, scale: 0.9, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 1.2, ease: 'power2.out' }, 0)
-    .fromTo(margins, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.7, ease: 'power1.inOut', stagger: 0.16 }, 0.3);
-  const marginsIn = wrap(marginTl);
-
+  // Вход по очереди, одно за другим: лист, заголовок с кольцом, снимок, текст, отзывы, наклейки, подсказка.
+  // Пометки на полях и кофейный круг просто лежат: они фон, а не действие.
   watchBlock(root, () => {
     active = true;
     drags.forEach((d) => d.enable());
-    marginsIn.play(1.1);
     titleDone = false;
+    resetReviews();
     fitRing();
-    layoutLinks();
     sheetIn.play(0);
-    title.play(0.12);
-    ring.play(0.65);
-    photoIn.play(0.05);
-    after(0.62, () => kick(-45));
-    lead.play(0.4);
-    emLine.play(1.3);
-    nameW.play(1.25);
-    akaW.play(1.25 + nameW.dur() + 0.1);
-    // пометки пишутся по очереди; закончив одну, рука ведёт стрелку к следующей
-    let t = 0.8;
-    notes.forEach((n, i) => {
-      n.w.play(t);
-      const end = t + n.w.dur();
-      n.doodle.play(end - 0.08);
-      links[i]?.draw.play(end - 0.02);
-      t = end + (links[i]?.line.getAttribute('d') ? 0.2 : 0.08);
-    });
-    slap.play(1.35);
-    hint.play(2.05);
-    hintArrow.play(2.05 + hint.dur());
+    title.play(0.2);
+    ring.play(0.85);
+    photoIn.play(0.75);
+    after(1.3, () => kick(-38));
+    nameW.play(1.7);
+    lead.play(1.45);
+    emLine.play(2.25);
+    reviewsIn.play(2.35);
+    after(2.35 + 0.28 * reviews.length + 0.6, () => nextReview(5.5));
+    slap.play(3.1);
+    hint.play(3.9);
+    hintArrow.play(3.9 + hint.dur());
     after(2.2, () => { titleDone = true; });
   }, () => {
     active = false;
@@ -535,13 +437,12 @@ export function init(root: HTMLElement) {
     stopSwing();
     drags.forEach((d) => d.disable());
     gsap.set(sheet, { xPercent: 0, yPercent: 0 });
-    gsap.set(marginsEl, { x: 0, y: 0 });
     homeStickers();
     fx.forEach((a) => a.kill());
     fx.clear();
     tilts.forEach((t) => t.tween.pause());
     chars.forEach((ch) => { delete ch.dataset.hop; });
+    resetReviews();
     all.forEach((p) => p.reset());
-    marginsIn.reset();
   });
 }
