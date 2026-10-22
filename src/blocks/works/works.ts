@@ -186,7 +186,7 @@ export function init(root: HTMLElement) {
   let timer = 0, runRaf = 0;
   let swap: gsap.core.Timeline | null = null;
   let flip: gsap.core.Timeline | null = null;
-  const holds = new Set<string>(); // причины паузы автопоказа: hover, focus, touch
+  const holds = new Set<string>(); // причины паузы автопоказа: фокус с клавиатуры и палец на экране
 
   const proj = () => P[pi];
   const stopTimer = () => { clearTimeout(timer); timer = 0; cancelAnimationFrame(runRaf); runRaf = 0; };
@@ -303,8 +303,7 @@ export function init(root: HTMLElement) {
 
   /* ---------- окно и телефон рядом: мышь, палец, клик. Жесты слушает общая обёртка, поэтому телефон, свисающий
      ниже окна, тоже листает кадры и открывает кейс ---------- */
-  win.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { card.classList.add('is-hot'); hold('hover', true); } });
-  win.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { card.classList.remove('is-hot'); hold('hover', false); } });
+  // курсор над окном показ не останавливает и кнопку не подсвечивает: кадры идут сами, как и без мыши
   // пауза только для фокуса с клавиатуры: клик мышью по точке не останавливает показ насовсем
   stage.addEventListener('focusin', (e) => { if ((e.target as Element).matches(':focus-visible')) hold('focus', true); });
   stage.addEventListener('focusout', (e) => { if (!stage.contains(e.relatedTarget as Node)) hold('focus', false); });

@@ -120,7 +120,7 @@ html:not(.js) .works__tick[aria-current="true"] i::after { transform: none; }
 /* мышь: окно связано с кнопкой, наведение на скриншот подсвечивает «Открыть кейс» */
 @media (hover: hover) and (pointer: fine) {
   .works__win:hover .works__zoom { transform: scale(1.02); }
-  .works__card.is-hot .works__open, .works__open:hover { background: var(--accent); color: var(--accent-fg); }
+  .works__open:hover { background: var(--accent); color: var(--accent-fg); }
   .works__open:hover .works__arrow, .works__yours:hover .works__arrow { transform: translateX(4px); }
   .works__yours:hover .works__gc, .works__pick:hover .works__pick-name { color: var(--fg); }
   .works__pick .works__pick-name { transition: color var(--dur-fast); }
