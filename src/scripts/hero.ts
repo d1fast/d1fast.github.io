@@ -1,125 +1,124 @@
 import { gsap } from 'gsap';
-import type { Field } from './glyphs';
+import { SplitText } from 'gsap/SplitText';
+import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
+import type { Sculpt } from './sculpt';
+
+gsap.registerPlugin(SplitText, ScrambleTextPlugin);
 
 /**
- * Первый экран. Имя собирается из роя знаков (glyphs.ts): на первом входе из облака по всему экрану,
- * при возвращении знаки слетаются из-за краёв. Когда буквы встали, по имени проходит волна.
- * Курсор расталкивает знаки, клик или тап по пустому месту пускает волну, на телефоне имя само
- * время от времени вздрагивает. Подпись и кнопки поднимаются по строкам после сборки.
- * Без WebGL заголовок остаётся обычным текстом.
+ * Первый экран. Буквы имени поднимаются из-под строки и наливаются весом, следом подпись и кнопки.
+ * Рядом знаки кода слетаются из облака в скульптуру (sculpt.ts) и по очереди перетекают в то, что я делаю;
+ * подпись под ней называет предмет и показывает, сколько до следующего. Курсор наклоняет скульптуру
+ * и расталкивает знаки, тап или клик по пустому месту пускает по ним волну.
+ * При каждом возвращении на первый экран всё проигрывается заново. Без WebGL остаётся текст.
  */
 export function initHero(onDone?: (hero: HTMLElement) => void) {
   const hero = document.querySelector<HTMLElement>('[data-hero]');
   if (!hero || hero.classList.contains('is-bound')) return;
   hero.classList.add('is-bound');
   const canvas = hero.querySelector<HTMLCanvasElement>('[data-hero-gl]');
+  const stage = hero.querySelector<HTMLElement>('[data-hero-stage]');
   const lines = [...hero.querySelectorAll<HTMLElement>('[data-hero-line]')];
   const tag = hero.querySelector<HTMLElement>('[data-hero-tag]');
   const cta = [...hero.querySelectorAll<HTMLElement>('[data-hero-cta] > *')];
-  let field: Field | null = null;
-  let firstShown = false;
-
-  // подпись поднимается целиком и проявляется, кнопки следом. Без разбивки на строки: так неразрывные пробелы
-  // («и\u00a0интерфейсы») остаются, и предлог не висит в конце строки
-  const tagTween = tag ? gsap.fromTo(tag, { y: 26, opacity: 0, clipPath: 'inset(0% 0% 100% 0%)' }, { y: 0, opacity: 1, clipPath: 'inset(-10% -2% -20% -2%)', duration: 1, ease: 'expo.out', paused: true }) : null;
-  const showText = (delay: number) => {
-    tagTween?.delay(delay).restart(true);
-    gsap.fromTo(cta, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'expo.out', stagger: 0.08, delay: delay + 0.2, overwrite: true });
-  };
-  const hideText = () => { tagTween?.pause(0); gsap.set(cta, { opacity: 0, y: 24 }); };
-
-  const flat = () => { hero.classList.add('is-flat'); hero.classList.remove('is-gl'); if (!firstShown) { firstShown = true; showText(0.1); } onDone?.(hero); };
-
+  const hud = hero.querySelector<HTMLElement>('[data-hero-hud]');
+  const idx = hero.querySelector<HTMLElement>('[data-hero-idx]');
+  const now = hero.querySelector<HTMLElement>('[data-hero-now]');
+  const bar = hero.querySelector<HTMLElement>('[data-hero-bar]');
+  const labels: string[] = JSON.parse(hud?.dataset.labels || '[]');
   const isTouch = matchMedia('(hover: none), (pointer: coarse)').matches;
-  const fontReady = document.fonts?.ready ?? Promise.resolve();
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const staged = () => document.documentElement.classList.contains('stage-on');
+  const isOpen = () => !staged() || hero.classList.contains('is-current');
+  let sculpt: Sculpt | null = null;
+  let split: SplitText | null = null;
+  let intro: gsap.core.Timeline | null = null;
+
+  /* ---------- текст ---------- */
+  const chars = () => (split?.chars as HTMLElement[] | undefined) ?? [];
+  const hideText = () => {
+    intro?.kill();
+    if (split) gsap.set(chars(), { yPercent: 118, rotate: 6 });
+    gsap.set([tag, ...cta, hud].filter(Boolean), { opacity: 0 });
+  };
+  const showText = (delay: number) => {
+    intro?.kill();
+    intro = gsap.timeline({ delay })
+      // буквы поднимаются по одной и из тонких становятся жирными
+      .fromTo(chars(), { yPercent: 118, rotate: 6, fontWeight: 260 }, { yPercent: 0, rotate: 0, fontWeight: 900, duration: 1.2, ease: 'expo.out', stagger: 0.045 }, 0)
+      .fromTo(tag, { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: 'expo.out' }, 0.6)
+      .fromTo(cta, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'expo.out', stagger: 0.08 }, 0.75)
+      .fromTo(hud, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 1.3);
+  };
+
+  /* ---------- подпись под скульптурой ---------- */
+  let barTween: gsap.core.Tween | null = null;
+  const onShape = (i: number, dur: number) => {
+    if (idx) idx.textContent = String(i + 1).padStart(2, '0');
+    if (now && labels[i]) gsap.to(now, { duration: 0.7, scrambleText: { text: labels[i], chars: '{}<>/=+*#01', speed: 0.6 }, overwrite: true });
+    barTween?.kill();
+    if (bar) barTween = gsap.fromTo(bar, { scaleX: 0 }, { scaleX: 1, duration: dur, ease: 'none' });
+  };
+
+  /* ---------- место скульптуры: квадрат внутри [data-hero-stage] над подписью ---------- */
+  const place = () => {
+    if (!sculpt || !stage) return;
+    const hr = hero.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    const hudH = hud ? hud.offsetHeight + 14 : 0;
+    const w = sr.width, h = sr.height - hudH;
+    if (w < 10 || h < 10) return;
+    sculpt.layout(sr.left - hr.left + w / 2, sr.top - hr.top + h / 2, Math.min(w * 1.04, h * 0.94));
+  };
+
+  const ready = () => { onDone?.(hero); };
   hideText();
 
-  fontReady.then(async () => {
-    if (!canvas) return flat();
-    let mod: typeof import('./glyphs');
-    try { mod = await import('./glyphs'); } catch { return flat(); }
+  (document.fonts?.ready ?? Promise.resolve()).then(async () => {
+    split = new SplitText(lines, { type: 'chars', charsClass: 'hero__ch' });
+    hideText();
+    hero.classList.add('is-split');
+    if (isOpen()) showText(0.25);
+    if (!canvas || !stage) { hero.classList.add('is-flat'); return ready(); }
+    let mod: typeof import('./sculpt');
+    try { mod = await import('./sculpt'); } catch { hero.classList.add('is-flat'); return ready(); }
     const cs = getComputedStyle(hero);
+    const mono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace';
+    try { await document.fonts?.load(`700 46px ${mono}`); } catch { /* знаки нарисуются запасным моноширинным */ }
     try {
-      field = mod.createField({ canvas, root: hero, color: cs.getPropertyValue('--fg').trim() || '#F3F0E8', hot: cs.getPropertyValue('--accent').trim() || '#FF6A3D', monoFont: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace' });
-    } catch { return flat(); }
-    const f = field;
+      sculpt = mod.createSculpt({ canvas, color: cs.getPropertyValue('--fg').trim() || '#F3F0E8', hot: cs.getPropertyValue('--accent').trim() || '#FF6A3D', font: mono, count: isTouch ? 3000 : 5200, calm });
+    } catch { hero.classList.add('is-flat'); return ready(); }
+    const sc = sculpt;
     hero.classList.add('is-gl');
-    // шаг сетки знаков от кегля имени: мельче на телефоне, но знаков не больше, чем потянет устройство
-    const stepFor = () => { const fs = parseFloat(getComputedStyle(lines[0]).fontSize) || 120; return Math.max(3, Math.min(6.4, fs / (isTouch ? 19 : 30))); };
-    const targets = () => { const s = stepFor(); return { pts: mod.sampleText(lines, hero, s), s }; };
-    const tg = targets();
-    f.build(tg.pts, tg.s);
-    f.onAssembled(() => {
-      // буквы встали: под знаками проступает бледная заливка, имя читается чётко и после разлёта
-      hero.classList.add('is-assembled');
-      const c = centerOf();
-      f.burst(c.x, c.y, isTouch ? 160 : 240, true);
-    });
-    // открыли сразу другой блок (ссылка с якорем): рой не крутится впустую, имя соберётся при входе
-    const stage = document.documentElement.classList.contains('stage-on');
-    if (!stage || hero.classList.contains('is-current')) { f.assemble({ inward: false, spread: 1, lead: 0.2 }); showText(1.25); }
-    firstShown = true;
-    onDone?.(hero);
+    sc.onShape(onShape);
+    place();
+    if (isOpen()) { sc.intro(); sc.start(); }
+    ready();
 
-    // смена размера: знаки перелетают на новые места
     let rt = 0;
-    addEventListener('resize', () => {
-      clearTimeout(rt);
-      rt = window.setTimeout(() => {
-        f.resize(); const t2 = targets(); f.retarget(t2.pts, t2.s);
-        // рой оживает, только если первый экран сейчас открыт: иначе он крутился бы впустую под другими блоками
-        if (!document.documentElement.classList.contains('stage-on') || hero.classList.contains('is-current')) f.start();
-      }, 160);
-    }, { passive: true });
+    addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(place, 120); }, { passive: true });
 
     // курсор и палец
-    const local = (e: PointerEvent) => { const r = hero.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, W: r.width, H: r.height }; };
-    let downAt = { x: 0, y: 0, t: 0 }, lastTouch = 0;
-    hero.addEventListener('pointermove', (e) => {
-      const p = local(e);
-      f.pointer(p.x, p.y, true, e.pointerType === 'mouse' ? 120 : 90);
-      if (e.pointerType === 'mouse') f.parallax((p.x / p.W - 0.5) * -60, (p.y / p.H - 0.5) * -40);
-      else lastTouch = performance.now();
-    }, { passive: true });
-    hero.addEventListener('pointerleave', () => { f.pointer(-1e4, -1e4, false); f.parallax(0, 0); });
-    hero.addEventListener('pointerdown', (e) => { const p = local(e); downAt = { x: p.x, y: p.y, t: performance.now() }; });
+    const local = (e: PointerEvent) => { const r = hero.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    let down = { x: 0, y: 0, t: 0 };
+    hero.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse') return; const p = local(e); sc.pointer(p.x, p.y, true); }, { passive: true });
+    hero.addEventListener('pointerleave', () => sc.pointer(0, 0, false));
+    hero.addEventListener('pointerdown', (e) => { const p = local(e); down = { ...p, t: performance.now() }; });
     hero.addEventListener('pointerup', (e) => {
-      if (e.pointerType !== 'mouse') f.pointer(-1e4, -1e4, false);
       if ((e.target as Element).closest('a, button')) return;
       const p = local(e);
-      if (Math.hypot(p.x - downAt.x, p.y - downAt.y) < 10 && performance.now() - downAt.t < 450) f.burst(p.x, p.y, 620, true);
+      if (Math.hypot(p.x - down.x, p.y - down.y) < 10 && performance.now() - down.t < 450) sc.pulse(p.x, p.y);
     });
 
-    // на телефоне имя само вздрагивает, если его давно не трогали
-    if (isTouch) {
-      setInterval(() => {
-        if (!hero.classList.contains('is-current') && document.documentElement.classList.contains('stage-on')) return;
-        if (performance.now() - lastTouch < 4000) return;
-        const c = centerOf();
-        f.burst(c.x + (Math.random() - 0.5) * c.w * 0.8, c.y + (Math.random() - 0.5) * c.h * 0.6, 200, true);
-      }, 5200);
-    }
-
     // рендер идёт, только пока первый экран открыт
-    hero.addEventListener('block:leave', () => f.stop());
-    if (!document.documentElement.classList.contains('stage-on')) {
-      new IntersectionObserver(([en]) => { if (en.isIntersecting) f.start(); else f.stop(); }).observe(hero);
-    }
+    hero.addEventListener('block:leave', () => sc.stop());
+    if (!staged()) new IntersectionObserver(([en]) => { if (en.isIntersecting) sc.start(); else sc.stop(); }).observe(hero);
   });
 
-  function centerOf() {
-    const r = hero!.getBoundingClientRect();
-    const a = lines[0].getBoundingClientRect(), b = lines[lines.length - 1].getBoundingClientRect();
-    const l = Math.min(a.left, b.left), rt = Math.max(a.right, b.right), t = a.top, bt = b.bottom;
-    return { x: (l + rt) / 2 - r.left, y: (t + bt) / 2 - r.top, w: rt - l, h: bt - t };
-  }
-
-  /** Возвращение на первый экран: знаки слетаются из-за краёв, подпись поднимается заново. */
+  /** Возвращение на первый экран: буквы поднимаются заново, знаки снова слетаются из облака. */
   (hero as HTMLElement & { _reenter?: () => void })._reenter = () => {
     hideText();
-    hero.classList.remove('is-assembled');
-    if (field && hero.classList.contains('is-gl')) { field.start(); field.assemble({ inward: true, spread: 0.7, lead: 0.05 }); showText(0.9); }
-    else showText(0.1);
+    showText(0.15);
+    if (sculpt) { place(); sculpt.intro(); sculpt.start(); }
   };
 }
 

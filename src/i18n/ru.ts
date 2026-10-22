@@ -23,7 +23,7 @@ export const ru: Dict = {
   hero: {
     name: 'Савелий Лопатин',
     nick: 'd1fast',
-    tagline: 'Делаю сайты, приложения, Telegram-ботов и\u00a03D. От\u00a0идеи до\u00a0запуска.',
+    tagline: 'Делаю сайты, приложения, Telegram\u2011ботов и\u00a03D. От\u00a0идеи до\u00a0запуска.',
     ctaContact: 'Написать мне',
     ctaWorks: 'Работы',
   },

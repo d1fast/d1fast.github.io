@@ -23,45 +23,60 @@
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
 html.stage-on .site-header { background: transparent; }
 
-/* Первый экран: имя из роя знаков на кобальте. Вторая строка имени сдвинута вправо,
-   слева от неё подпись и кнопки. Знаки рисует холст на весь блок, настоящий текст под ним прозрачный. */
-/* кегль от ширины: вторая строка со сдвигом (1,9 кегля) и сама строка (около 5 кеглей) всегда влезают */
-.hero { --avail: calc(min(100vw, var(--container)) - var(--gutter) - max(var(--gutter), 64px));
-  --fs-name: clamp(64px, min(calc(var(--avail) / 7.1), 23vh), 250px); --indent: calc(var(--fs-name) * 1.9);
-  display: grid; align-content: center; padding: calc(var(--header-h) + 24px) 0 clamp(32px, 6vh, 72px); overflow: hidden; }
+/* Первый экран: почти чёрный фон, слева имя, подпись и кнопки, справа скульптура из знаков кода.
+   Холст на весь блок: знаки при появлении и перетекании летают и за пределами своего места. */
+/* кегль имени от ширины колонки текста и от высоты экрана. --fit: ширина второй строки со сдвигом в кеглях
+   (по-русски «ЛОПАТИН» шире, по-английски имя короче и набирается крупнее) */
+.hero { --gap: clamp(16px, 3vw, 48px); --fit: 5.5;
+  --colw: calc((min(100vw, var(--container)) - var(--gutter) - max(var(--gutter), 64px) - var(--gap)) * .54);
+  --fs-name: clamp(52px, min(calc(var(--colw) / var(--fit)), 21vh), 210px);
+  display: grid; grid-template-rows: minmax(0, 1fr); padding: calc(var(--header-h) + 8px) 0 clamp(20px, 4.5vh, 52px); overflow: hidden;
+  background: radial-gradient(52% 62% at 74% 50%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 72%), var(--bg); }
+html.stage-on .hero { overflow: hidden; }
 .hero__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; }
-.hero__final { position: relative; z-index: 2; }
+.hero__grid { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 54fr) minmax(0, 46fr); column-gap: var(--gap); align-items: center; min-height: 0; }
+.hero__text { display: grid; gap: clamp(16px, 2.8vh, 30px); align-content: center; justify-items: start; }
 .hero__name { margin: 0; font: 900 var(--fs-name)/.86 var(--font-display); letter-spacing: -.035em; text-transform: uppercase; color: var(--fg); }
-.hero__line { display: block; width: max-content; max-width: none; white-space: nowrap; padding-top: .08em; }
-.hero__line--2 { margin-left: var(--indent); }
-/* пока знаки на холсте, буквы заголовка прозрачные: их видно выделением, читают скринридеры */
-html.js .hero.is-gl .hero__name { color: transparent; transition: color .9s var(--ease-out); }
-html.js .hero.is-gl.is-assembled .hero__name { color: color-mix(in oklab, var(--fg) 13%, transparent); }
-html.js .hero:not(.is-gl):not(.is-flat) .hero__name { color: transparent; }
-.hero__side { position: absolute; left: var(--gutter); top: calc(var(--fs-name) * .86 + var(--fs-name) * .08 + clamp(14px, 2.4vh, 30px)); width: calc(var(--indent) - clamp(24px, 3vw, 48px)); display: grid; gap: clamp(16px, 2.4vh, 26px); }
-.hero__tag { font: 500 clamp(17px, 1.3vw, 22px)/1.35 var(--font-display); max-width: 28ch; text-wrap: pretty; }
-html.js .hero:not(.is-bound) .hero__tag, html.js .hero:not(.is-bound) .hero__cta > * { opacity: 0; }
+/* строка имени режет буквы, пока они поднимаются; сверху запас под кратку «Й» */
+.hero__line { display: block; width: max-content; white-space: nowrap; overflow: clip; padding: .24em .04em .02em 0; margin-top: -.19em; }
+.hero__line--2 { margin-left: calc(var(--fs-name) * .42); }
+html[lang="en"] .hero { --fit: 4.75; }
+.hero__ch { display: inline-block; will-change: transform; transform-origin: 0% 100%; }
+.hero__tag { font: 500 clamp(17px, 1.3vw, 22px)/1.35 var(--font-display); max-width: 30ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 82%, var(--bg)); }
+html.js .hero:not(.is-split) .hero__name, html.js .hero:not(.is-bound) .hero__tag, html.js .hero:not(.is-bound) .hero__cta > *, html.js .hero:not(.is-bound) .hero__hud { opacity: 0; }
 .hero__cta { display: flex; flex-wrap: wrap; gap: 12px; }
 .hero .btn { font-family: var(--font-display); font-weight: 600; }
-/* узкий ноутбук и планшет боком: подпись под именем, а не рядом */
-@media (max-width: 1180px) {
-  .hero { --indent: clamp(0px, 12vw, 160px); --fs-name: clamp(56px, min(14.4vw, 21vh), 200px); }
-  .hero__side { position: static; width: auto; margin-top: clamp(20px, 3.4vh, 40px); }
+.hero .btn--ghost { border-color: color-mix(in oklab, var(--fg) 45%, transparent); }
+.hero__stage { position: relative; align-self: stretch; min-height: 0; }
+/* подпись под скульптурой: номер раздела, его название и полоска до следующего */
+.hero__hud { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; font: 500 12px/1 var(--font-mono); letter-spacing: .04em; color: color-mix(in oklab, var(--fg) 72%, var(--bg)); white-space: nowrap; }
+.hero__idx b { color: var(--accent); font-weight: 600; }
+.hero__now { color: var(--fg); text-transform: lowercase; min-width: 16ch; }
+.hero__now:lang(en) { text-transform: none; }
+.hero__bar { position: relative; display: block; width: 72px; height: 1px; background: color-mix(in oklab, var(--fg) 22%, transparent); }
+.hero__bar i { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
+.hero.is-flat .hero__hud { display: none; }
+/* экран стоя (телефон, планшет): скульптура сверху занимает всё свободное место, ниже имя, подпись и кнопки */
+@media (orientation: portrait) {
+  .hero { --colw: calc(100vw - 2 * var(--gutter)); --fs-name: clamp(40px, min(calc(var(--colw) / var(--fit)), 9.6dvh), 150px); padding: calc(var(--header-h) + 4px) 0 clamp(18px, 3.4dvh, 40px);
+    background: radial-gradient(70% 38% at 50% 30%, color-mix(in oklab, var(--accent) 11%, transparent), transparent 75%), var(--bg); }
+  .hero__grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; row-gap: clamp(14px, 2.4dvh, 28px); align-items: stretch; }
+  .hero__stage { order: -1; min-height: 26dvh; }
+  .hero__text { gap: clamp(12px, 2dvh, 22px); }
+  .hero__tag { font-size: clamp(16px, 2.2vw, 20px); }
+  .hero__hud { left: 0; transform: none; }
 }
-/* телефон боком: имя мельче по высоте, подпись и кнопки плотнее */
+@media (orientation: portrait) and (max-width: 600px) {
+  .hero__cta .btn { flex: 1 1 auto; }
+  .hero__hud { gap: 10px; font-size: 11px; }
+}
+/* телефон боком: всё плотнее, кнопки ниже */
 @media (orientation: landscape) and (max-height: 540px) {
-  .hero { --fs-name: clamp(40px, min(12vw, 18vh), 120px); padding-bottom: 14px; }
-  .hero__side { margin-top: 12px; gap: 12px; }
+  .hero { --fs-name: clamp(36px, min(calc(var(--colw) / var(--fit)), 17vh), 120px); padding-bottom: 12px; }
+  .hero__text { gap: 12px; }
   .hero__tag { font-size: 15px; }
   .hero .btn { min-height: 44px; }
-}
-/* телефон и планшет стоя: имя в две строки на всю ширину, ниже подпись и кнопки */
-@media (max-width: 760px) {
-  .hero { --indent: 0px; --fs-name: clamp(40px, min(17.6vw, 11vh), 110px); align-content: center; padding: calc(var(--header-h) + 16px) 0 clamp(28px, 6vh, 56px); }
-  .hero__line--2 { margin-left: 0; }
-  .hero__side { margin-top: clamp(18px, 3vh, 28px); }
-  .hero__tag { font-size: 17px; }
-  .hero__cta .btn { flex: 1 1 auto; }
+  .hero__hud { font-size: 11px; }
 }
 
 /* Размерные линии (первый экран и блок процесса) */

@@ -1,21 +1,30 @@
 ---
-// Первый экран. Имя собирают тысячи знаков (hero.ts + glyphs.ts, WebGL). Настоящий заголовок лежит в HTML:
-// по нему считаются места знаков, его читают скринридеры и поисковики, без WebGL он просто виден.
+// Первый экран. Слева имя, подпись и кнопки, справа (на телефоне сверху) скульптура из знаков кода
+// (hero.ts + sculpt.ts, WebGL): она по очереди складывается в то, что я делаю. Подпись под ней называет предмет.
 import { t, type Lang } from '../i18n';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
 const [first, last] = d.hero.name.split(' ');
+const labels = d.services.items.map((s) => s.title);
+const pad = (n: number) => String(n).padStart(2, '0');
 ---
 <section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero>
   <canvas class="hero__gl" aria-hidden="true" data-hero-gl></canvas>
-  <div class="container hero__final">
-    <h1 class="hero__name" data-hero-name><span class="hero__line hero__line--1" data-hero-line>{first}</span> <span class="hero__line hero__line--2" data-hero-line>{last}</span></h1>
-    <div class="hero__side">
+  <div class="container hero__grid">
+    <div class="hero__text">
+      <h1 class="hero__name"><span class="hero__line" data-hero-line>{first}</span> <span class="hero__line hero__line--2" data-hero-line>{last}</span></h1>
       <p class="hero__tag" data-hero-tag>{d.hero.tagline}</p>
       <div class="hero__cta" data-hero-cta>
         <a class="btn btn--primary" href="#contacts" data-magnetic>{d.hero.ctaContact}</a>
         <a class="btn btn--ghost" href="#works" data-magnetic="0.2">{d.hero.ctaWorks}</a>
+      </div>
+    </div>
+    <div class="hero__stage" data-hero-stage aria-hidden="true">
+      <div class="hero__hud" data-hero-hud data-labels={JSON.stringify(labels)}>
+        <span class="hero__idx"><b data-hero-idx>01</b> / {pad(labels.length)}</span>
+        <span class="hero__now" data-hero-now>{labels[0]}</span>
+        <i class="hero__bar"><i data-hero-bar></i></i>
       </div>
     </div>
   </div>
