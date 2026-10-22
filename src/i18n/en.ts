@@ -39,11 +39,11 @@ export const en: Dict = {
     title: 'What I do',
     items: [
       { title: 'Websites', text: 'Landing pages, promo sites and portfolios.' },
-      { title: 'Web apps', text: 'Dashboards, client accounts, APIs and integrations.' },
-      { title: 'Apps', text: 'For phone, desktop or every device at once.' },
-      { title: 'Telegram bots', text: 'Online shops, bookings and requests right in the chat.' },
-      { title: '3D and interactive', text: 'Three.js scenes, 3D showcases and configurators.' },
-      { title: 'Promo games', text: 'Built into a site or bot: prize wheels, quests, mini arcades.' },
+      { title: 'Web services', text: 'Client accounts, CRMs, admin panels, APIs and integrations.' },
+      { title: 'Mobile apps', text: 'iOS, Android and desktop from one codebase.' },
+      { title: 'Telegram bots', text: 'Shops, bookings and Mini Apps right in the chat.' },
+      { title: '3D and WebGL', text: 'Three.js scenes, 3D showcases and configurators.' },
+      { title: 'Gamification', text: 'Promo games: prize wheels, quests, mini arcades.' },
     ],
   },
   works: {

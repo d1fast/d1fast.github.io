@@ -1,6 +1,6 @@
 import { gsap } from 'gsap';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import { watchBlock, splitChars } from '../../scripts/block';
+import { watchBlock, splitChars, pointerArm } from '../../scripts/block';
 import { buildWidgets, type WidgetUI, type View } from './widgets';
 
 gsap.registerPlugin(ScrambleTextPlugin);
@@ -94,6 +94,7 @@ export function init(root: HTMLElement) {
     const k = Math.min(w / 360, (h - res) / 170);
     tube.style.setProperty('--k', k.toFixed(4));
     tube.style.setProperty('--dy', (res / 2).toFixed(1) + 'px');
+    screen.style.setProperty('--res', res.toFixed(1) + 'px');
     // камере сцен нужен размер экранчика и отступ от рамки: по ним она вписывает сцену и решает, насколько наезжать
     const pad = parseFloat(getComputedStyle(screen).getPropertyValue('--scr-pad')) || 8;
     const v: View = { w, h, res, k, pad };
@@ -173,15 +174,22 @@ export function init(root: HTMLElement) {
   }
 
   /* ---------- ввод ---------- */
+  const mouseArm = pointerArm();
+  let aimed = -1;
   btns.forEach((b, i) => {
     // наведение выбирает пункт, если мышь задержалась на нём хоть немного: при косом движении к окну
     // курсор пересекает соседние пункты, и они не должны перехватывать выбор
-    b.addEventListener('pointerenter', (e) => {
-      if (e.pointerType !== 'mouse' || !on) return;
+    // после входа меню всегда начинает с первого пункта: курсор, который просто остался над списком
+    // после перелистывания, пункт не выбирает, пока не сдвинется
+    const aim = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse' || !on || !mouseArm.armed || i === current || aimed === i) return;
+      aimed = i;
       clearTimeout(intent);
-      intent = setTimeout(() => { if (on) select(i, true); }, 90);
-    });
-    b.addEventListener('pointerleave', () => clearTimeout(intent));
+      intent = setTimeout(() => { aimed = -1; if (on) select(i, true); }, 90);
+    };
+    b.addEventListener('pointerenter', aim);
+    b.addEventListener('pointermove', aim);
+    b.addEventListener('pointerleave', () => { clearTimeout(intent); aimed = -1; });
     b.addEventListener('focus', () => { if (!on) return; if (i !== current) select(i, true); else hold(); });
     // щелчок по только что выбранному (наведением или фокусом этого же нажатия) не считается подтверждением
     b.addEventListener('click', () => { clearTimeout(intent); if (i === current && performance.now() - lastSel < 350) { hold(); return; } select(i, true); });
@@ -216,12 +224,13 @@ export function init(root: HTMLElement) {
     btns[to % total].focus({ preventScroll: true });
   });
 
-  const hov = (el: HTMLElement, set: (v: boolean) => void) => {
-    el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { set(true); sync(); } });
+  // наведение считается, когда курсор двигается над меню или окном уже после входа в блок
+  const hov = (el: HTMLElement, set: (v: boolean) => void, get: () => boolean) => {
+    el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && mouseArm.armed && !get()) { set(true); sync(); } });
     el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { set(false); sync(); } });
   };
-  hov(menu, (v) => { hoverMenu = v; menu.classList.toggle('is-hover', v); });
-  hov(dialog, (v) => { hoverDialog = v; });
+  hov(menu, (v) => { hoverMenu = v; menu.classList.toggle('is-hover', v); }, () => hoverMenu);
+  hov(dialog, (v) => { hoverDialog = v; }, () => hoverDialog);
   // фокус с клавиатуры внутри меню или окна ставит перебор на паузу (WCAG 2.2.2)
   root.addEventListener('focusin', (e) => {
     const t = e.target as HTMLElement;
@@ -278,8 +287,10 @@ export function init(root: HTMLElement) {
 
   const enter = () => {
     on = true; ready = false;
-    hoverMenu = menu.matches(':hover'); hoverDialog = dialog.matches(':hover');
-    menu.classList.toggle('is-hover', hoverMenu);
+    // курсор, оставшийся над меню после перелистывания, перебор не останавливает
+    mouseArm.reset();
+    hoverMenu = false; hoverDialog = false;
+    menu.classList.remove('is-hover');
     current = 0;
     mark(0);
     fit();

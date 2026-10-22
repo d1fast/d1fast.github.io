@@ -101,13 +101,13 @@ const TAU = Math.PI * 2;
 /** Масштаб общего плана, css-px на единицу сцены: прямоугольник b вписан в видимую часть экранчика
  *  (под «каналами») с отступом pad со всех сторон. */
 const fitS = (v: View, b: Box) => Math.min((v.w - 2 * v.pad) / b[2], (v.h - v.res - 2 * v.pad) / b[3]);
-/** Предел наезда. Маленький экранчик (уже 400 px, то есть телефон): до 2 px на единицу сцены, строка
- *  в 8 единиц вырастает до 16 px. Широкий (от 520 px, компьютер): камера только на 12 % подаётся
- *  к месту действия, общий план остаётся. Между ними предел меняется плавно. */
+/** Предел наезда. Маленький экранчик (уже 400 px, то есть телефон): до 2,9 px на единицу сцены, строка
+ *  в 8 единиц вырастает до 23 px, видно только то, что сейчас происходит. Широкий (от 520 px, компьютер):
+ *  камера подаётся к месту действия на 35 %, общий план почти остаётся. Между ними предел меняется плавно. */
 const capS = (s0: number, w: number) => {
-  const near = Math.max(s0 * 1.12, Math.min(2, s0 * 3));
+  const near = Math.max(s0 * 1.35, Math.min(2.9, s0 * 4.2));
   const f = Math.min(1, Math.max(0, (w - 400) / 120));
-  return near + (s0 * 1.12 - near) * f;
+  return near + (s0 * 1.35 - near) * f;
 };
 
 class Cam {
@@ -115,6 +115,8 @@ class Cam {
   s = { x: 180, y: 85, lw: Math.log(360), lh: Math.log(170) };
   v: View = { w: 0, h: 0, res: 0, k: 0, pad: 0 };
   private last = '';
+  private lastF = '';
+  private host: HTMLElement | null = null;
   /** b: содержимое сцены, оно же общий план */
   constructor(private layer: HTMLElement, readonly b: Box = FULL) {}
   at(r: Box) { return { x: r[0] + r[2] / 2, y: r[1] + r[3] / 2, lw: Math.log(r[2]), lh: Math.log(r[3]) }; }
@@ -142,6 +144,13 @@ class Cam {
     const z = s / K;
     const t = `translate(${(180 - z * cx).toFixed(2)}px,${(85 - z * cy).toFixed(2)}px) scale(${z.toFixed(4)})`;
     if (t !== this.last) { this.last = t; this.layer.style.transform = t; }
+    // насколько камера наехала: по этому экран затемняет края и показывает рамку видоискателя вокруг места действия
+    const cap = capS(s0, W);
+    const f = cap > s0 * 1.01 ? Math.max(0, Math.min(1, (s - s0) / (cap - s0))).toFixed(2) : '0';
+    if (f !== this.lastF && this.layer.closest('.svc-w.is-shown')) {
+      this.lastF = f;
+      (this.host ??= this.layer.closest<HTMLElement>('[data-services-screen]'))?.style.setProperty('--focus', f);
+    }
   };
 }
 
