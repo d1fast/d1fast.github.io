@@ -202,7 +202,8 @@ export function init(root: HTMLElement) {
     t.classList.remove('is-run');
     // класс снимается и ставится в следующем кадре, чтобы CSS-анимация началась заново
     runRaf = requestAnimationFrame(() => { runRaf = 0; t.classList.add('is-run'); });
-    timer = window.setTimeout(() => show(cur + 1), HOLD * 1000);
+    // после последнего кадра автопоказ переходит к следующей работе
+    timer = window.setTimeout(() => (cur + 1 >= p.shots.length && P.length > 1 ? pick((pi + 1) % P.length) : show(cur + 1)), HOLD * 1000);
   };
   const hold = (why: string, on: boolean) => { if (on) holds.add(why); else holds.delete(why); arm(); };
 
@@ -396,6 +397,8 @@ export function init(root: HTMLElement) {
     if (b.accent) root.style.setProperty('--accent', b.accent); else root.style.removeProperty('--accent');
     markRows();
     showFirst();
+    // название делится на буквы при первом показе: мерить его надо уже разбитым на слова
+    nameOf(k);
     fitName();
   };
   const pick = (k: number) => {

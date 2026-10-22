@@ -12,7 +12,7 @@ const all = await getCollection('work', (e) => e.id.endsWith(`/${lang}`) && !e.d
 const works = all.sort((a, b) => a.data.order - b.data.order || b.data.year - a.data.year);
 
 // Акцент по проекту: красится кнопка при наведении на окно и заполнение точек. Нет записи: остаётся тема.
-const ACCENT: Record<string, string> = { perfume: '#F2B44C' };
+const ACCENT: Record<string, string> = { perfume: '#F2B44C', portfolio: '#FF6A3D' };
 
 // Поле экранов: окно показывает горизонтальные кадры активной работы, телефон рядом вертикальные,
 // а наклонная плоскость за ними собрана из экранов всех работ (уменьшенные варианты -800).
