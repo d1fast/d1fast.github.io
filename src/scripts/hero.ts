@@ -132,14 +132,13 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     if (!sp) return;
     killSpace();
     sp.fly.forEach((f) => { f.v = -1; });
-    Object.assign(sp.st, { m: 1, tangle: 0, axes: 1, fin: 1, dz: -5, dy: 0, dop: 0 });
+    Object.assign(sp.st, { m: 1, tangle: 0, axes: 1, fin: 1, grow: 1, dz: -5, dy: 0, dop: 0 });
     sp.curves.forEach((c) => { c.drawn = 1; c.vis = 1; });
   };
 
   /* ---------- сценарии ---------- */
   /** где сейчас рассказ: номер вопроса, сомнение или ответ */
   let beat: number | 'doubt' | 'answer' | null = null;
-  const GAP = IN + DWELL + 0.12;
   function tell() {
     if (!sp) return;
     const s = sp;
@@ -151,11 +150,17 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     endHide(); linesHide(); skipIn();
     setPal(ASK[0]);
     s.fly.forEach((f) => { f.v = -1; });
-    Object.assign(s.st, { m: 0, tangle: 0, axes: 0, fin: 0, dz: -5, dy: 0, dop: 0 });
+    Object.assign(s.st, { m: 0, tangle: 0, axes: 0, fin: 0, grow: 0, dz: -5, dy: 0, dop: 0 });
     s.curves.forEach((c) => { c.drawn = 0; c.vis = 0; });
+    // следующий вопрос въезжает, когда прежний начал улетать; на узком экране стоя пути пересекаются,
+    // поэтому там новый ждёт, пока прежний почти скроется
+    const GAP = IN + DWELL + (hero.clientHeight > hero.clientWidth * 1.05 ? 0.45 : 0.15);
     const tl = gsap.timeline();
+    // оси прорастают из начала координат, пока не прилетел первый вопрос
+    tl.to(s.st, { grow: 1, duration: 0.9, ease: 'power3.out' }, 0);
+    const T0 = 0.45;
     states.ask.forEach((_, k) => {
-      const t = 0.3 + k * GAP;
+      const t = T0 + k * GAP;
       tl.set(s.curves[k], { vis: 1 }, t);
       tl.fromTo(s.fly[k], { v: 0 }, { v: 1, duration: FLY, ease: 'none', immediateRender: false }, t);
       tl.call(() => { beat = k; if (k > 0) flood(ASK[k % ASK.length], s.anchor(k)); }, [], t + IN * 0.45);
@@ -163,19 +168,21 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
       // пройденная лента становится тонким следом
       tl.to(s.curves[k], { vis: 0, duration: 0.7, ease: 'power1.inOut' }, t + FLY - 0.1);
     });
-    // сомнение: цвет сереет по всему экрану, кривые путаются, вопрос выплывает из глубины и дрожит
-    const tD = 0.3 + (states.ask.length - 1) * GAP + IN + DWELL + 0.1;
+    // сомнение: когда последний вопрос почти улетел, цвет сереет по всему экрану, кривые путаются,
+    // вопрос выплывает из глубины и дрожит
+    const tD = T0 + (states.ask.length - 1) * GAP + IN + DWELL + 0.5;
     tl.call(() => { beat = 'doubt'; flood(DOUBT, null, 0.9); }, [], tD);
     tl.to(s.curves, { vis: 0, duration: 0.5, ease: 'power1.in', overwrite: 'auto' }, tD);
-    tl.to(s.st, { tangle: 1, duration: 1.1, ease: 'sine.inOut' }, tD);
+    tl.to(s.st, { tangle: 1, duration: 1.1, ease: 'sine.inOut' }, tD + 0.3);
     tl.fromTo(s.st, { dz: -5, dy: 0, dop: 0 }, { dz: 0, dop: 1, duration: 1, ease: 'expo.out', immediateRender: false }, tD + 0.15);
-    // ответ: жёлтый разливается из цели, кривые распутываются и сходятся, оси уезжают к цели
+    // ответ: сомнение проваливается вниз, жёлтый разливается из цели, тонкие кривые распутываются и сходятся
+    // в цель, оси уезжают туда же; уже в цели кривые наливаются лентами своих цветов
     const tA = tD + 2.2;
+    tl.to(s.st, { dz: -2.2, dy: -0.9, dop: 0, duration: 0.38, ease: 'power2.in' }, tA - 0.38);
     tl.call(() => { beat = 'answer'; flood(ANSWER, s.target(), 0.9); answered(true); }, [], tA);
-    tl.to(s.st, { dz: -1.6, dy: -1.1, dop: 0, duration: 0.6, ease: 'power2.in' }, tA);
-    tl.to(s.st, { tangle: 0, duration: 1.3, ease: 'power2.inOut' }, tA);
-    tl.to(s.st, { m: 1, axes: 1, duration: 1.5, ease: 'power3.inOut' }, tA);
-    tl.to(s.curves, { vis: 1, duration: 0.7, stagger: 0.08, ease: 'power1.out' }, tA + 0.2);
+    tl.to(s.st, { tangle: 0, duration: 1.2, ease: 'power2.inOut' }, tA);
+    tl.to(s.st, { m: 1, axes: 1, duration: 1.4, ease: 'power3.inOut' }, tA);
+    tl.to(s.curves, { vis: 1, duration: 0.55, stagger: 0.08, ease: 'back.out(1.6)' }, tA + 1.0);
     tl.to(s.st, { fin: 1, duration: 0.6, ease: 'power1.out' }, tA + 1.25);
     tl.call(() => s.burst('target'), [], tA + 1.35);
     tl.call(() => linesIn(), [], tA + 0.3);
@@ -197,7 +204,7 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     answered(true);
     beat = 'answer';
     s.fly.forEach((f) => { f.v = -1; });
-    Object.assign(s.st, { m: 1, tangle: 0, axes: 1, fin: 0, dz: -5, dy: 0, dop: 0 });
+    Object.assign(s.st, { m: 1, tangle: 0, axes: 1, fin: 0, grow: 1, dz: -5, dy: 0, dop: 0 });
     s.curves.forEach((c) => { c.drawn = 0; c.vis = 1; });
     const tl = gsap.timeline();
     tl.to(s.curves, { drawn: 1, duration: 1.1, stagger: 0.1, ease: 'power2.out' }, 0.25);
@@ -217,7 +224,7 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     s.fly.forEach((f) => { f.v = -1; });
     gsap.to(s.st, { dop: 0, duration: 0.25 });
     gsap.to(s.curves, { drawn: 1, vis: 1, duration: 0.6, ease: 'power2.out' });
-    gsap.to(s.st, { tangle: 0, m: 1, axes: 1, duration: 1, ease: 'power3.inOut' });
+    gsap.to(s.st, { tangle: 0, m: 1, axes: 1, grow: 1, duration: 1, ease: 'power3.inOut' });
     gsap.to(s.st, { fin: 1, duration: 0.5, delay: 0.7 });
     flood(ANSWER, s.target(), 0.6);
     beat = 'answer';

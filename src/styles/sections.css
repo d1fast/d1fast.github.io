@@ -21,7 +21,7 @@
 .site-header__lang { display: inline-grid; place-items: center; min-width: 44px; min-height: 36px; border: 1px solid currentColor; padding: 0 10px; border-radius: var(--radius-sm); font-weight: 600; }
 @media (max-width: 760px) { .site-header__nav { display: none; } .site-header__lang { margin-left: auto; } }
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
-html.stage-on .site-header { background: transparent; }
+html.stage-on .site-header, html.js.stage:not(.stage-on) .site-header { background: transparent; }
 
 /* Первый экран-воронка: вопросы пролетают по кривым системы координат (hero/space.ts), у каждого своя палитра
    (hero/palettes.ts), новый цвет разливается кругом .hero__flood. В конце слева ответ, текст обо мне и кнопки,
@@ -61,6 +61,8 @@ html:not(.js) .hero__space, html:not(.js) .hero__gl { display: none; }
 /* «Пропустить» мелкий: только полный цвет текста держит контраст на всех палитрах */
 .hero__skip { position: absolute; left: 0; bottom: 0; min-height: 44px; padding: 0 2px; font: 500 13px/1 var(--font-mono); letter-spacing: .04em; color: var(--fg); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in oklab, var(--fg) 45%, transparent); }
 html.js .hero:not(.is-bound) .hero__say, html.js .hero:not(.is-bound) .hero__end > * { opacity: 0; }
+/* пока скрипт не запустился, фон уже первого вопроса (сирень), чтобы жёлтый ответа не мелькнул перед рассказом */
+html.js .hero:not(.is-bound) { --bg: #CDBBFF; --fg: #160C38; }
 .hero__aim { align-self: stretch; min-height: 0; }
 
 /* картинки рядом с вопросами: белые карточки с чернильной обводкой и жёсткой тенью, как ленты кривых */

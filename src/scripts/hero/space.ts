@@ -59,6 +59,8 @@ export interface SpaceState {
   axes: number;
   /** 0…1: стрелки, цель, подписи и бусины финала */
   fin: number;
+  /** 0…1: оси прорастают из начала координат в начале рассказа */
+  grow: number;
   /** вопрос сомнения: глубина, подъём, видимость */
   dz: number; dy: number; dop: number;
 }
@@ -150,7 +152,7 @@ function slowmo(u: number, sc: number, ds: number) {
 export function createSpace(o: Opts): Space {
   const { canvas, space, aim, questions, cards, doubt, palettes, words, nick, calm } = o;
   const ctx = canvas.getContext('2d')!;
-  const st: SpaceState = { m: 0, tangle: 0, axes: 0, fin: 0, dz: -5, dy: 0, dop: 0 };
+  const st: SpaceState = { m: 0, tangle: 0, axes: 0, fin: 0, grow: 1, dz: -5, dy: 0, dop: 0 };
   const curves: CurveState[] = PATHS.map(() => ({ drawn: 0, vis: 0 }));
   const fly = PATHS.map(() => ({ v: -1 }));
 
@@ -473,13 +475,13 @@ export function createSpace(o: Opts): Space {
   function axes() {
     const g = st.axes;
     const cen: V3 = [lerp(0.05 * ax, T[0] * ax, g), lerp(portrait ? 0.12 * ay : 0, T[1] * ay, g), lerp(-0.9, 0, g)];
-    const L = lerp(1.3 * Math.min(ax, ay), aimR * 1.02, g);
+    const L = lerp(1.3 * Math.min(ax, ay), aimR * 1.02, g) * Math.max(0.001, st.grow);
     const yaw = -0.62 + (calm ? 0 : Math.sin(time * 0.35) * 0.06), pit = 0.32;
     const c1 = Math.cos(yaw), s1 = Math.sin(yaw), c2 = Math.cos(pit), s2 = Math.sin(pit);
     const dir = (v: V3): V3 => { const x = v[0] * c1 + v[2] * s1, z = -v[0] * s1 + v[2] * c1; return [x, v[1] * c2 - z * s2, v[1] * s2 + z * c2]; };
     const O = rot(cen);
     const po = proj(O);
-    const a = lerp(0.24, 0.5, g);
+    const a = lerp(0.24, 0.5, g) * Math.min(1, st.grow * 1.6);
     ctx.lineWidth = 1.4; ctx.lineCap = 'round';
     const names = ['x', 'y', 'z'];
     [[1, 0, 0], [0, 1, 0], [0, 0, 1]].forEach((e, i) => {
