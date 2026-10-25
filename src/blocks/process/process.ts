@@ -3,7 +3,7 @@ import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { watchBlock, pointerArm } from '../../scripts/block';
-import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, MAN_STOP, MAN_VIEW, SWEAR_TIP, type P } from './lamp';
+import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, MAN_STOP, MAN_VIEW, THINK_DOTS, type P } from './lamp';
 
 gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
 
@@ -21,7 +21,7 @@ const DWELL = [4.6, 2.8, 2.8, 4];
 const MOVE = 0.8;
 const N = 4;
 const ZOOM = 1.3; // увеличение в лупе
-const ZOOM_MAN = 1.13; // над человечком лупа увеличивает меньше: он виден целиком
+const ZOOM_MAN = 1.68; // над человечком лупа крупнее: в стекле голова, шея и облачко мыслей
 const HOLD = 0.3; // столько лупа стоит над вопросом
 const WARM = '#FFE7A0';
 const DEG = Math.PI / 180;
@@ -240,7 +240,7 @@ export function init(root: HTMLElement) {
     if (L.k > 0.99) { y = clamp(LENS.minY, LENS.maxY, y); x = clamp(LENS.minX, LENS.right - HANDLE * Math.cos(handleAngle(y) * DEG), x); }
     lens.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
     lensHandle.setAttribute('transform', `rotate(${(handleAngle(y) - 45).toFixed(1)})`);
-    // у человечка увеличение плавно меньше, а вид внутри сдвигается к его середине: он помещается в стекло целиком
+    // у человечка увеличение плавно другое, а вид внутри сдвигается к голове: в стекле голова, шея и мысли
     const dm = Math.hypot(x - MAN_STOP[0], y - MAN_STOP[1]);
     const near = smooth(52, 8, dm);
     const z = ZOOM - (ZOOM - ZOOM_MAN) * near;
@@ -256,15 +256,16 @@ export function init(root: HTMLElement) {
     // лупа над человечком: он ругается; ушла: успокаивается, и над головой появляется «!»
     if (lensOn && L.k > 0.85) { if (!angry && dm < 10) swearOn(); else if (angry && dm > 18) swearOff(); }
   }
-  /* человечек ругается: облачко над лупой, в нём перебираются звёздочки и решётки, кулак трясётся */
+  /* человечек ругается: в лупе над головой облачко мыслей, в нём перебираются звёздочки и решётки, кулак трясётся */
   const MAN_I = 2;
   const GRAWLIX = '#@%&*!$?';
   let angry = false, cuss: gsap.core.Tween | null = null;
-  gsap.set(swear, { svgOrigin: `${SWEAR_TIP[0]} ${SWEAR_TIP[1]}`, scale: 0 });
+  // облачко растёт от макушки, откуда идут кружки
+  gsap.set(swear, { svgOrigin: `${THINK_DOTS[0][0][0]} ${THINK_DOTS[0][0][1]}`, scale: 0 });
   const curse = () => {
     const a = GRAWLIX.split('');
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    swearT.textContent = a.slice(0, 5).join('') + '!';
+    swearT.textContent = a.slice(0, 4).join('') + '!';
   };
   function swearOn() {
     angry = true;
