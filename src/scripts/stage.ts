@@ -181,7 +181,7 @@ export function initStage(hooks: StageHooks = {}) {
 
   const lines = [...document.querySelectorAll<HTMLAnchorElement>('[data-dot]')];
   let current: HTMLElement = list[0];
-  let busy = false;
+  let busy = false, moving = false;
   let lastWheel = 0, lastInner = 0;
   let pointer: { x: number; y: number } | null = null;
   addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
@@ -232,7 +232,7 @@ export function initStage(hooks: StageHooks = {}) {
     if (busy || b === current) { if (focus && b === current) focusBlock(b); return; }
     const all = blocks();
     const dir: Dir = dirIn ?? (all.indexOf(b) > all.indexOf(current) ? 1 : -1);
-    busy = true;
+    busy = true; moving = true;
     canvas.classList.add('is-on');
     const draw = EFFECTS[b.dataset.block || ''] || waveFx(1);
     const colors = colorsOf(b);
@@ -247,6 +247,7 @@ export function initStage(hooks: StageHooks = {}) {
     await run(draw, colors, dir, false, REVEAL, st);
     ctx.clearRect(0, 0, W, H);
     canvas.classList.remove('is-on');
+    moving = false;
     release();
   };
   const step = (dir: Dir) => {
@@ -255,22 +256,39 @@ export function initStage(hooks: StageHooks = {}) {
     if (next) goTo(next, dir);
   };
 
-  // колесо и тачпад
+  // колесо и тачпад. Жест копит прокрутку и листает блок, когда набралось WHEEL_STEP пикселей: тачпад присылает
+  // мелкие порции (1–30 px), колесо мыши сразу 100. Остаток жеста и хвост инерции дальше не листают.
+  // Новый жест: пауза, смена направления или новый разгон посреди затухающей инерции.
+  const WHEEL_STEP = 40;
+  let gAcc = 0, gDone = false, gDir = 0, gPrev = 0, gLast = 0;
   addEventListener('wheel', (e) => {
-    if (e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+    if (e.ctrlKey) return;
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+    const dy = e.deltaY * unit, dx = e.deltaX * unit;
+    if (Math.abs(dy) < Math.abs(dx)) return;
     const now = performance.now();
-    if (busy) { e.preventDefault(); lastWheel = now; return; }
-    const dir: Dir = e.deltaY > 0 ? 1 : -1;
+    const dir: Dir = dy > 0 ? 1 : -1, mag = Math.abs(dy);
+    const fresh = now - gLast > 180 || dir !== gDir || (mag > gPrev * 1.7 && mag > 10);
+    gLast = now; gPrev = mag;
+    if (fresh) { gAcc = 0; gDone = false; gDir = dir; }
+    if (busy) {
+      e.preventDefault();
+      // переход идёт или это хвост того же жеста: ждём тишины
+      if (moving || !fresh) { gDone = true; lastWheel = now; return; }
+      busy = false;
+    }
+    lastWheel = now;
     const t = e.target as Element;
     const inner = t.closest?.('textarea, [data-scroll-inside]');
     if (inner && canScroll(inner, dir)) return;
-    if (canScroll(current, dir)) { lastInner = now; return; }
+    if (canScroll(current, dir)) { lastInner = now; gDone = true; return; }
     e.preventDefault();
     // инерция докрутила блок до края: хвост жеста не листает дальше
-    if (now - lastInner < 260) { lastInner = now; return; }
-    if (now - lastWheel < 240 && Math.abs(e.deltaY) < 40) { lastWheel = now; return; }
-    lastWheel = now;
-    if (Math.abs(e.deltaY) < 3) return;
+    if (now - lastInner < 260) { lastInner = now; gDone = true; return; }
+    if (gDone) return;
+    gAcc += mag;
+    if (gAcc < WHEEL_STEP) return;
+    gDone = true;
     step(dir);
   }, { passive: false });
 
