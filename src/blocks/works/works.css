@@ -1,195 +1,125 @@
-/* Работы: поле экранов. Фон блока = наклонная плоскость из настоящих экранов работ, приглушённая
-   вуалью. Слева карточка работы широким гротеском, справа окно с чётким кадром и экраном телефона.
+/* Работы: цилиндр видео. Работы стоят на поверхности цилиндра (works.ts, three.js): переднее видео играет,
+   соседние видны по краям, приглушённые. Фон блока = неподвижная наклонная плоскость из скриншотов всех работ,
+   приглушённая вуалью. Слева (на телефоне снизу) карточка текущей работы широким гротеском и номера работ.
    Раскладки: компьютер (база), низкий горизонтальный экран, вертикальный экран (телефон и планшет стоя).
-   Анимируются только transform и opacity; тени и градиенты статичные. */
+   Анимируются только transform и opacity. */
 .works {
   --works-muted: #8F8E89;   /* 5,8:1 на #0E0F10 */
-  --works-ghost: #7E7D79;   /* 4,6:1, проходит AA для текста ссылки 14–15px */
+  --works-ghost: #7E7D79;   /* 4,6:1 */
   --works-line: rgb(238 236 230 / .16);
   --works-tile-line: rgb(238 236 230 / .10);
-  --works-drop: 0 40px 80px -30px rgb(0 0 0 / .9);   /* статичная, никогда не анимируется */
   overflow: clip;
 }
 /* стрелки «→» набраны текстом; в моноширинном шрифте сайта их нет, поэтому знак лежит отдельным файлом (JetBrains Mono 500, 800 байт) */
 @font-face { font-family: 'Works Arrow'; font-style: normal; font-weight: 500; font-display: swap; src: url(/fonts/works-arrow.woff2) format('woff2'); unicode-range: U+2190, U+2192; }
 /* до запуска скрипта блок не показывает финальное состояние, чтобы вход не начинался со вспышки */
-html.js .works:not(.is-primed) > * { visibility: hidden; }
+html.js .works:not(.is-primed) > *:not(.works__field):not(.works__veil) { visibility: hidden; }
 
-/* ---------- плоскость экранов ---------- */
-/* поле обрезает плоскость по блоку; внутри него параллакс сдвигает чуть большую подложку, и края не открываются */
-.works__field { position: absolute; inset: 0; overflow: clip; pointer-events: none; }
-.works__drift { position: absolute; inset: -40px; perspective: 1100px; perspective-origin: 62% 30%; }
-/* поза покоя rotateX(56deg) rotateZ(-24deg): плоскость наклонена, сетка внутри неё повёрнута (отдельный слой
-   .works__spin, потому что GSAP пишет повороты в другом порядке), горизонт остаётся горизонтальным */
+/* ---------- неподвижная плоскость скриншотов ---------- */
+.works__field { position: absolute; inset: 0; overflow: clip; pointer-events: none; perspective: 1100px; perspective-origin: 62% 30%; }
+/* поза: rotateX(56deg) rotateZ(-24deg): плоскость наклонена, сетка внутри неё повёрнута, горизонт горизонтальный */
 .works__plane { position: absolute; left: 58%; top: 40%; width: var(--pw, 2400px); height: var(--ph, 1200px);
-  margin: calc(var(--ph, 1200px) / -2) 0 0 calc(var(--pw, 2400px) / -2); transform: rotateX(56deg); opacity: .34; }
+  margin: calc(var(--ph, 1200px) / -2) 0 0 calc(var(--pw, 2400px) / -2); transform: rotateX(56deg); opacity: .3; }
 .works__spin { position: absolute; inset: 0; transform: rotate(-24deg); }
-/* слои держатся, только пока блок на экране: при уходе видеопамять освобождается */
-.works.is-on .works__plane { will-change: transform, opacity; }
-.works.is-on .works__spin, .works.is-on .works__strip, .works.is-on .works__drift { will-change: transform; }
 .works__strip { position: absolute; inset: 0; }
 .works__tile { position: absolute; display: block; border-radius: 5px; overflow: hidden; background: #000; }
 .works__tile::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--works-tile-line); }
 .works__tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
-
-/* вуаль: затемняет края и место за карточкой, верхний левый угол оставляет плоскости */
+/* вуаль: затемняет края и середину, где стоит цилиндр, чтобы видео читались поверх плоскости */
 .works__veil { position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(110% 90% at 66% 52%, rgb(14 15 16 / 0) 35%, rgb(14 15 16 / .8) 78%, var(--bg) 100%),
+    radial-gradient(70% 62% at 64% 50%, rgb(14 15 16 / .72) 0, rgb(14 15 16 / .45) 55%, rgb(14 15 16 / .85) 85%, var(--bg) 100%),
     radial-gradient(60% 70% at 0% 88%, rgb(14 15 16 / .94) 0, rgb(14 15 16 / 0) 70%); }
 
-/* ---------- компьютер ---------- */
-.works__inner { height: 100dvh; min-height: 0; align-content: stretch;
-  grid-template-columns: minmax(280px, 30%) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  column-gap: clamp(24px, 3.5vw, 64px); padding-bottom: clamp(24px, 5vh, 56px); }
-.works__title { grid-column: 1; grid-row: 1; font: 500 15px/1 var(--font-wide); font-stretch: 151%; letter-spacing: .04em; text-transform: uppercase; color: var(--works-muted); }
+/* ---------- цилиндр: холст на весь блок, места для него задаёт .works__ring ---------- */
+.works__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; }
+.works.is-gl .works__gl { opacity: 1; }
 
-.works__card { grid-column: 1; grid-row: 2; align-self: end; min-width: 0; display: grid; gap: clamp(12px, 2.2vh, 22px); justify-items: start; }
-.works__proj { display: contents; }
-.works__name { justify-self: stretch; min-width: 0; font: 650 clamp(30px, min(4.3vw, 8vh), 76px)/.94 var(--font-wide); font-stretch: 151%;
-  --name-st: 151; --name-min: 30; /* с какой ширины шрифта и до какого кегля подгоняет fitName */
-  letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance; }
+/* ---------- компьютер ---------- */
+.works__inner { position: relative; z-index: 2; height: 100dvh; min-height: 0; align-content: stretch;
+  grid-template-columns: minmax(290px, 30%) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  column-gap: clamp(24px, 3vw, 56px); padding-bottom: clamp(24px, 5vh, 56px); }
+.works__title { grid-column: 1; grid-row: 1; font: 500 15px/1 var(--font-wide); font-stretch: 151%; letter-spacing: .04em; text-transform: uppercase; color: var(--works-muted); }
+/* место цилиндра: прозрачное, ловит жесты; холст рисует цилиндр по его размерам */
+.works__ring { grid-column: 2; grid-row: 1 / 3; position: relative; min-height: 0; touch-action: pan-y; cursor: grab;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.works__ring.is-drag { cursor: grabbing; }
+html.has-cursor .works__ring { cursor: none; }
+/* видео: в режиме цилиндра служат источником картинки и не видны; без WebGL одно окно с текущим видео */
+.works__flat { position: absolute; left: 50%; top: 50%; width: min(100%, (100cqh - 20px) * 16 / 9); aspect-ratio: 16 / 9; transform: translate(-50%, -50%);
+  border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--works-line), 0 40px 80px -30px rgb(0 0 0 / .9); }
+.works__ring { container-type: size; }
+.works__vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s var(--ease-out); }
+.works__vid.is-on { opacity: 1; }
+.works.is-gl .works__flat { opacity: 0; pointer-events: none; box-shadow: none; }
+
+/* карточка текущей работы */
+.works__card { grid-column: 1; grid-row: 2; align-self: end; min-width: 0; display: grid; gap: clamp(12px, 2vh, 20px); justify-items: start; }
+.works__proj { display: grid; gap: clamp(10px, 1.8vh, 18px); justify-items: start; min-width: 0; width: 100%; }
+.works__proj[hidden] { display: none; }
+.works__name { justify-self: stretch; min-width: 0; font: 650 clamp(30px, min(4vw, 7.6vh), 72px)/.94 var(--font-wide); font-stretch: 151%;
+  --name-st: 151; --name-min: 26; letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance; }
 .works__sub { max-width: 30ch; font: 500 clamp(14px, min(1.15vw, 2.2vh), 18px)/1.4 var(--font-body); text-wrap: pretty; }
-/* коротко о работе вместо кнопки кейса */
-.works__sum { max-width: 36ch; margin-top: -6px; font: 400 clamp(13px, min(1vw, 1.9vh), 15.5px)/1.5 var(--font-body); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: pretty; }
+.works__sum { max-width: 38ch; font: 400 clamp(13px, min(1vw, 1.9vh), 15.5px)/1.5 var(--font-body); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: pretty; }
 .works__meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 400 12.5px/1.4 var(--font-mono); color: var(--works-muted); }
 .works__concept { padding: 0 8px; border: 1px solid var(--works-line); border-radius: 999px; }
-/* какая работа из скольких: номер в акценте работы */
 .works__count { font: 500 13px/1 var(--font-mono); letter-spacing: .06em; color: var(--works-muted); }
 .works__count b { color: var(--accent); font-weight: 600; }
-.works__arrow { display: inline-block; font-family: 'Works Arrow', var(--font-mono); font-weight: 500; transition: transform var(--dur-fast) var(--ease-out); }
 
-/* строки других работ и «Ваш проект» последней строкой */
-.works__list { justify-self: stretch; display: grid; gap: 10px; border-top: 1px solid var(--works-line); margin-top: clamp(0px, 1vh, 8px); padding-top: clamp(10px, 1.8vh, 16px); }
-.works__pick, .works__yours { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; width: 100%; text-align: left;
-  font: 600 15px/1.2 var(--font-wide); font-stretch: 151%; letter-spacing: .02em; text-transform: uppercase; }
-.works__list.is-many .works__pick { font-size: 13px; }
-.works__pick-year, .works__write { font: 400 12.5px/1.2 var(--font-mono); letter-spacing: 0; text-transform: none; white-space: nowrap; }
-.works__pick-year { color: var(--works-muted); }
-.works__yours { color: var(--works-ghost); }
-.works__write { color: var(--fg); }
-.works__type { position: relative; white-space: nowrap; }
-.works__gc { transition: color 120ms var(--ease-out) calc(var(--i, 0) * 25ms); }
-.works__caret { display: inline-block; width: 2px; height: 1em; margin-left: 3px; vertical-align: -.15em; background: var(--fg); }
-.works.is-on .works__caret.is-blink { animation: works-blink 1.1s steps(1) infinite; }
-@keyframes works-blink { 50% { opacity: 0; } }
-
-/* ---------- окно ---------- */
-/* Размеры окна и телефона считаются от свободного места сцены (единицы cq): --ww ширина окна, --dh его высота,
-   --pt верх телефона от верха окна, --ph высота телефона. Телефон на компьютере всегда одной доли окна: его правый
-   край закрывает левую планету кадра целиком (промежуточный размер резал её пополам). Если снизу места мало,
-   телефон не уменьшается, а поднимается выше по окну. Свисающую часть точки учитывают отступом снизу,
-   чтобы вся группа стояла по центру. */
-.works__stage { grid-column: 2; grid-row: 1 / 3; min-height: 0; container-type: size; display: grid; align-content: center; justify-items: end;
-  --gap: 18px; gap: var(--gap); padding-bottom: 1vh;
-  --ww: min(100cqw - 8px, (100cqh - 40px) * 1.62); --dh: calc(var(--ww) * .5625); --ph: calc(var(--ww) * .54);
-  --pt: clamp(var(--dh) * .1, 100cqh - var(--ph) - 2px, var(--dh) * .36); --pw: calc(var(--ph) * 780 / 1688); }
-.works__win { width: var(--ww); }
-.works__nav { margin-bottom: max(0px, var(--pt) + var(--ph) - var(--dh) - var(--gap) - 40px); }
-.works__win { position: relative; }
-.works__desk { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000; cursor: pointer;
-  box-shadow: 0 0 0 1px var(--works-line), var(--works-drop); touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-html.has-cursor .works__desk { cursor: none; }
-.works__zoom { position: absolute; inset: 0; transition: transform 500ms var(--ease-out); }
-.works__shot, .works__pshot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
-.works__vid { background: #000; }
-.works__shot.is-on, .works__pshot.is-on { opacity: 1; }
-/* телефон в левом нижнем углу: внизу справа на всех кадрах важный интерфейс, а внизу слева только пыль.
-   Выступает за окно немного: на ноутбуках его низ стоит вровень со строкой «Ваш проект», и ей нужен зазор.
-   Он тоже ведёт в кейс и листается пальцем, как окно (works.ts) */
-.works__phone { position: absolute; left: -3.5%; top: var(--pt); width: var(--pw); aspect-ratio: 780 / 1688; border-radius: 12px; overflow: hidden; background: #000;
-  box-shadow: 0 0 0 1px var(--works-line), var(--works-drop); cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-html.has-cursor .works__phone { cursor: none; }
-
-/* под окном: точки кадров работы, справа стрелки назад и дальше. Стрелки на краю работы переходят к соседней.
-   Слева место под свисающий телефон */
-.works__nav { width: var(--ww); display: flex; align-items: center; gap: clamp(12px, 1.4vw, 20px); padding-left: calc(var(--pw) - var(--ww) * .035 + 12px); }
-.works__steps { flex: none; display: flex; gap: 8px; }
+/* стрелки и номера работ: номеров сколько угодно, ряд переносится */
+.works__nav { display: flex; align-items: center; gap: 10px; justify-self: stretch; padding-top: clamp(6px, 1.2vh, 12px); border-top: 1px solid var(--works-line); }
 .works__step { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--works-line); transition: box-shadow var(--dur-fast), background-color var(--dur-fast); }
 .works__step svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .works__step:active { transform: scale(.94); }
-.works__step:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-/* точки кадров: зона нажатия 32×24, внутри полоска 2px; активная заполняется акцентом за время показа (у видео за его длительность) */
-.works__ticks { flex: 1; display: flex; gap: 6px; justify-content: flex-end; }
-.works__tick { display: grid; align-items: center; width: 32px; height: 24px; border-radius: 2px; }
-.works__tick i { position: relative; display: block; height: 2px; overflow: hidden; background: var(--works-line); transform-origin: 0 50%; transition: background-color var(--dur-fast); }
-.works__tick[aria-current="true"] i { background: rgb(238 236 230 / .4); }
-.works__tick i::after { content: ''; position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
-html:not(.js) .works__tick[aria-current="true"] i::after { transform: none; }
-.works__tick.is-run i::after { animation: works-fill var(--dur, 4.5s) linear var(--del, 0s) forwards; }
-/* у точки видео значок «играет» */
-.works__tick.is-video { width: 44px; grid-template-columns: auto 1fr; gap: 6px; }
-.works__tick.is-video::before { content: ''; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; color: var(--works-muted); }
-.works__tick.is-video[aria-current="true"]::before { color: var(--accent); }
-.works.is-paused .works__tick.is-run i::after { animation-play-state: paused; }
-@keyframes works-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.works__idx { flex: 1; display: flex; flex-wrap: wrap; gap: 2px 4px; justify-content: center; }
+.works__dot { position: relative; display: grid; justify-items: center; gap: 5px; min-width: 40px; padding: 6px 4px; font: 500 12.5px/1 var(--font-mono); color: var(--works-muted); transition: color var(--dur-fast); }
+.works__dot i { display: block; width: 22px; height: 2px; background: var(--works-line); transform-origin: 50% 50%; transition: background-color var(--dur-fast), transform .35s var(--ease-out); }
+.works__dot[aria-current="true"] { color: var(--fg); }
+.works__dot[aria-current="true"] i { background: var(--dot, var(--accent)); transform: scaleX(1.45); }
 
-/* фокус с клавиатуры */
-.works__yours:focus-visible, .works__pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; }
-.works__tick:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* «Ваш проект»: последняя строка карточки */
+.works__yours { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; justify-self: stretch;
+  font: 600 15px/1.2 var(--font-wide); font-stretch: 151%; letter-spacing: .02em; text-transform: uppercase; color: var(--works-ghost); }
+.works__write { font: 400 12.5px/1.2 var(--font-mono); letter-spacing: 0; text-transform: none; white-space: nowrap; color: var(--fg); }
+.works__arrow { display: inline-block; font-family: 'Works Arrow', var(--font-mono); font-weight: 500; transition: transform var(--dur-fast) var(--ease-out); }
 
+.works__step:focus-visible, .works__dot:focus-visible, .works__yours:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) {
-  .works__win:hover .works__zoom { transform: scale(1.02); }
   .works__step:hover { background: rgb(238 236 230 / .08); box-shadow: inset 0 0 0 1px rgb(238 236 230 / .4); }
+  .works__dot:hover { color: var(--fg); }
+  .works__yours:hover { color: var(--fg); }
   .works__yours:hover .works__arrow { transform: translateX(4px); }
-  .works__yours:hover .works__gc, .works__pick:hover .works__pick-name { color: var(--fg); }
-  .works__pick .works__pick-name { transition: color var(--dur-fast); }
-  .works__tick:hover i { background: rgb(238 236 230 / .4); }
 }
 
 /* ---------- низкий горизонтальный экран (телефон лёжа) ---------- */
 @media (max-height: 480px) and (min-aspect-ratio: 1/1) {
-  .works__inner { padding-top: calc(var(--header-h) + 8px); padding-bottom: 14px; }
+  .works__inner { padding-top: calc(var(--header-h) + 8px); padding-bottom: 12px; }
   .works__title { font-size: 12px; }
-  .works__meta, .works__sum { display: none; }
-  .works__card { gap: 10px; }
+  .works__sum, .works__meta { display: none; }
+  .works__card { gap: 8px; }
+  .works__nav { padding-top: 4px; }
 }
-/* узкий экран лёжа без точек навигации справа */
 @media (max-width: 760px) and (orientation: landscape) { .works__inner { padding-right: var(--gutter); } }
 
 /* ---------- вертикальный экран: телефон и планшет стоя ---------- */
 @media (max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait) {
-  .works__drift { perspective: 700px; perspective-origin: 50% 40%; }
-  .works__plane { left: 50%; opacity: .38; }
+  .works__field { perspective: 700px; perspective-origin: 50% 40%; }
+  .works__plane { left: 50%; opacity: .32; }
   .works__veil { background:
-    radial-gradient(140% 75% at 50% 55%, rgb(14 15 16 / 0) 30%, rgb(14 15 16 / .8) 72%, var(--bg) 100%),
-    linear-gradient(180deg, rgb(14 15 16 / .95) 0, rgb(14 15 16 / .7) 22%, rgb(14 15 16 / 0) 38%); }
-  .works__inner { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; column-gap: 0;
-    padding: calc(var(--header-h) + 16px) var(--gutter) clamp(16px, 3dvh, 28px); }
-  .works__card { display: contents; }
-  .works__title { grid-row: 1; font-size: 12px; margin-bottom: clamp(8px, 1.6dvh, 14px); }
-  .works__count { grid-row: 1; grid-column: 1; justify-self: end; align-self: start; font-size: 12px; }
-  .works__name { grid-row: 2; margin-bottom: 8px; font-size: clamp(24px, min(8vw, 4.6dvh), 60px); font-stretch: 125%; --name-st: 125; --name-min: 24; white-space: nowrap; text-wrap: nowrap; }
-  .works__sub { grid-row: 3; max-width: none; font-size: clamp(14px, 2.2vw, 18px); text-wrap: balance; }
-  .works__sum { grid-row: 4; margin-top: 6px; max-width: none; font-size: clamp(13px, 1.9vw, 16px); }
-  .works__meta { grid-row: 5; display: none; }
-  /* телефон слева внизу и крупнее, точки стоят правее него. Верх телефона на трети окна: так он целиком закрывает
-     боковую панель кадра, и её кнопка не торчит над ним. Телефон крупный и закрывает обе левые планеты кадра целиком
-     (промежуточный размер резал планету пополам); если снизу места мало, он поднимается выше по окну */
-  .works__stage { grid-row: 6; grid-column: 1; justify-items: start; --gap: clamp(10px, 2dvh, 16px); padding: clamp(10px, 2dvh, 24px) 0 clamp(14px, 2.4dvh, 24px);
-    --ww: min(100cqw - 12px, (100cqh - 4px) / .82); --ph: calc(var(--ww) * .76);
-    --pt: clamp(var(--dh) * .1, 100cqh - var(--ph) - 2px, var(--dh) * .34); }
-  .works__win, .works__nav { margin-left: 12px; }
-  .works__nav { width: calc(var(--ww)); padding-left: calc(var(--pw) - 12px); }
-  .works__tick { flex: 1; width: auto; }
-  .works__tick.is-video { flex: 1.4; }
-  .works__list { grid-row: 7; margin-top: clamp(10px, 1.8dvh, 16px); }
-  .works__pick, .works__yours { font-size: 14px; }
-  /* на телефоне не больше двух других работ строками */
-  .works__row.is-extra { display: none; }
+    radial-gradient(120% 50% at 50% 34%, rgb(14 15 16 / .7) 0, rgb(14 15 16 / .5) 55%, rgb(14 15 16 / .88) 90%),
+    linear-gradient(180deg, rgb(14 15 16 / .9) 0, rgb(14 15 16 / 0) 20%, rgb(14 15 16 / 0) 55%, rgb(14 15 16 / .96) 72%); }
+  .works__inner { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; column-gap: 0;
+    padding: calc(var(--header-h) + 14px) var(--gutter) clamp(14px, 2.6dvh, 26px); }
+  .works__title { font-size: 12px; }
+  .works__ring { grid-column: 1; grid-row: 2; margin-inline: calc(var(--gutter) * -1); }
+  .works__card { grid-column: 1; grid-row: 3; align-self: end; gap: clamp(8px, 1.4dvh, 14px); }
+  .works__proj { gap: 6px; }
+  .works__name { font-size: clamp(24px, min(8vw, 4.6dvh), 56px); font-stretch: 125%; --name-st: 125; --name-min: 22; white-space: nowrap; text-wrap: nowrap; }
+  .works__sub { max-width: none; font-size: clamp(14px, 2.2vw, 18px); }
+  .works__sum { max-width: none; font-size: clamp(13px, 1.9vw, 16px); }
+  .works__meta { display: none; }
+  .works__yours { font-size: 13.5px; }
 }
-@media (max-aspect-ratio: 4/5) and (min-height: 700px) { .works__meta { display: flex; margin-top: 4px; } }
-/* высокий экран стоя: название в две строки крупно, как на компьютере, свободная высота уходит в типографику */
-@media (max-aspect-ratio: 4/5) and (min-height: 760px) {
-  .works__name { margin-bottom: 12px; font-size: clamp(36px, min(13vw, 6.4dvh), 112px); font-stretch: 140%; --name-st: 140; --name-min: 30; white-space: normal; text-wrap: balance; }
-}
-/* планшет стоя: верхняя полоса вуали короче, иначе середина экрана выглядит пустой */
-@media (max-aspect-ratio: 4/5) and (min-width: 761px) {
-  /* планшет стоя: название в две строки ещё крупнее, иначе под окном остаётся пустая полоса; телефон меньше: при окне во всю ширину он кончается между двумя левыми планетами кадра */
-  .works__name { max-width: 7em; font-size: clamp(60px, min(13vw, 9dvh), 128px); }
-  .works__stage { --ph: calc(var(--ww) * .6); }
-  .works__veil { background:
-    radial-gradient(140% 75% at 50% 55%, rgb(14 15 16 / 0) 30%, rgb(14 15 16 / .8) 72%, var(--bg) 100%),
-    linear-gradient(180deg, rgb(14 15 16 / .95) 0, rgb(14 15 16 / .6) 12%, rgb(14 15 16 / 0) 24%); }
-}
+@media (max-aspect-ratio: 4/5) and (min-height: 760px) { .works__meta { display: flex; } }
+@media (max-aspect-ratio: 4/5) and (max-height: 700px) { .works__sum { display: none; } }

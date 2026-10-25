@@ -1,7 +1,7 @@
 ---
 title: Fragrance builder
 subtitle: Every perfume note becomes a planet
-summary: You compose a perfume from notes like a solar system. Tap a planet, drag it to another orbit or remove it, and the service finds similar fragrances.
+summary: "Building a fragrance from chosen notes, each one a planet on its own orbit. Planets can be picked, moved to another orbit or removed, and the service finds similar perfumes."
 year: 2026
 order: 1
 role: Interface concept, 3D scene, front end

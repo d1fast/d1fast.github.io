@@ -1,7 +1,7 @@
 ---
 title: Grill bar bot
 subtitle: Bookings, menu and AI dish picks right in Telegram
-summary: A guest says who is coming and what they like, the AI suggests dishes and wine, and the bot books a table and sends a reminder. Fewer calls for the staff.
+summary: "Table booking and AI dish picks right in Telegram: based on the party and their tastes the bot suggests dishes and wine, books a table and sends a reminder. Fewer calls for the staff."
 year: 2026
 order: 2
 concept: true

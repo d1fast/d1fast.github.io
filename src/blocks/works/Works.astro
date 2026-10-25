@@ -11,125 +11,85 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const all = await getCollection('work', (e) => e.id.endsWith(`/${lang}`) && !e.data.draft);
 const works = all.sort((a, b) => a.data.order - b.data.order || b.data.year - a.data.year);
 
-// Акцент по проекту: заполнение точек и счётчик. Нет записи: остаётся тема.
+// Акцент по проекту: номер в счётчике и подсветка точки. Нет записи: остаётся тема.
 const ACCENT: Record<string, string> = { perfume: '#F2B44C', 'ugli-bot': '#F0763E', pena: '#A9CF8E' };
 
-// Поле экранов: окно показывает сначала видео работы, потом её горизонтальные кадры, телефон рядом вертикальные,
-// а наклонная плоскость за ними собрана из экранов всех работ (уменьшенные варианты -800).
+// Работы стоят на цилиндре: у каждой короткое видео (works.ts крутит цилиндр, переднее видео играет).
+// Фон блока = неподвижная наклонная плоскость из скриншотов всех работ (уменьшенные варианты -800).
 const has = (p: string) => fs.existsSync(path.join(process.cwd(), 'public', p));
 const small = (src: string) => { const s = src.replace(/\.webp$/, '-800.webp'); return s !== src && has(s) ? s : null; };
-const items = works.map((w) => {
+const items = works.filter((w) => w.data.video).map((w) => {
   const slug = w.id.split('/')[0];
-  const shots = w.data.media.filter((m) => !m.portrait && m.kind === 'image');
-  const desk = (shots.length ? shots : [{ src: w.data.cover, alt: w.data.coverAlt }]).map((m) => {
-    const s = small(m.src);
-    return { src: base + m.src, srcset: s ? `${base + s} 800w, ${base + m.src} 1600w` : undefined, tile: base + (s ?? m.src), alt: m.alt };
-  });
-  const phones = w.data.media.filter((m) => m.portrait && m.kind === 'image').map((m) => ({ src: base + m.src, alt: m.alt }));
-  const video = w.data.video ? { mp4: base + w.data.video.mp4, webm: base + w.data.video.webm, poster: base + w.data.video.poster } : null;
-  return { w: w.data, slug, desk, phones, video, accent: ACCENT[slug], n: desk.length + (video ? 1 : 0) };
+  const v = w.data.video!;
+  const desk = w.data.media.filter((m) => !m.portrait && m.kind === 'image').map((m) => base + (small(m.src) ?? m.src));
+  const phones = w.data.media.filter((m) => m.portrait && m.kind === 'image').map((m) => base + m.src);
+  // на цилиндре без видео стоит обложка работы (кадр, где сцена собрана), а не первый, часто пустой кадр ролика
+  return { w: w.data, slug, desk, phones, cover: base + w.data.cover, video: { mp4: base + v.mp4, webm: base + v.webm, poster: base + v.poster }, accent: ACCENT[slug] ?? '' };
 });
-const first = items[0];
 const tiles = JSON.stringify([
-  ...items.flatMap((it) => it.desk.map((m) => ({ src: m.tile, portrait: false }))),
-  ...items.flatMap((it) => it.phones.map((m) => ({ src: m.src, portrait: true }))),
+  ...items.flatMap((it) => it.desk.map((src) => ({ src, portrait: false }))),
+  ...items.flatMap((it) => it.phones.map((src) => ({ src, portrait: true }))),
 ]);
+const ring = JSON.stringify(items.map((it) => ({ poster: it.cover, accent: it.accent })));
 const pad = (n: number) => String(n).padStart(2, '0');
 const label = (s: string, n: number, total: number) => s.replace('{n}', String(n)).replace('{total}', String(total));
 const arrow = (dir: 'l' | 'r') => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${dir === 'l' ? 'M14.5 6 8.5 12l6 6' : 'M9.5 6l6 6-6 6'}" /></svg>`;
+const first = items[0];
 ---
 <section class="block block--works works" id="works" data-theme="works" data-block="works" style={first?.accent ? `--accent:${first.accent}` : undefined}
-  data-works-accents={JSON.stringify(items.map((it) => it.accent ?? ''))}>
-  <div class="works__field" aria-hidden="true" data-works-field>
-    <div class="works__drift" data-works-drift>
-      <div class="works__plane" data-works-plane data-works-tiles={tiles}>
-        <div class="works__spin" data-works-spin>
-          <div class="works__strip" data-works-strip></div>
-        </div>
+  data-works-ring={ring}>
+  <div class="works__field" aria-hidden="true">
+    <div class="works__plane" data-works-plane data-works-tiles={tiles}>
+      <div class="works__spin" data-works-spin>
+        <div class="works__strip" data-works-strip></div>
       </div>
     </div>
   </div>
   <div class="works__veil" aria-hidden="true"></div>
+  <canvas class="works__gl" aria-hidden="true" data-works-gl></canvas>
 
   <div class="block__inner container works__inner">
     <h2 class="works__title" data-works-title>{d.works.title}</h2>
 
+    <!-- место цилиндра: здесь ловятся свайп, протаскивание и клик; без WebGL здесь же плоское окно с видео -->
+    <div class="works__ring" role="group" aria-roledescription={d.works.carousel} aria-label={d.works.title} data-works-area>
+      <div class="works__flat" data-works-flat>
+        {items.map((it, k) => (
+          <video class:list={['works__vid', { 'is-on': k === 0 }]} muted playsinline disablepictureinpicture preload={k === 0 ? 'metadata' : 'none'}
+            poster={it.video.poster} width="1600" height="900" aria-label={`${d.works.video}: ${it.w.title}`} data-works-video={k}>
+            <source src={it.video.webm} type="video/webm" />
+            <source src={it.video.mp4} type="video/mp4" />
+          </video>
+        ))}
+      </div>
+    </div>
+
     <div class="works__card" data-works-card>
-      <p class="works__count" data-works-count aria-live="polite">
+      <p class="works__count" aria-live="polite">
         <span class="visually-hidden" data-works-count-sr>{label(d.works.project, 1, items.length)}</span>
         <span aria-hidden="true"><b data-works-count-n>01</b> / {pad(items.length)}</span>
       </p>
       {items.map((it, k) => (
         <div class="works__proj" data-works-proj={k} hidden={k !== 0}>
           <h3 class="works__name" data-works-name>{it.w.title}</h3>
-          <p class="works__sub" data-works-sub>{it.w.subtitle}</p>
-          <p class="works__sum" data-works-sum>{it.w.summary}</p>
-          <p class="works__meta" data-works-meta><span>{it.w.year}</span><span>{it.w.stack.join(', ')}</span>{it.w.concept && <span class="works__concept">{d.works.concept}</span>}</p>
+          <p class="works__sub" data-works-part>{it.w.subtitle}</p>
+          <p class="works__sum" data-works-part>{it.w.summary}</p>
+          <p class="works__meta" data-works-part><span>{it.w.year}</span><span>{it.w.stack.join(', ')}</span>{it.w.concept && <span class="works__concept">{d.works.concept}</span>}</p>
         </div>
       ))}
-      <ul class:list={['works__list', { 'is-many': items.length > 5 }]} data-works-list role="list">
-        {items.map((it, k) => (
-          <li class="works__row" data-works-row={k} hidden={k === 0}>
-            <button type="button" class="works__pick" data-works-pick={k}>
-              <span class="works__pick-name">{it.w.title}</span><span class="works__pick-year">{pad(k + 1)}</span>
-            </button>
-          </li>
-        ))}
-        <li class="works__row works__row--yours">
-          <a class="works__yours" href="#contacts" aria-label={`${d.works.yours}: ${d.hero.ctaContact.toLowerCase()}`} data-works-yours>
-            <span class="works__type" aria-hidden="true"><span class="works__ghost" data-works-ghost>{d.works.yours}</span><i class="works__caret" data-works-caret></i></span>
-            <span class="works__write" aria-hidden="true">{d.hero.ctaContact} <span class="works__arrow">→</span></span>
-          </a>
-        </li>
-      </ul>
-    </div>
-
-    {first && (
-      <div class="works__stage" data-works-stage>
-        <div class="works__win" role="group" aria-roledescription={d.works.carousel} aria-label={d.works.screens} data-works-win>
-          <div class="works__desk" data-works-desk>
-            <span class="works__zoom">
-              {items.map((it, k) => (
-                <>
-                  {it.video && (
-                    <video class:list={['works__shot', 'works__vid', { 'is-on': k === 0 }]} muted playsinline disablepictureinpicture preload={k === 0 ? 'metadata' : 'none'}
-                      poster={it.video.poster} width="1600" height="900" hidden={k !== 0} aria-label={`${d.works.video}: ${it.w.title}`} data-works-shot={k}>
-                      <source src={it.video.webm} type="video/webm" />
-                      <source src={it.video.mp4} type="video/mp4" />
-                    </video>
-                  )}
-                  {it.desk.map((m, i) => (
-                    <img class:list={['works__shot', { 'is-on': k === 0 && !it.video && i === 0 }]} src={m.src} srcset={m.srcset} sizes="(min-width: 761px) 60vw, 100vw"
-                      alt={m.alt} width="1600" height="900" decoding="async" loading="lazy" draggable="false"
-                      hidden={k !== 0} aria-hidden="true" data-works-shot={k} />
-                  ))}
-                </>
-              ))}
-            </span>
-          </div>
-          <span class="works__phone" aria-hidden="true" hidden={!first.phones.length} data-works-phone>
-            {items.map((it, k) => it.phones.map((m, i) => (
-              <img class:list={['works__pshot', { 'is-on': k === 0 && i === 0 }]} src={m.src} alt="" width="780" height="1688" decoding="async"
-                loading={k === 0 && i === 0 ? 'eager' : 'lazy'} draggable="false" hidden={k !== 0} data-works-pshot={k} />
-            )))}
-          </span>
-        </div>
-        <div class="works__nav">
+      <div class="works__nav" data-works-nav>
+        <button type="button" class="works__step" aria-label={d.works.prev} data-works-step="-1" set:html={arrow('l')} />
+        <div class="works__idx" role="group" aria-label={d.works.title}>
           {items.map((it, k) => (
-            <div class="works__ticks" data-works-ticks={k} hidden={k !== 0}>
-              {Array.from({ length: it.n }, (_, i) => (
-                <button type="button" class:list={['works__tick', { 'is-video': !!it.video && i === 0 }]} tabindex={i ? -1 : 0}
-                  aria-label={it.video && i === 0 ? d.works.video : label(d.works.screen, it.video ? i : i + 1, it.desk.length)}
-                  aria-current={i === 0 ? 'true' : 'false'} data-works-tick><i></i></button>
-              ))}
-            </div>
+            <button type="button" class="works__dot" aria-label={`${label(d.works.project, k + 1, items.length)}: ${it.w.title}`} aria-current={k === 0 ? 'true' : 'false'}
+              style={it.accent ? `--dot:${it.accent}` : undefined} data-works-dot={k}><span>{pad(k + 1)}</span><i></i></button>
           ))}
-          <div class="works__steps">
-            <button type="button" class="works__step" aria-label={d.works.prev} data-works-step="-1" set:html={arrow('l')} />
-            <button type="button" class="works__step" aria-label={d.works.next} data-works-step="1" set:html={arrow('r')} />
-          </div>
         </div>
+        <button type="button" class="works__step" aria-label={d.works.next} data-works-step="1" set:html={arrow('r')} />
       </div>
-    )}
+      <a class="works__yours" href="#contacts" data-works-yours>
+        <span class="works__yours-q">{d.works.yours}</span><span class="works__write">{d.hero.ctaContact} <span class="works__arrow" aria-hidden="true">→</span></span>
+      </a>
+    </div>
   </div>
 </section>

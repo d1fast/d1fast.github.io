@@ -1,7 +1,7 @@
 ---
 title: Coffee shop site
 subtitle: Pena with its menu, own roast and order ahead
-summary: A first screen with latte art, a tabbed menu and the roast with flavour notes. The Order ahead button opens a Telegram bot, so the coffee waits without a queue.
+summary: "A coffee shop site: a tabbed menu, the house roast with flavour notes and ordering ahead through a Telegram bot, so the coffee waits without a queue."
 year: 2026
 order: 3
 concept: true
