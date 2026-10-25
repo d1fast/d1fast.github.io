@@ -5,6 +5,9 @@
   --blue: color-mix(in oklab, var(--accent) 78%, var(--fg));
   --soft: color-mix(in oklab, var(--fg) 16%, var(--bg));
 }
+/* до запуска скрипта блок не показывает готовую лампу и подписи: иначе при открытии страницы сразу на этом блоке
+   они мелькали бы перед тем, как начнут рисоваться */
+html.js .process:not(.is-primed) .process__inner { visibility: hidden; }
 
 /* ---------- раскладка: телефон и планшет, всё в столбик ---------- */
 .process__inner { grid-template-columns: minmax(0, 1fr); row-gap: clamp(18px, 4.2vh, 40px); }

@@ -307,6 +307,8 @@ export function init(root: HTMLElement) {
     g?.getExtension('WEBGL_lose_context')?.loseContext();
     return !!g;
   })();
+  // пока модуль цилиндра грузится, плоское окно с видео не показывается: иначе оно мелькнуло бы перед цилиндром
+  if (glOk) root.classList.add('will-gl');
   const ready = (async () => {
     build();
     if (!glOk) return;
@@ -316,9 +318,10 @@ export function init(root: HTMLElement) {
       root.classList.add('is-gl');
       ring.set(0);
       ring.layout();
-      if (active) { ring.start(); ring.live(k); }
-      canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ring?.stop(); ring = null; root.classList.remove('is-gl'); videos.forEach((v, i) => v.classList.toggle('is-on', i === k)); }, { once: true });
-    } catch { ring = null; }
+      // цилиндр пришёл, когда блок уже открыт: въезжает с поворота, как при обычном входе
+      if (active) { ring.start(); ring.live(k); if (!calm) { ring.set(k - 0.6); ring.spin(k, 1.5, 'expo.out'); } }
+      canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ring?.stop(); ring = null; root.classList.remove('is-gl', 'will-gl'); videos.forEach((v, i) => v.classList.toggle('is-on', i === k)); }, { once: true });
+    } catch { ring = null; root.classList.remove('will-gl'); }
   })();
   // сцена ждёт сборку плоскости и цилиндра перед тем, как открыть блок, но не дольше 600 мс
   return Promise.race([ready, new Promise((r) => setTimeout(r, 600))]).then(() => {});

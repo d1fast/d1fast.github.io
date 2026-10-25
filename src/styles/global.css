@@ -10,6 +10,8 @@ html.stage-on body { overflow: hidden; }
 html.stage-on .block { height: 100dvh; min-height: 0; overflow-x: clip; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
 html.stage-on .block::-webkit-scrollbar { display: none; }
 html.stage-on .block > .block__inner { min-height: 100%; }
+/* открыли по ссылке сразу на блок: до запуска сцены содержимое скрыто, иначе мелькнул бы первый экран */
+html.deep:not(.stage-on) main { visibility: hidden; }
 .stage-fx { position: fixed; inset: 0; z-index: 95; width: 100vw; height: 100vh; pointer-events: none; visibility: hidden; }
 .stage-fx.is-on { visibility: visible; }
 /* переход между страницами сайта (кейс, политика) средствами браузера, где он это умеет */

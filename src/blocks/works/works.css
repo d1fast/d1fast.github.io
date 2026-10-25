@@ -32,7 +32,7 @@ html.js .works:not(.is-primed) > *:not(.works__field):not(.works__veil) { visibi
     radial-gradient(60% 70% at 0% 88%, rgb(14 15 16 / .94) 0, rgb(14 15 16 / 0) 70%); }
 
 /* ---------- цилиндр: холст на весь блок, места для него задаёт .works__ring ---------- */
-.works__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; }
+.works__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease-out); }
 .works.is-gl .works__gl { opacity: 1; }
 
 /* ---------- компьютер ---------- */
@@ -51,7 +51,7 @@ html.has-cursor .works__ring { cursor: none; }
 .works__ring { container-type: size; }
 .works__vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s var(--ease-out); }
 .works__vid.is-on { opacity: 1; }
-.works.is-gl .works__flat { opacity: 0; pointer-events: none; box-shadow: none; }
+.works.is-gl .works__flat, .works.will-gl .works__flat { opacity: 0; pointer-events: none; box-shadow: none; }
 
 /* карточка текущей работы */
 .works__card { grid-column: 1; grid-row: 2; align-self: end; min-width: 0; display: grid; gap: clamp(12px, 2vh, 20px); justify-items: start; }

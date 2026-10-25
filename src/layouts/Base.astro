@@ -73,6 +73,8 @@ const other = lang === 'ru' ? 'en' : 'ru';
     <script is:inline>
       document.documentElement.classList.add('js');
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      // ссылка сразу на блок главной: пока сцена не запустилась, страница в цветах этого блока и без первого экрана
+      (function (el, id) { if (el.classList.contains('stage') && /^(services|works|process|contacts)$/.test(id)) { el.classList.add('deep'); el.setAttribute('data-theme', id); } })(document.documentElement, location.hash.slice(1));
     </script>
     <script type="application/ld+json" set:html={JSON.stringify({
       '@context': 'https://schema.org',

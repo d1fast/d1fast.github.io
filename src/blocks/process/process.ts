@@ -760,4 +760,5 @@ export function init(root: HTMLElement) {
   });
 
   reset();
+  root.classList.add('is-primed');
 }
