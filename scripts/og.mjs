@@ -13,16 +13,16 @@ const fontCss = fs.readFileSync('src/styles/fonts.generated.css', 'utf8')
 
 const page = (w, h, scale = 1) => browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
 
-// Снимок первого экрана: ответ, текст обо мне и галочка из знаков, без шапки, кнопок и подписи под скульптурой.
+// Снимок первого экрана: ответ, текст обо мне и стопка объёмных слов на ультрамарине, без шапки и кнопок.
 for (const lang of ['ru', 'en']) {
   const p = await page(1200, 630);
   await p.goto(base + (lang === 'ru' ? '' : 'en/'), { waitUntil: 'networkidle' });
   await p.waitForTimeout(800);
-  // рассказ пропускается сразу к ответу: «Тогда вы попали по адресу» и галочка из знаков
+  // рассказ пропускается сразу к ответу: «Тогда вы попали по адресу» и стопка слов
   await p.click('[data-hero-skip]');
   await p.mouse.move(2, 2);
-  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.hero__hud,.hero__skip,.cursor{visibility:hidden!important}.hero__sub{font-size:24px!important}' });
-  await p.waitForTimeout(1300);
+  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.hero__skip,.cursor{visibility:hidden!important}.hero__sub{font-size:24px!important}' });
+  await p.waitForTimeout(2600);
   await p.screenshot({ path: `public/${lang === 'ru' ? 'og' : 'og-en'}.png` });
   await p.close();
   console.log('og', lang);
@@ -46,6 +46,6 @@ for (const [file, size] of [['apple-touch-icon.png', 180], ['favicon-32.png', 32
 const png64 = fs.readFileSync('public/favicon-64.png').toString('base64');
 fs.writeFileSync('public/favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64"><image width="64" height="64" href="data:image/png;base64,${png64}"/></svg>`);
 fs.rmSync('public/favicon-64.png');
-fs.writeFileSync('public/site.webmanifest', JSON.stringify({ name: 'd1fast', short_name: 'd1fast', start_url: '/', display: 'browser', background_color: '#121211', theme_color: '#121211', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }, null, 2));
+fs.writeFileSync('public/site.webmanifest', JSON.stringify({ name: 'd1fast', short_name: 'd1fast', start_url: '/', display: 'browser', background_color: '#2433B8', theme_color: '#2433B8', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }, null, 2));
 await browser.close();
 console.log('icons done');
