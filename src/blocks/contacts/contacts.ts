@@ -184,13 +184,17 @@ export function init(root: HTMLElement) {
       else if (at > sp[0]) w = Math.max(w, x - (lineLeft[i] || 0) - 4);
       if (w !== reveal[i]) { reveal[i] = w; l.style.setProperty('--w', `${w.toFixed(0)}px`); }
     });
-    // росчерк сразу после последней буквы
-    if (!swashed && spans.length && at >= spans[spans.length - 1][1]) { swashed = true; swashIn.play(0.05); }
+    // росчерк сразу после последней буквы, за ним открывается письмо (самолётик ещё улетает за край)
+    if (!swashed && spans.length && at >= spans[spans.length - 1][1]) { swashed = true; swashIn.play(0.05); openSoon(); }
+    // подзаголовок поднимается, когда заголовок написан на треть
+    if (!leadOn && spans.length && at >= spans[0][0] + (spans[spans.length - 1][1] - spans[0][0]) * 0.3) { leadOn = true; lead.play(0); }
   };
-  let swashed = false;
+  let swashed = false, leadOn = false;
+  let opened: (() => void) | null = null, openCall: gsap.core.Tween | null = null;
+  const openSoon = (delay = 0.45) => { const f = opened; opened = null; if (f) openCall = gsap.delayedCall(delay, f); };
   const setTitle = (on: boolean) => {
     written = on;
-    if (!on) swashed = false;
+    if (!on) { swashed = false; leadOn = false; }
     title.classList.toggle('is-written', on);
     lines.forEach((l, i) => { reveal[i] = on ? 1e4 : 0; l.style.setProperty('--w', `${reveal[i]}px`); });
   };
@@ -215,13 +219,18 @@ export function init(root: HTMLElement) {
     // медленно, с паузами между пролётами: фон, а не главное действие
     takeOff(routes.idle, routes.idle.len / (W < 761 ? 70 : 110), 'none', () => { later = gsap.delayedCall(4.5, idle); });
   };
-  const write = () => {
-    if (!routes.write.len) { setTitle(true); swashed = true; swashIn.play(0); later = gsap.delayedCall(1, idle); return; }
+  /** Самолётик пишет заголовок, вместе с ним проявляется «Расскажите…», потом росчерк, и только после этого
+   *  открывается письмо (opened). */
+  const write = (then: () => void) => {
+    opened = then;
+    if (!routes.write.len) { setTitle(true); leadOn = true; lead.play(0); swashed = true; swashIn.play(0); openSoon(0.3); later = gsap.delayedCall(1, idle); return; }
     // спокойно, с мягким стартом и уходом: видно, что самолётик пишет заголовок
-    const dur = gsap.utils.clamp(2.6, 4.6, routes.write.len / 330);
+    const dur = gsap.utils.clamp(2.2, 3.8, routes.write.len / 360);
     takeOff(routes.write, dur, 'sine.inOut', () => {
       setTitle(true);
+      if (!leadOn) { leadOn = true; lead.play(0); }
       if (!swashed) { swashed = true; swashIn.play(0); }
+      openSoon(0);
       later = gsap.delayedCall(1.1, idle);
     });
   };
@@ -236,10 +245,11 @@ export function init(root: HTMLElement) {
   // ---------- вход ----------
   // росчерк открывается маской слева направо: у линии non-scaling-stroke, drawSVG с ней врёт
   const hid = 'inset(-20px 100% -20px 0px)', shown = 'inset(-20px -20px -20px -20px)';
+  // росчерк ведётся рукой: первая линия медленно и ровно, вторая подхватывает её на середине, обе проявляются мягко
   const swashIn = wrap(gsap.timeline({ paused: true })
-    .fromTo(swash[0], { clipPath: hid }, { clipPath: shown, duration: 0.55, ease: 'power2.inOut' })
-    .fromTo(swash[1], { clipPath: hid }, { clipPath: shown, duration: 0.4, ease: 'power2.out' }, '-=0.1'));
-  const lead = splitLines(q('[data-lead]'), { duration: 0.9 });
+    .fromTo(swash[0], { clipPath: hid, opacity: 0 }, { clipPath: shown, opacity: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: true })
+    .fromTo(swash[1], { clipPath: hid, opacity: 0 }, { clipPath: shown, opacity: 1, duration: 0.9, ease: 'sine.inOut', immediateRender: true }, 0.55));
+  const lead = splitLines(q('[data-lead]'), { duration: 1.4, stagger: 0.2 });
   // явные конечные значения: у .btn есть CSS-переход transform, from() с ним путается
   const foot = rise(footer, { y: 0, duration: 0.8 });
   // конверт: ложится на стол, печать лопается, клапан на петле откидывается назад, письмо проявляется по строкам,
@@ -389,12 +399,11 @@ export function init(root: HTMLElement) {
     gsap.set(plane, { opacity: 0 });
     // при переходе между блоками экран ещё открывается: самолётик стартует, когда шторка ушла
     const veiled = !!document.querySelector('.stage-fx.is-on');
-    later = gsap.delayedCall(veiled ? 0.62 : 0.15, write);
-    envelope.play(0.05);
-    lead.play(0.5);
-    foot.play(1.1);
+    // письмо открывается, когда заголовок дописан, а росчерк пошёл
+    later = gsap.delayedCall(veiled ? 0.62 : 0.15, () => write(() => { envelope.play(0.25); foot.play(1.2); }));
   }, () => {
     stopFlight();
+    opened = null; openCall?.kill(); openCall = null;
     sending?.kill(); sending = null; restoreLetter();
     // при следующем входе письмо снова чистое: строка статуса не держит блок выше экрана
     if (status.dataset.kind) { status.textContent = ''; status.dataset.kind = ''; }
