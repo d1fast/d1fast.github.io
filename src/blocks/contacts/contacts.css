@@ -233,6 +233,10 @@ html.stage-on .block.contacts > .block__inner { flex: 1 0 auto; min-height: 0; }
   .contacts__title.block__title, .contacts__title + .contacts__swash { font-size: clamp(48px, 7.4vw, 80px); }
   .contacts__letter { justify-self: end; }
 }
+/* узкое и невысокое окно: подвал под письмом без лишнего зазора */
+@media (min-width: 761px) and (max-width: 960px) and (orientation: landscape) and (max-height: 720px) {
+  html.stage-on .block.contacts > .block__inner, .block.contacts > .block__inner { padding-bottom: 20px; }
+}
 /* телефон боком: подпись слева, письмо справа, всё плотнее; подвал прячется, ссылка на политику есть у галочки */
 @media (orientation: landscape) and (max-height: 540px) and (min-width: 600px), (orientation: landscape) and (max-height: 640px) and (min-width: 600px) and (max-width: 900px) {
   html.stage-on .block.contacts > .block__inner, .block.contacts > .block__inner { padding-top: calc(var(--header-h) + 6px); padding-bottom: 8px; }
