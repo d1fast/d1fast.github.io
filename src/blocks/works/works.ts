@@ -4,14 +4,15 @@ import { watchBlock, splitChars, rise, wrap, type Player } from '../../scripts/b
 
 /**
  * Работы: поле экранов. Фон блока = наклонная плоскость из настоящих экранов всех работ, приглушённая.
- * На входе плоскость влетает из глубины, один экран отрывается от неё и встаёт окном с чётким кадром,
+ * На входе плоскость влетает из глубины, один экран отрывается от неё и встаёт окном,
  * рядом поднимается экран телефона, потом набирается текст и печатается «Ваш проект».
- * В покое ничего не крутится: плоскость стоит, окно плоское, нет ни одного цикла на rAF.
- * Кадры сменяются сами раз в HOLD секунд (setTimeout, тикер GSAP между сменами засыпает),
- * и при каждой смене плоскость проезжает на один столбец. Пальцем кадры листаются горизонтальным
- * свайпом по окну, с клавиатуры стрелками на точках. Строки других работ переключают проект на месте.
+ * У каждой работы сначала короткое видео, потом скриншоты. Все кадры всех работ идут одним рядом:
+ * видео доигрывает до конца, скриншот стоит HOLD секунд, после последнего кадра работы начинается следующая.
+ * Свайп по окну, стрелки под ним, клик по окну и клавиши ←/→ листают тот же ряд в обе стороны.
+ * При каждой смене плоскость проезжает на один столбец. Строки других работ переключают проект сразу.
  */
-const HOLD = 4.5; // сколько кадр стоит при автопоказе, с (works.css, works-fill)
+const HOLD = 4.5; // сколько скриншот стоит при автопоказе, с (works.css, works-fill)
+const VIDEO_MAX = 20; // видео без длительности (не загрузилось) стоит столько, с
 const PERIOD = 3; // узор плоскости повторяется каждые 3 столбца: на столько полосу можно незаметно отмотать
 const ROWS = 6; // рядов в кадре плоскости (кандидатов больше, лишние отсекаются замером)
 const VERT = '(max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait)'; // вертикальная раскладка (works.css)
@@ -33,31 +34,43 @@ export function init(root: HTMLElement) {
   const card = one('[data-works-card]');
   const list = one('[data-works-list]');
   const stage = one('[data-works-stage]');
-  const desk = one<HTMLAnchorElement>('[data-works-desk]');
+  const desk = one('[data-works-desk]');
   const phone = one('[data-works-phone]');
   const ghost = one('[data-works-ghost]');
   const caret = one('[data-works-caret]');
   const rows = q<HTMLElement>('[data-works-row]');
   const vert = matchMedia(VERT);
   const fine = matchMedia('(hover: hover) and (pointer: fine)');
-  const slugs: string[] = JSON.parse(root.dataset.worksSlugs || '[]');
   const accents: string[] = JSON.parse(root.dataset.worksAccents || '[]');
+  const countN = one('[data-works-count-n]');
+  const countSr = one('[data-works-count-sr]');
+  const countTpl = countSr?.textContent || '';
 
-  // работы: карточка, кадры окна, кадры телефона, точки
+  // работы: карточка, кадры окна (видео первым), кадры телефона, точки
+  type Slide = HTMLImageElement | HTMLVideoElement;
   const P = q<HTMLElement>('[data-works-proj]').map((el, k) => {
     const name = el.querySelector<HTMLElement>('[data-works-name]')!;
     return {
       el, name,
-      rest: [...el.querySelectorAll<HTMLElement>('[data-works-sub], [data-works-meta], [data-works-open]')],
-      href: el.querySelector('[data-works-open]')!.getAttribute('href') || '',
-      label: el.querySelector<HTMLAnchorElement>('[data-works-open] span')!.textContent + ': ' + name.textContent,
-      shots: q<HTMLImageElement>(`[data-works-shot="${k}"]`),
+      rest: [...el.querySelectorAll<HTMLElement>('[data-works-sub], [data-works-sum], [data-works-meta]')],
+      shots: q<Slide>(`[data-works-shot="${k}"]`),
       phones: q<HTMLImageElement>(`[data-works-pshot="${k}"]`),
       box: one(`[data-works-ticks="${k}"]`),
       ticks: q<HTMLButtonElement>(`[data-works-ticks="${k}"] [data-works-tick]`),
-      slug: slugs[k] || '', accent: accents[k] || '',
+      accent: accents[k] || '',
     };
   });
+  const isVid = (el: Slide | undefined): el is HTMLVideoElement => el?.tagName === 'VIDEO';
+  // браузер не дал запустить (режим энергосбережения) или файл не загрузился: видео стоит постером, как скриншот
+  const stuck = (v: HTMLVideoElement) => v.dataset.stuck === '1' || !!v.error;
+  const play = (v: HTMLVideoElement) => {
+    v.play().catch((e: DOMException) => {
+      if (e?.name === 'AbortError') return; // пауза до старта, не отказ
+      v.dataset.stuck = '1';
+      if (proj().shots[cur] === v) arm();
+    });
+  };
+  const stopVideos = () => P.forEach((p) => p.shots.forEach((s) => { if (isVid(s)) s.pause(); }));
 
   /* ---------- плоскость ---------- */
   const tiles: Tile[] = JSON.parse(plane.dataset.worksTiles || '[]');
@@ -194,16 +207,25 @@ export function init(root: HTMLElement) {
   const arm = () => {
     stopTimer();
     const p = proj();
-    const t = p.ticks[cur];
+    const t = p.ticks[cur], s = p.shots[cur];
     p.ticks.forEach((b) => b !== t && b.classList.remove('is-run'));
     const paused = !auto || !active || holds.size > 0 || document.hidden || !!flip;
     root.classList.toggle('is-paused', paused);
-    if (paused || p.shots.length < 2 || !t) return;
+    // видео: идёт, пока блок на экране; на паузе стоит, потом продолжает с того же места
+    if (isVid(s) && !stuck(s)) { if (active && !document.hidden && !flip && auto) play(s); else s.pause(); }
+    if (paused || !t) return;
+    // видео ведёт само: точка заполняется за его длительность с того места, где оно стоит; следующий кадр по событию ended
+    const vid = isVid(s) && !stuck(s);
+    const known = vid && Number.isFinite(s.duration) && s.duration > 0;
+    const full = vid ? (known ? s.duration : VIDEO_MAX) : HOLD;
+    const done = known ? Math.min(s.currentTime, full - 0.5) : 0;
+    t.style.setProperty('--dur', `${full}s`);
+    t.style.setProperty('--del', `${-done}s`);
     t.classList.remove('is-run');
     // класс снимается и ставится в следующем кадре, чтобы CSS-анимация началась заново
     runRaf = requestAnimationFrame(() => { runRaf = 0; t.classList.add('is-run'); });
-    // после последнего кадра автопоказ переходит к следующей работе
-    timer = window.setTimeout(() => (cur + 1 >= p.shots.length && P.length > 1 ? pick((pi + 1) % P.length) : show(cur + 1)), HOLD * 1000);
+    // у видео страховка: если оно застряло и не доиграло, через пару секунд после конца кадр всё равно сменится
+    timer = window.setTimeout(() => go(1, 'fade'), (full - done + (known ? 2.5 : 0)) * 1000);
   };
   const hold = (why: string, on: boolean) => { if (on) holds.add(why); else holds.delete(why); arm(); };
 
@@ -214,14 +236,23 @@ export function init(root: HTMLElement) {
     if (!on) b.classList.remove('is-run');
   });
   const markShots = () => proj().shots.forEach((s, j) => (j === cur ? s.removeAttribute('aria-hidden') : s.setAttribute('aria-hidden', 'true')));
+  /** Ряд кадров: шаг вперёд или назад; на краю работы переходит к соседней (назад: на её последний кадр). */
+  const go = (dir: number, mode: Mode = 'slide') => {
+    const n = proj().shots.length;
+    if (cur + dir >= 0 && cur + dir < n) show(cur + dir, mode, dir);
+    else if (P.length > 1) pick((pi + dir + P.length) % P.length, dir > 0 ? 0 : -1, dir);
+    else show((cur + dir + n) % n, mode, dir);
+  };
 
   /** Мгновенно ставит первые кадры активной работы. */
-  const showFirst = () => {
+  const showFirst = (at = 0) => {
     const p = proj();
-    cur = 0;
+    cur = at < 0 ? p.shots.length - 1 : at;
+    p.shots.forEach((s) => { if (isVid(s)) { s.pause(); try { s.currentTime = 0; } catch { /* ещё не загружено */ } } });
     gsap.killTweensOf([...p.shots, ...p.phones]);
-    p.shots.forEach((s, j) => gsap.set(s, { opacity: j ? 0 : 1, zIndex: j ? 0 : 1, clearProps: 'transform,willChange' }));
-    p.phones.forEach((s, j) => gsap.set(s, { opacity: j ? 0 : 1, zIndex: j ? 0 : 1, clearProps: 'transform,willChange' }));
+    p.shots.forEach((s, j) => gsap.set(s, { opacity: j === cur ? 1 : 0, zIndex: j === cur ? 1 : 0, clearProps: 'transform,willChange' }));
+    const np = p.phones.length;
+    p.phones.forEach((s, j) => gsap.set(s, { opacity: np && j === cur % np ? 1 : 0, zIndex: np && j === cur % np ? 1 : 0, clearProps: 'transform,willChange' }));
     markTicks();
     markShots();
   };
@@ -245,6 +276,8 @@ export function init(root: HTMLElement) {
     if (i === cur) return;
     swap?.progress(1);
     const from = p.shots[cur], to = p.shots[i];
+    if (isVid(from)) from.pause();
+    if (isVid(to)) { try { to.currentTime = 0; } catch { /* ещё не загружено */ } }
     const tl = gsap.timeline({ onComplete: () => { if (swap === tl) swap = null; } });
     swap = tl;
     if (mode === 'fade') fadeIn(tl, from, to, 0);
@@ -343,7 +376,7 @@ export function init(root: HTMLElement) {
     drag = null;
     if (d.on) {
       const dir = d.dx < 0 ? 1 : -1;
-      if (!cancel && Math.abs(d.dx) > 40 && Math.abs(d.dx) > 1.2 * Math.abs(d.dy) && proj().shots.length > 1) show(cur + dir, 'slide', dir);
+      if (!cancel && Math.abs(d.dx) > 40 && Math.abs(d.dx) > 1.2 * Math.abs(d.dy)) go(dir);
       else gsap.to(proj().shots[cur], { x: 0, opacity: 1, duration: 0.4, ease: 'expo.out', clearProps: 'transform,willChange' });
     }
     hold('touch', false);
@@ -351,35 +384,48 @@ export function init(root: HTMLElement) {
   win.addEventListener('pointerup', (e) => release(e, false));
   win.addEventListener('pointercancel', (e) => release(e, true));
   win.addEventListener('touchend', (e) => { if (caught) e.stopPropagation(); });
+  // клик по окну или телефону: следующий кадр (после свайпа или протаскивания мышью клик не считается)
   win.addEventListener('click', (e) => {
     const moved = down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8;
     const skip = caught || moved;
     caught = false; down = null;
     if (skip) { e.preventDefault(); return; }
-    // клик по телефону передаётся ссылке окна (у неё же view-transition и адрес активной работы)
-    if (!desk.contains(e.target as Node)) desk.click();
+    go(1);
   });
 
-  /* ---------- точки: клик, Enter и Space выбирают кадр; ←/→ переводят фокус и выбирают (одна точка в Tab) ---------- */
+  /* ---------- стрелки и точки. Стрелки идут по общему ряду и на краю переходят к соседней работе;
+     точка выбирает кадр своей работы; ←/→ на точках и стрелках делают то же, что стрелки ---------- */
   stage.addEventListener('click', (e) => {
+    const st = (e.target as Element).closest<HTMLButtonElement>('[data-works-step]');
+    if (st) { go(Number(st.dataset.worksStep) || 1); return; }
     const b = (e.target as Element).closest<HTMLButtonElement>('[data-works-tick]');
     if (!b) return;
     const i = proj().ticks.indexOf(b);
     if (i >= 0 && i !== cur) show(i, 'fade', i > cur ? 1 : -1);
   });
   stage.addEventListener('keydown', (e) => {
-    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !(e.target as Element).closest?.('[data-works-tick]')) return;
+    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !(e.target as Element).closest?.('[data-works-tick], [data-works-step]')) return;
     e.preventDefault();
-    const p = proj(), n = p.ticks.length, dir = e.key === 'ArrowRight' ? 1 : -1;
-    const i = (cur + dir + n) % n;
-    show(i, 'fade', dir);
-    p.ticks[i].focus();
+    const onTick = !!(e.target as Element).closest('[data-works-tick]');
+    go(e.key === 'ArrowRight' ? 1 : -1, 'fade');
+    if (onTick) proj().ticks[cur]?.focus();
   });
+  // видео: доиграло — следующий кадр; узнали длительность — точка заполняется ровно за неё
+  P.forEach((p) => p.shots.forEach((s) => {
+    if (!isVid(s)) return;
+    s.addEventListener('ended', () => {
+      if (proj().shots[cur] !== s) return;
+      if (auto && active && !holds.size && !flip) go(1, 'fade');
+      else { try { s.currentTime = 0; } catch { /* ок */ } }
+    });
+    s.addEventListener('loadedmetadata', () => { if (proj().shots[cur] === s) arm(); });
+    s.addEventListener('error', () => { if (proj().shots[cur] === s) arm(); }, true);
+  }));
 
   /* ---------- другие работы: строка переключает проект на месте ---------- */
   const markRows = () => rows.filter((r) => !r.hidden).forEach((r, j) => r.classList.toggle('is-extra', j >= 2));
-  /** Ставит работу k без анимации: карточка, кадры, точки, ссылка окна, акцент. */
-  const setProject = (k: number) => {
+  /** Ставит работу k без анимации: карточка, кадры, точки, счётчик, акцент. at: с какого кадра (-1 с последнего). */
+  const setProject = (k: number, at = 0) => {
     const a = proj(), b = P[k];
     if (a !== b) {
       a.el.hidden = true; b.el.hidden = false;
@@ -390,53 +436,58 @@ export function init(root: HTMLElement) {
       rows.forEach((r) => (r.hidden = Number(r.dataset.worksRow) === k));
     }
     pi = k;
+    // видео следующей работы заранее узнаёт длительность и первый кадр
+    const nv = P[(k + 1) % P.length].shots.find(isVid);
+    if (nv && nv.preload === 'none') nv.preload = 'metadata';
     phone.hidden = !b.phones.length;
-    desk.href = b.href;
-    desk.setAttribute('aria-label', b.label);
-    desk.style.setProperty('view-transition-name', `work-${b.slug}`);
+    if (countN) countN.textContent = String(k + 1).padStart(2, '0');
+    if (countSr) countSr.textContent = countTpl.replace(/\d+/, String(k + 1));
     if (b.accent) root.style.setProperty('--accent', b.accent); else root.style.removeProperty('--accent');
     markRows();
-    showFirst();
+    showFirst(at);
     // название делится на буквы при первом показе: мерить его надо уже разбитым на слова
     nameOf(k);
     fitName();
   };
-  const pick = (k: number) => {
+  const pick = (k: number, at = 0, dir = 1) => {
     if (k === pi || flip) return;
     const a = proj();
     const refocus = list.contains(document.activeElement);
     swap?.progress(1);
     stopTimer();
+    stopVideos();
     const tl = gsap.timeline({ onComplete: () => { flip = null; arm(); } });
     flip = tl;
     root.classList.add('is-paused');
     tl.to(a.name.querySelectorAll('.ch'), { yPercent: -110, duration: 0.25, ease: 'power2.in', stagger: 0.008 }, 0)
       .to(a.rest, { opacity: 0, y: -8, duration: 0.25, ease: 'power2.in' }, 0)
-      .to(proj().shots[cur], { opacity: 0, duration: 0.25, ease: 'power2.in' }, 0)
+      .to(proj().shots[cur], { x: () => -dir * 0.08 * desk.clientWidth, opacity: 0, duration: 0.25, ease: 'power2.in' }, 0)
       .add(() => {
         names[pi]?.reset();
         gsap.set(a.rest, { clearProps: 'opacity,transform' });
-        setProject(k);
+        gsap.set(a.shots, { clearProps: 'transform' });
+        setProject(k, at);
         const b = proj();
         nameOf(k).play(0);
-        // новые кадры проявляются в окне, текст поднимается
-        tl.fromTo(b.shots[0], { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.3)
-          .fromTo(b.shots[0], { scale: 1.035 }, { scale: 1, duration: 0.8, ease: 'expo.out', clearProps: 'transform' }, 0.3)
+        // новая работа въезжает со стороны жеста, текст поднимается
+        const s = b.shots[cur];
+        tl.fromTo(s, { opacity: 0, x: dir * 0.08 * desk.clientWidth }, { opacity: 1, x: 0, duration: 0.55, ease: 'expo.out', clearProps: 'transform' }, 0.3)
           .fromTo(b.rest, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out', stagger: 0.06, clearProps: 'transform' }, 0.3);
-        if (refocus) b.rest[b.rest.length - 1]?.focus({ preventScroll: true });
-        stepPlane(1);
+        if (refocus) list.querySelector<HTMLElement>('[data-works-pick]:not([hidden])')?.focus({ preventScroll: true });
+        stepPlane(dir);
       }, 0.27)
       .set({}, {}, 1.1); // длина смены, пока внутри добавляются твины новой работы
   };
   list.addEventListener('click', (e) => {
     const b = (e.target as Element).closest<HTMLElement>('[data-works-pick]');
-    if (b) pick(Number(b.dataset.worksPick) || 0);
+    if (b) { const k = Number(b.dataset.worksPick) || 0; pick(k, 0, k > pi ? 1 : -1); }
   });
   markRows();
 
   /* ---------- сброс в позу до входа (идемпотентный) ---------- */
   const prime = () => {
     ready = false; auto = false;
+    stopVideos();
     // палец, ушедший вместе с блоком (вертикальный свайп по окну), не держит автопоказ на паузе после возвращения
     drag = null; caught = false; holds.delete('touch');
     stopTimer();
@@ -511,7 +562,8 @@ export function init(root: HTMLElement) {
   return Promise.race([
     new Promise((r) => setTimeout(r)).then(() => {
       if (!built) build();
-      return decoded([P[0].shots[0], P[0].phones[0], ...strip.querySelectorAll('img')]);
+      const s0 = P[0].shots[0];
+      return decoded([isVid(s0) ? undefined : s0, P[0].phones[0], ...strip.querySelectorAll('img')]);
     }),
     new Promise((r) => setTimeout(r, 350)),
   ]).then(() => {});

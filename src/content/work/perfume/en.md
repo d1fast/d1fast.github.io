@@ -1,11 +1,13 @@
 ---
-title: Perfume shop
-subtitle: A fragrance builder where every note becomes a planet
+title: Fragrance builder
+subtitle: Every perfume note becomes a planet
+summary: You compose a perfume from notes like a solar system. Tap a planet, drag it to another orbit or remove it, and the service finds similar fragrances.
 year: 2026
 order: 1
 role: Interface concept, 3D scene, front end
 stack: [Three.js, GLSL, Vite]
 cover: /work/perfume/poster.webp
+video: { mp4: /work/perfume/video.mp4, webm: /work/perfume/video.webm, poster: /work/perfume/poster.webp }
 coverAlt: The Sun and three rings of note planets in the fragrance builder
 media:
   - src: /work/perfume/desktop-start.webp
@@ -14,12 +16,9 @@ media:
   - src: /work/perfume/planet-rose.webp
     alt: The Rose planet up close with its note card
     caption: Tap a planet and the camera flies in while the note card opens.
-  - src: /work/perfume/planet-sandalwood.webp
-    alt: The Sandalwood planet up close with the "Your fragrance" panel
-    caption: Each planet is baked into a texture from a map, noise and the colour of its note.
-  - src: /work/perfume/side.webp
-    alt: The system seen almost edge-on
-    caption: Edge-on view with the asteroid belt, tier labels and the Sun's glow.
+  - src: /work/perfume/results.webp
+    alt: The "Similar fragrances" window with match percentages and shared notes
+    caption: Similar fragrances with a match percentage and a hint on which note to swap.
   - src: /work/perfume/mobile-start.webp
     alt: Start screen on a phone
     caption: The same scene on a phone, with a menu at the bottom and the fragrance panel above it.
@@ -27,6 +26,10 @@ media:
   - src: /work/perfume/mobile-planet-rose.webp
     alt: A note card on a phone
     caption: A note card on a phone.
+    portrait: true
+  - src: /work/perfume/mobile-results.webp
+    alt: Similar fragrances on a phone
+    caption: Similar fragrance picks on a phone.
     portrait: true
 ---
 

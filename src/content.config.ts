@@ -9,6 +9,12 @@ const work = defineCollection({
   schema: z.object({
     title: z.string(),
     subtitle: z.string(),
+    /** Пара предложений под названием в блоке «Работы» (вместо кнопки кейса). */
+    summary: z.string(),
+    /** Концепт: придуманный проект для портфолио, а не заказ клиента. В блоке рядом с годом стоит пометка. */
+    concept: z.boolean().default(false),
+    /** Своя страница кейса: у концептов её нет. */
+    page: z.boolean().default(true),
     year: z.number(),
     order: z.number().default(0),
     role: z.string(),
@@ -16,7 +22,7 @@ const work = defineCollection({
     /** Обложка для карточки и OG (путь от корня сайта, без base). */
     cover: z.string(),
     coverAlt: z.string(),
-    /** Видео-превью карточки: mp4 и webm, постер. */
+    /** Видео: первый кадр работы в блоке, дальше скриншоты. mp4 и webm, постер. */
     video: z.object({ mp4: z.string(), webm: z.string(), poster: z.string() }).optional(),
     /** Галерея кейса. */
     media: z

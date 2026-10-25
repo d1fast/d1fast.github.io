@@ -57,6 +57,11 @@ export const ru: Dict = {
     screens: 'Экраны проекта',
     screen: 'Экран {n} из\u00a0{total}',
     carousel: 'карусель',
+    prev: 'Назад',
+    next: 'Дальше',
+    video: 'Видео',
+    concept: 'концепт',
+    project: 'Работа {n} из\u00a0{total}',
   },
   process: {
     title: 'Как я работаю',

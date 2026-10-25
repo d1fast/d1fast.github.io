@@ -1,0 +1,225 @@
+<!doctype html>
+<!--
+  Демо для блока «Работы»: Telegram-бот гриль-бара «Угли» (концепт). Бронь стола, меню и подбор блюд нейросетью.
+  Страница не входит в сайт: из неё записываются видео и кадры (scripts/record-works.mjs).
+  ?m=1 — телефонная раскладка 390×844, без параметра — Telegram Desktop 1104×621 (пишется с плотностью 1,45 → 1600×900).
+  ?t=секунды — поставить сцену на момент времени; window.__seek(t) — то же из скрипта записи.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Угли · бот</title>
+<link rel="icon" href="data:,">
+<style>
+@font-face { font-family: 'Golos Text'; font-weight: 400 900; src: url(/public/fonts/golos-cyr.woff2) format('woff2'); unicode-range: U+0400-045F, U+2116; }
+@font-face { font-family: 'Golos Text'; font-weight: 400 900; src: url(/public/fonts/golos-lat.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+:root {
+  --bg: #0E1621; --side: #17212B; --line: #0A1119; --head: #17212B; --in: #182533; --out: #2B5278;
+  --acc: #6AB3F3; --txt: #F1F3F5; --mut: #7D8E9F; --btn: rgb(255 255 255 / .07); --btn-h: rgb(255 255 255 / .16);
+  --ember: #F0723C;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { width: 1104px; height: 621px; overflow: hidden; background: var(--bg); color: var(--txt); font: 400 15px/1.42 'Golos Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body.m { width: 390px; height: 844px; font-size: 15.5px; }
+.app { display: grid; grid-template-columns: 300px 1fr; height: 100%; }
+.m .app { grid-template-columns: 1fr; }
+
+/* список чатов */
+.side { background: var(--side); border-right: 1px solid var(--line); display: grid; grid-template-rows: 58px 1fr; min-height: 0; }
+.m .side { display: none; }
+.search { display: flex; align-items: center; gap: 14px; padding: 0 14px; }
+.burger { width: 20px; height: 14px; display: grid; align-content: space-between; }
+.burger i { display: block; height: 2px; border-radius: 2px; background: var(--mut); }
+.search > span:last-child { flex: 1; height: 36px; border-radius: 18px; background: #242F3D; color: var(--mut); display: flex; align-items: center; padding: 0 16px; font-size: 14px; }
+.chats { overflow: hidden; }
+.row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 0 12px; align-items: center; padding: 8px 12px; }
+.row.on { background: #2B5278; }
+.row b { font-weight: 600; font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row p { margin: 1px 0 0; color: var(--mut); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.on p, .row.on time { color: #C9DAEA; }
+.row time { align-self: start; padding-top: 4px; color: var(--mut); font-size: 12.5px; }
+.ava { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 20px; color: #fff; }
+.ava.s { width: 42px; height: 42px; font-size: 16px; }
+
+/* шапка чата */
+.chat { position: relative; display: grid; grid-template-rows: 58px 1fr auto; min-height: 0;
+  background: radial-gradient(70% 60% at 70% 30%, rgb(52 92 128 / .22), transparent 70%), radial-gradient(60% 50% at 10% 90%, rgb(240 114 60 / .08), transparent 70%), #0F1A26; }
+.m .chat { grid-template-rows: 44px 58px 1fr auto; }
+.status { display: none; }
+.m .status { display: flex; justify-content: space-between; align-items: center; padding: 0 26px 0 30px; font-weight: 600; font-size: 15px; background: var(--head); }
+.status i { display: inline-block; width: 24px; height: 11px; border: 1.5px solid var(--txt); border-radius: 3px; position: relative; }
+.status i::after { content: ''; position: absolute; inset: 1.5px 5px 1.5px 1.5px; background: var(--txt); border-radius: 1px; }
+.top { display: flex; align-items: center; gap: 12px; padding: 0 18px; background: var(--head); border-bottom: 1px solid var(--line); }
+.m .top { padding: 0 12px; }
+.back { display: none; color: var(--acc); font-size: 26px; line-height: 1; margin-right: 2px; }
+.m .back { display: block; }
+.top b { font-weight: 600; font-size: 15.5px; }
+.top p { margin: 0; color: var(--mut); font-size: 13.5px; }
+.top .grow { flex: 1; }
+.dots3 { display: grid; gap: 3px; }
+.dots3 i { width: 4px; height: 4px; border-radius: 50%; background: var(--mut); }
+
+/* лента */
+.feed { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 16px 0 10px; }
+.col { width: min(600px, 100% - 40px); margin: 0 auto; display: flex; flex-direction: column; }
+.m .col { width: calc(100% - 20px); }
+.msg { overflow: hidden; }
+.msg > .bub { margin: 3px 0; }
+.bub { position: relative; max-width: 78%; width: fit-content; padding: 7px 12px 7px; border-radius: 16px; background: var(--in); box-shadow: 0 1px 1px rgb(0 0 0 / .25); }
+.m .bub { max-width: 86%; }
+.msg.me .bub { margin-left: auto; background: var(--out); border-bottom-right-radius: 5px; }
+.msg.bot .bub { border-bottom-left-radius: 5px; }
+.bub p { margin: 0; }
+.bub p + p { margin-top: 6px; }
+.bub .t { float: right; margin: 6px 0 -4px 12px; font-size: 12px; color: rgb(255 255 255 / .45); }
+.msg.me .bub .t { color: #9CC2E6; }
+.bub .ok { color: #7FC4F5; }
+.dish { display: grid; grid-template-columns: 1fr auto; gap: 2px 18px; margin-top: 6px; }
+.dish span:nth-child(even) { color: #C7D3DE; font-variant-numeric: tabular-nums; }
+.ai { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 2px 8px 2px 6px; border-radius: 10px; background: rgb(106 179 243 / .14); color: var(--acc); font-size: 12px; font-weight: 600; }
+.ai svg { width: 12px; height: 12px; }
+.card { margin-top: 8px; padding: 10px 12px; border-left: 3px solid var(--ember); border-radius: 6px; background: rgb(240 114 60 / .1); }
+.card b { display: block; font-weight: 600; }
+.kb { display: grid; gap: 4px; margin: 4px 0 6px; max-width: 78%; }
+.m .kb { max-width: 86%; }
+.kb .r { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.k { height: 40px; border-radius: 10px; background: var(--btn); display: grid; place-items: center; font-weight: 500; font-size: 14.5px; color: #fff; backdrop-filter: blur(4px); }
+.k.sel { background: rgb(106 179 243 / .32); }
+.typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
+.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--mut); }
+
+/* поле ввода */
+.input { display: flex; align-items: center; gap: 14px; padding: 10px 18px 14px; }
+.m .input { padding: 8px 10px 26px; background: var(--head); }
+.field { flex: 1; min-height: 46px; border-radius: 23px; background: var(--side); display: flex; align-items: center; padding: 0 18px; color: var(--txt); font-size: 15px; }
+.m .field { min-height: 40px; background: #242F3D; }
+.field .ph { color: var(--mut); }
+.caret { display: inline-block; width: 2px; height: 18px; background: var(--acc); margin-left: 1px; vertical-align: -3px; }
+.send { width: 46px; height: 46px; border-radius: 50%; background: var(--acc); display: grid; place-items: center; }
+.m .send { width: 40px; height: 40px; }
+.send svg { width: 20px; height: 20px; }
+.start { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); padding: 12px 22px; border-radius: 12px; background: var(--btn); font-weight: 600; letter-spacing: .02em; }
+.m .start { bottom: 80px; }
+.tap { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgb(255 255 255 / .35); pointer-events: none; opacity: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="search"><span class="burger"><i></i><i></i><i></i></span><span>Поиск</span></div>
+    <div class="chats">
+      <div class="row on"><span class="ava" style="background:linear-gradient(135deg,#F59A4C,#D9482B)">У</span><div><b>Угли · гриль-бар</b><p data-preview>бот</p></div><time>20:14</time></div>
+      <div class="row"><span class="ava" style="background:linear-gradient(135deg,#7BC862,#3E9E3A)">А</span><div><b>Алина</b><p>Скинула фото с выходных</p></div><time>19:52</time></div>
+      <div class="row"><span class="ava" style="background:linear-gradient(135deg,#65AADD,#2F7BC0)">Р</span><div><b>Работа · дизайн</b><p>Созвон завтра в 11:00</p></div><time>18:40</time></div>
+      <div class="row"><span class="ava" style="background:linear-gradient(135deg,#E57AA1,#B44874)">М</span><div><b>Мама</b><p>Ты поел?</p></div><time>17:05</time></div>
+      <div class="row"><span class="ava" style="background:linear-gradient(135deg,#A695E7,#6D5BC4)">Д</span><div><b>Дима</b><p>Го в субботу на каток</p></div><time>пт</time></div>
+      <div class="row"><span class="ava" style="background:linear-gradient(135deg,#F2C14E,#D09A1B)">К</span><div><b>Курьер</b><p>Буду через 10 минут</p></div><time>чт</time></div>
+    </div>
+  </aside>
+  <main class="chat">
+    <div class="status"><span>20:14</span><i></i></div>
+    <div class="top"><span class="back">‹</span><span class="ava s" style="background:linear-gradient(135deg,#F59A4C,#D9482B)">У</span><div class="grow"><b>Угли · гриль-бар</b><p data-state>бот</p></div><span class="dots3"><i></i><i></i><i></i></span></div>
+    <div class="feed"><div class="col" data-col></div></div>
+    <div class="input">
+      <div class="field" data-field><span class="ph" data-ph>Сообщение</span><span data-typed></span><i class="caret" data-caret style="opacity:0"></i></div>
+      <span class="send"><svg viewBox="0 0 24 24"><path d="M3 11.5 21 3l-6.5 18-3.2-7.4z" fill="#fff"/></svg></span>
+    </div>
+    <div class="start" data-start>Запустить</div>
+  </main>
+</div>
+<span class="tap" data-tap></span>
+
+<script src="/node_modules/gsap/dist/gsap.min.js"></script>
+<script>
+const M = new URLSearchParams(location.search).has('m');
+if (M) document.body.classList.add('m');
+const col = document.querySelector('[data-col]');
+const sparkle = '<svg viewBox="0 0 12 12"><path d="M6 0c.5 3.2 2.8 5.5 6 6-3.2.5-5.5 2.8-6 6-.5-3.2-2.8-5.5-6-6 3.2-.5 5.5-2.8 6-6z" fill="currentColor"/></svg>';
+const el = (html) => { const w = document.createElement('div'); w.innerHTML = html.trim(); return w.firstElementChild; };
+const time = (t) => `<span class="t">${t}</span>`;
+// сообщения: всё создаётся заранее и раскрывается таймлайном (высота с нуля, пузырь снизу)
+const msgs = {
+  start: el(`<div class="msg me"><div class="bub"><p>/start ${time('20:14')}</p></div></div>`),
+  hi: el(`<div class="msg bot"><div class="bub"><p>Добрый вечер! Я&nbsp;бот гриль-бара «Угли».</p><p>Забронирую стол, покажу меню или подберу блюда под ваш вкус. ${time('20:14')}</p></div>
+    <div class="kb"><div class="r"><span class="k" data-k="book">Забронировать стол</span><span class="k">Меню</span></div><div class="r"><span class="k" data-k="ai">Подобрать блюдо с ИИ</span></div></div></div>`),
+  ask: el(`<div class="msg bot"><div class="bub"><p>Расскажите, кто будет и&nbsp;что любите, а&nbsp;я&nbsp;подберу. ${time('20:14')}</p></div></div>`),
+  me: el(`<div class="msg me"><div class="bub"><p>Нас двое, подруга не ест мясо. Хочется что-нибудь к вину ${time('20:15')}</p></div></div>`),
+  typing: el(`<div class="msg bot"><div class="bub"><span class="typing"><i></i><i></i><i></i></span></div></div>`),
+  rec: el(`<div class="msg bot"><div class="bub"><span class="ai">${sparkle}подбор с ИИ</span><p>Попробуйте на двоих:</p>
+    <div class="dish"><span>Баклажан на углях с мисо</span><span>490 р.</span><span>Халлуми с печёным персиком</span><span>560 р.</span><span>Каре ягнёнка с розмарином</span><span>1 290 р.</span></div>
+    <p>К этому хорошо подойдёт пино нуар, бокал 650 р. ${time('20:15')}</p></div>
+    <div class="kb"><div class="r"><span class="k" data-k="add">Добавить к брони</span><span class="k">Другие варианты</span></div></div></div>`),
+  when: el(`<div class="msg bot"><div class="bub"><p>Когда вас ждать? ${time('20:15')}</p></div>
+    <div class="kb"><div class="r"><span class="k">Сегодня</span><span class="k" data-k="tom">Завтра</span><span class="k">Пт, 30 окт</span></div>
+    <div class="r"><span class="k">19:00</span><span class="k">19:30</span><span class="k" data-k="t20">20:00</span><span class="k">20:30</span></div></div></div>`),
+  done: el(`<div class="msg bot"><div class="bub"><p>Готово, стол ваш.</p>
+    <div class="card"><b>Завтра, 20:00 · на двоих</b>Баклажан, халлуми, каре ягнёнка и&nbsp;два бокала пино нуар к&nbsp;вашему приходу</div>
+    <p>Напомню за два часа. ${time('20:16')}</p></div>
+    <div class="kb"><div class="r"><span class="k">Изменить</span><span class="k">Отменить бронь</span></div></div></div>`),
+};
+Object.values(msgs).forEach((m) => { col.append(m); gsap.set(m, { height: 0 }); gsap.set(m.children, { opacity: 0, y: 14, scale: 0.96, transformOrigin: m.classList.contains('me') ? '100% 100%' : '0% 100%' }); });
+const typedEl = document.querySelector('[data-typed]'), ph = document.querySelector('[data-ph]'), caret = document.querySelector('[data-caret]');
+const tap = document.querySelector('[data-tap]'), start = document.querySelector('[data-start]'), state = document.querySelector('[data-state]');
+const preview = document.querySelector('[data-preview]');
+
+const tl = gsap.timeline({ paused: true });
+const show = (m, at) => { tl.to(m, { height: 'auto', duration: 0.35, ease: 'power2.out' }, at).to(m.children, { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: 'back.out(1.6)', stagger: 0.08 }, at + 0.05); };
+const hide = (m, at) => { tl.to(m.children, { opacity: 0, duration: 0.15 }, at).to(m, { height: 0, duration: 0.25, ease: 'power2.in' }, at + 0.1); };
+/** нажатие: круг в месте кнопки и подсветка */
+const press = (key, at, keep = false) => {
+  const k = document.querySelector(`[data-k="${key}"]`);
+  tl.call(() => { const r = k.getBoundingClientRect(); gsap.set(tap, { left: r.left + r.width / 2, top: r.top + r.height / 2 }); }, [], at);
+  tl.fromTo(tap, { opacity: 0.9, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.5, ease: 'power2.out' }, at);
+  tl.to(k, { backgroundColor: 'rgb(255 255 255 / .22)', duration: 0.12 }, at).to(k, { backgroundColor: keep ? 'rgb(106 179 243 / .32)' : 'rgb(255 255 255 / .07)', duration: 0.4 }, at + 0.15);
+};
+const type = (text, at, dur) => {
+  const o = { n: 0 };
+  tl.set(caret, { opacity: 1 }, at).set(ph, { display: 'none' }, at);
+  tl.to(o, { n: text.length, duration: dur, ease: 'none', onUpdate: () => { typedEl.textContent = text.slice(0, Math.round(o.n)); } }, at);
+};
+const send = (at) => { tl.call(() => { typedEl.textContent = ''; }, [], at).set(caret, { opacity: 0 }, at).set(ph, { display: '' }, at); };
+
+// 0.0 «Запустить» → /start → приветствие
+tl.set({}, {}, 0);
+tl.fromTo(tap, { left: 0 }, { left: 0, duration: 0 }, 0);
+tl.call(() => { const r = start.getBoundingClientRect(); gsap.set(tap, { left: r.left + r.width / 2, top: r.top + r.height / 2 }); }, [], 0.5);
+tl.fromTo(tap, { opacity: 0.9, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.5, ease: 'power2.out' }, 0.5);
+tl.to(start, { opacity: 0, y: 10, duration: 0.25 }, 0.6);
+show(msgs.start, 0.7);
+tl.set(state, { textContent: 'печатает…' }, 1.0).set(state, { textContent: 'бот' }, 1.5);
+show(msgs.hi, 1.5);
+// 3.0 «Подобрать блюдо с ИИ»
+press('ai', 3.1);
+show(msgs.ask, 3.6);
+// 4.6 пользователь печатает
+const q = 'Нас двое, подруга не ест мясо. Хочется что-нибудь к вину';
+type(q, 4.5, 2.0);
+send(6.7);
+show(msgs.me, 6.7);
+// 7.2 бот думает
+tl.set(state, { textContent: 'печатает…' }, 7.2);
+show(msgs.typing, 7.2);
+const dots = msgs.typing.querySelectorAll('.typing i');
+tl.fromTo(dots, { y: 0, opacity: 0.4 }, { y: -4, opacity: 1, duration: 0.25, stagger: 0.12, repeat: 5, yoyo: true, ease: 'sine.inOut' }, 7.4);
+hide(msgs.typing, 9.0);
+tl.set(state, { textContent: 'бот' }, 9.2);
+show(msgs.rec, 9.25);
+// 11.2 «Добавить к брони» → когда
+press('add', 11.4);
+show(msgs.when, 11.9);
+press('tom', 13.0, true);
+press('t20', 13.6, true);
+// 14.4 готово
+tl.set(state, { textContent: 'печатает…' }, 14.2).set(state, { textContent: 'бот' }, 14.7);
+show(msgs.done, 14.7);
+tl.call(() => { preview.textContent = 'Готово, стол ваш.'; }, [], 14.7);
+tl.set({}, {}, 17.2);
+
+window.__dur = tl.duration();
+window.__seek = (t) => { tl.seek(t, false); return true; };
+const t0 = new URLSearchParams(location.search).get('t');
+document.fonts.ready.then(() => { if (t0) tl.seek(+t0, false); else tl.play(); window.__ready = true; });
+</script>
+</body>
+</html>

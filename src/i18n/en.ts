@@ -57,6 +57,11 @@ export const en: Dict = {
     screens: 'Project screens',
     screen: 'Screen {n} of {total}',
     carousel: 'carousel',
+    prev: 'Previous',
+    next: 'Next',
+    video: 'Video',
+    concept: 'concept',
+    project: 'Project {n} of {total}',
   },
   process: {
     title: 'How I work',

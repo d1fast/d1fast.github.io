@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import Case from '../../../components/Case.astro';
 export async function getStaticPaths() {
-  const entries = await getCollection('work', (e) => e.id.endsWith('/en') && !e.data.draft);
+  const entries = await getCollection('work', (e) => e.id.endsWith('/en') && !e.data.draft && e.data.page);
   return entries.map((entry) => ({ params: { slug: entry.id.split('/')[0] }, props: { entry } }));
 }
 const { entry } = Astro.props;

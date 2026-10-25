@@ -20,8 +20,11 @@ export interface Dict {
     ctaContact: string; ctaWorks: string;
   };
   services: { title: string; items: { title: string; text: string }[] };
-  /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера */
-  works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string };
+  /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера;
+   *  prev/next: стрелки (кадр назад и дальше, на краях переходят к соседней работе); video: подпись точки видео;
+   *  concept: пометка у придуманных проектов; project: «Работа {n} из {total}» для счётчика */
+  works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string;
+    prev: string; next: string; video: string; concept: string; project: string };
   process: { title: string; steps: { title: string; text: string }[] };
   contacts: {
     title: string; lead: string;

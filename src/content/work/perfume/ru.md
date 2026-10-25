@@ -1,11 +1,13 @@
 ---
-title: Магазин духов
-subtitle: Конструктор ароматов, где каждая нота становится планетой
+title: Конструктор ароматов
+subtitle: Каждая нота парфюма становится планетой
+summary: Собираете духи из нот, как солнечную систему. Планету можно тапнуть, перетащить на другую орбиту или убрать, а сервис подберёт похожие ароматы.
 year: 2026
 order: 1
 role: Идея интерфейса, 3D-сцена, фронтенд
 stack: [Three.js, GLSL, Vite]
 cover: /work/perfume/poster.webp
+video: { mp4: /work/perfume/video.mp4, webm: /work/perfume/video.webm, poster: /work/perfume/poster.webp }
 coverAlt: Солнце и три кольца планет-нот в конструкторе ароматов
 media:
   - src: /work/perfume/desktop-start.webp
@@ -14,12 +16,9 @@ media:
   - src: /work/perfume/planet-rose.webp
     alt: Планета Роза крупным планом с карточкой ноты
     caption: "Тап по планете: камера подлетает, открывается карточка ноты."
-  - src: /work/perfume/planet-sandalwood.webp
-    alt: Планета Сандал крупным планом и панель «Твой аромат»
-    caption: Каждая планета запечена в текстуру из карты, шума и цвета ноты.
-  - src: /work/perfume/side.webp
-    alt: Вид на систему почти по плоскости колец
-    caption: "Вид сбоку: пояс астероидов, подписи ярусов и свечение Солнца."
+  - src: /work/perfume/results.webp
+    alt: Окно «Похожие ароматы» с процентом совпадения и общими нотами
+    caption: Похожие ароматы с процентом совпадения и подсказкой, какую ноту заменить.
   - src: /work/perfume/mobile-start.webp
     alt: Стартовый экран на телефоне
     caption: На телефоне та же сцена, меню внизу и панель аромата над ним.
@@ -27,6 +26,10 @@ media:
   - src: /work/perfume/mobile-planet-rose.webp
     alt: Карточка ноты на телефоне
     caption: Карточка ноты на телефоне.
+    portrait: true
+  - src: /work/perfume/mobile-results.webp
+    alt: Похожие ароматы на телефоне
+    caption: Подбор похожих ароматов на телефоне.
     portrait: true
 ---
 

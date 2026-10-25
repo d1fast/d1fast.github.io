@@ -49,17 +49,15 @@ html.js .works:not(.is-primed) > * { visibility: hidden; }
 .works__name { justify-self: stretch; min-width: 0; font: 650 clamp(30px, min(4.3vw, 8vh), 76px)/.94 var(--font-wide); font-stretch: 151%;
   --name-st: 151; --name-min: 30; /* с какой ширины шрифта и до какого кегля подгоняет fitName */
   letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance; }
-.works__sub { max-width: 30ch; font: 400 clamp(14px, min(1.15vw, 2.2vh), 18px)/1.4 var(--font-body); text-wrap: pretty; }
+.works__sub { max-width: 30ch; font: 500 clamp(14px, min(1.15vw, 2.2vh), 18px)/1.4 var(--font-body); text-wrap: pretty; }
+/* коротко о работе вместо кнопки кейса */
+.works__sum { max-width: 36ch; margin-top: -6px; font: 400 clamp(13px, min(1vw, 1.9vh), 15.5px)/1.5 var(--font-body); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: pretty; }
 .works__meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 400 12.5px/1.4 var(--font-mono); color: var(--works-muted); }
-
-.works__open { display: inline-flex; align-items: center; justify-content: space-between; gap: 28px; min-width: min(100%, 250px);
-  height: clamp(44px, 6.4vh, 52px); padding: 0 20px 0 22px; border-radius: var(--radius); background: var(--fg); color: var(--bg);
-  font: 650 14px/1 var(--font-wide); font-stretch: 125%; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap;
-  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.works__concept { padding: 0 8px; border: 1px solid var(--works-line); border-radius: 999px; }
+/* какая работа из скольких: номер в акценте работы */
+.works__count { font: 500 13px/1 var(--font-mono); letter-spacing: .06em; color: var(--works-muted); }
+.works__count b { color: var(--accent); font-weight: 600; }
 .works__arrow { display: inline-block; font-family: 'Works Arrow', var(--font-mono); font-weight: 500; transition: transform var(--dur-fast) var(--ease-out); }
-.works__open .works__arrow { font-size: 15px; }
-/* переход по transform только на нажатии: у самой кнопки его нет, иначе вход GSAP прочитает промежуточное значение */
-.works__open:active { transform: scale(.98); transition: transform var(--dur-fast) var(--ease-out); }
 
 /* строки других работ и «Ваш проект» последней строкой */
 .works__list { justify-self: stretch; display: grid; gap: 10px; border-top: 1px solid var(--works-line); margin-top: clamp(0px, 1vh, 8px); padding-top: clamp(10px, 1.8vh, 16px); }
@@ -86,13 +84,15 @@ html.js .works:not(.is-primed) > * { visibility: hidden; }
   --gap: 18px; gap: var(--gap); padding-bottom: 1vh;
   --ww: min(100cqw - 8px, (100cqh - 40px) * 1.62); --dh: calc(var(--ww) * .5625); --ph: calc(var(--ww) * .54);
   --pt: clamp(var(--dh) * .1, 100cqh - var(--ph) - 2px, var(--dh) * .36); --pw: calc(var(--ph) * 780 / 1688); }
-.works__win, .works__ticks { width: var(--ww); }
-.works__ticks { margin-bottom: max(0px, var(--pt) + var(--ph) - var(--dh) - var(--gap) - 24px); }
+.works__win { width: var(--ww); }
+.works__nav { margin-bottom: max(0px, var(--pt) + var(--ph) - var(--dh) - var(--gap) - 40px); }
 .works__win { position: relative; }
-.works__desk { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000;
+.works__desk { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000; cursor: pointer;
   box-shadow: 0 0 0 1px var(--works-line), var(--works-drop); touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+html.has-cursor .works__desk { cursor: none; }
 .works__zoom { position: absolute; inset: 0; transition: transform 500ms var(--ease-out); }
 .works__shot, .works__pshot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+.works__vid { background: #000; }
 .works__shot.is-on, .works__pshot.is-on { opacity: 1; }
 /* телефон в левом нижнем углу: внизу справа на всех кадрах важный интерфейс, а внизу слева только пыль.
    Выступает за окно немного: на ноутбуках его низ стоит вровень со строкой «Ваш проект», и ей нужен зазор.
@@ -101,27 +101,38 @@ html.js .works:not(.is-primed) > * { visibility: hidden; }
   box-shadow: 0 0 0 1px var(--works-line), var(--works-drop); cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 html.has-cursor .works__phone { cursor: none; }
 
-/* точки кадров: зона нажатия 32×24, внутри полоска 2px; активная заполняется акцентом за время показа */
-.works__ticks { display: flex; gap: 6px; justify-content: flex-end; }
+/* под окном: точки кадров работы, справа стрелки назад и дальше. Стрелки на краю работы переходят к соседней.
+   Слева место под свисающий телефон */
+.works__nav { width: var(--ww); display: flex; align-items: center; gap: clamp(12px, 1.4vw, 20px); padding-left: calc(var(--pw) - var(--ww) * .035 + 12px); }
+.works__steps { flex: none; display: flex; gap: 8px; }
+.works__step { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--works-line); transition: box-shadow var(--dur-fast), background-color var(--dur-fast); }
+.works__step svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.works__step:active { transform: scale(.94); }
+.works__step:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* точки кадров: зона нажатия 32×24, внутри полоска 2px; активная заполняется акцентом за время показа (у видео за его длительность) */
+.works__ticks { flex: 1; display: flex; gap: 6px; justify-content: flex-end; }
 .works__tick { display: grid; align-items: center; width: 32px; height: 24px; border-radius: 2px; }
 .works__tick i { position: relative; display: block; height: 2px; overflow: hidden; background: var(--works-line); transform-origin: 0 50%; transition: background-color var(--dur-fast); }
 .works__tick[aria-current="true"] i { background: rgb(238 236 230 / .4); }
 .works__tick i::after { content: ''; position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
 html:not(.js) .works__tick[aria-current="true"] i::after { transform: none; }
-.works__tick.is-run i::after { animation: works-fill 4.5s linear forwards; }
+.works__tick.is-run i::after { animation: works-fill var(--dur, 4.5s) linear var(--del, 0s) forwards; }
+/* у точки видео значок «играет» */
+.works__tick.is-video { width: 44px; grid-template-columns: auto 1fr; gap: 6px; }
+.works__tick.is-video::before { content: ''; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; color: var(--works-muted); }
+.works__tick.is-video[aria-current="true"]::before { color: var(--accent); }
 .works.is-paused .works__tick.is-run i::after { animation-play-state: paused; }
 @keyframes works-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* фокус с клавиатуры */
-.works__open:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--radius); }
 .works__yours:focus-visible, .works__pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; }
 .works__tick:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
 
-/* мышь: окно связано с кнопкой, наведение на скриншот подсвечивает «Открыть кейс» */
 @media (hover: hover) and (pointer: fine) {
   .works__win:hover .works__zoom { transform: scale(1.02); }
-  .works__open:hover { background: var(--accent); color: var(--accent-fg); }
-  .works__open:hover .works__arrow, .works__yours:hover .works__arrow { transform: translateX(4px); }
+  .works__step:hover { background: rgb(238 236 230 / .08); box-shadow: inset 0 0 0 1px rgb(238 236 230 / .4); }
+  .works__yours:hover .works__arrow { transform: translateX(4px); }
   .works__yours:hover .works__gc, .works__pick:hover .works__pick-name { color: var(--fg); }
   .works__pick .works__pick-name { transition: color var(--dur-fast); }
   .works__tick:hover i { background: rgb(238 236 230 / .4); }
@@ -131,8 +142,7 @@ html:not(.js) .works__tick[aria-current="true"] i::after { transform: none; }
 @media (max-height: 480px) and (min-aspect-ratio: 1/1) {
   .works__inner { padding-top: calc(var(--header-h) + 8px); padding-bottom: 14px; }
   .works__title { font-size: 12px; }
-  .works__meta { display: none; }
-  .works__open { height: 44px; }
+  .works__meta, .works__sum { display: none; }
   .works__card { gap: 10px; }
 }
 /* узкий экран лёжа без точек навигации справа */
@@ -145,23 +155,25 @@ html:not(.js) .works__tick[aria-current="true"] i::after { transform: none; }
   .works__veil { background:
     radial-gradient(140% 75% at 50% 55%, rgb(14 15 16 / 0) 30%, rgb(14 15 16 / .8) 72%, var(--bg) 100%),
     linear-gradient(180deg, rgb(14 15 16 / .95) 0, rgb(14 15 16 / .7) 22%, rgb(14 15 16 / 0) 38%); }
-  .works__inner { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto; column-gap: 0;
+  .works__inner { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; column-gap: 0;
     padding: calc(var(--header-h) + 16px) var(--gutter) clamp(16px, 3dvh, 28px); }
   .works__card { display: contents; }
-  .works__title { font-size: 12px; margin-bottom: clamp(8px, 1.6dvh, 14px); }
+  .works__title { grid-row: 1; font-size: 12px; margin-bottom: clamp(8px, 1.6dvh, 14px); }
+  .works__count { grid-row: 1; grid-column: 1; justify-self: end; align-self: start; font-size: 12px; }
   .works__name { grid-row: 2; margin-bottom: 8px; font-size: clamp(24px, min(8vw, 4.6dvh), 60px); font-stretch: 125%; --name-st: 125; --name-min: 24; white-space: nowrap; text-wrap: nowrap; }
   .works__sub { grid-row: 3; max-width: none; font-size: clamp(14px, 2.2vw, 18px); text-wrap: balance; }
-  .works__meta { grid-row: 4; display: none; }
+  .works__sum { grid-row: 4; margin-top: 6px; max-width: none; font-size: clamp(13px, 1.9vw, 16px); }
+  .works__meta { grid-row: 5; display: none; }
   /* телефон слева внизу и крупнее, точки стоят правее него. Верх телефона на трети окна: так он целиком закрывает
      боковую панель кадра, и её кнопка не торчит над ним. Телефон крупный и закрывает обе левые планеты кадра целиком
      (промежуточный размер резал планету пополам); если снизу места мало, он поднимается выше по окну */
-  .works__stage { grid-row: 5; grid-column: 1; justify-items: start; --gap: clamp(10px, 2dvh, 16px); padding: clamp(10px, 2dvh, 24px) 0 clamp(14px, 2.4dvh, 24px);
+  .works__stage { grid-row: 6; grid-column: 1; justify-items: start; --gap: clamp(10px, 2dvh, 16px); padding: clamp(10px, 2dvh, 24px) 0 clamp(14px, 2.4dvh, 24px);
     --ww: min(100cqw - 12px, (100cqh - 4px) / .82); --ph: calc(var(--ww) * .76);
     --pt: clamp(var(--dh) * .1, 100cqh - var(--ph) - 2px, var(--dh) * .34); }
-  .works__win, .works__ticks { margin-left: 12px; }
-  .works__ticks { padding-left: calc(var(--pw) + 4px); }
+  .works__win, .works__nav { margin-left: 12px; }
+  .works__nav { width: calc(var(--ww)); padding-left: calc(var(--pw) - 12px); }
   .works__tick { flex: 1; width: auto; }
-  .works__open { grid-row: 6; width: 100%; height: 48px; }
+  .works__tick.is-video { flex: 1.4; }
   .works__list { grid-row: 7; margin-top: clamp(10px, 1.8dvh, 16px); }
   .works__pick, .works__yours { font-size: 14px; }
   /* на телефоне не больше двух других работ строками */

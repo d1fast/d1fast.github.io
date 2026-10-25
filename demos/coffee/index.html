@@ -1,0 +1,256 @@
+<!doctype html>
+<!--
+  Демо для блока «Работы»: сайт кофейни «Пена» (концепт). Первый экран с чашкой сверху и латте-артом,
+  меню с вкладками, своя обжарка, адрес на схеме. Страница не входит в сайт: из неё записываются видео и кадры
+  (scripts/record-works.mjs). Без параметров — компьютер 1104×621 (пишется с плотностью 1,45 → 1600×900),
+  ?m=1 — телефон 390×844. ?t=секунды ставит сцену на момент времени, window.__seek(t) — то же из скрипта записи.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Пена · кофейня</title>
+<link rel="icon" href="data:,">
+<style>
+@font-face { font-family: 'Golos Text'; font-weight: 400 900; src: url(/public/fonts/golos-cyr.woff2) format('woff2'); unicode-range: U+0400-045F, U+2116; }
+@font-face { font-family: 'Golos Text'; font-weight: 400 900; src: url(/public/fonts/golos-lat.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: 'Roboto Flex'; font-weight: 400 700; font-stretch: 100% 151%; src: url(/public/fonts/roboto-flex-cyr.woff2) format('woff2'); unicode-range: U+0400-045F, U+2116; }
+@font-face { font-family: 'Roboto Flex'; font-weight: 400 700; font-stretch: 100% 151%; src: url(/public/fonts/roboto-flex-lat.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --sage: #DCE4D2; --sage-2: #CBD6BE; --ink: #1D2A21; --ink-2: #44524A; --clay: #D4562D; --cream: #FAF9F4; --coffee: #5B3321; --line: rgb(29 42 33 / .16); }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { width: 1104px; height: 621px; overflow: hidden; background: var(--sage); color: var(--ink); font: 400 15px/1.5 'Golos Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body.m { width: 390px; height: 844px; }
+.disp { font-family: 'Roboto Flex', sans-serif; font-stretch: 135%; font-weight: 700; letter-spacing: -.02em; }
+.page { will-change: transform; }
+.wrap { width: min(1000px, 100% - 64px); margin: 0 auto; }
+.m .wrap { width: calc(100% - 36px); }
+
+/* шапка */
+.head { position: absolute; z-index: 5; left: 0; right: 0; top: 0; height: 64px; display: flex; align-items: center; background: var(--sage); }
+.head .wrap { display: flex; align-items: center; gap: 28px; }
+.logo { display: flex; align-items: center; gap: 8px; font-size: 24px; letter-spacing: -.03em; }
+.logo i { width: 22px; height: 22px; border-radius: 50%; background: var(--coffee); box-shadow: inset 0 0 0 4px var(--cream); outline: 1.5px solid var(--ink); }
+.nav { display: flex; gap: 22px; margin-left: auto; font-weight: 500; font-size: 14px; }
+.m .nav { display: none; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 20px; background: var(--ink); color: var(--cream); font-weight: 600; font-size: 14px; }
+.m .head .pill { margin-left: auto; height: 36px; padding: 0 14px; font-size: 13px; }
+.pill.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+
+/* первый экран */
+.hero { position: relative; height: 621px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
+.m .hero { height: 844px; grid-template-columns: 1fr; grid-template-rows: 1fr auto; align-items: end; padding-bottom: 36px; }
+.hero h1 { margin: 0; font-size: 62px; line-height: .98; }
+.m .hero h1 { font-size: 40px; }
+.hero .ln { display: block; overflow: hidden; padding-bottom: .06em; }
+.hero .ln span { display: block; }
+.hero h1 em { font-style: normal; color: var(--clay); }
+.hero p { max-width: 34ch; margin: 22px 0 26px; color: var(--ink-2); font-size: 16px; }
+.m .hero p { margin: 14px 0 18px; font-size: 15px; }
+.btns { display: flex; gap: 10px; }
+.hours { position: absolute; left: 0; bottom: 26px; display: flex; gap: 22px; font-size: 13px; color: var(--ink-2); }
+.hours b { color: var(--ink); font-weight: 600; }
+.m .hours { display: none; }
+.art { position: relative; height: 100%; }
+.m .art { order: -1; height: 440px; }
+.cup { position: absolute; left: 50%; top: 50%; width: 470px; height: 470px; margin: -235px 0 0 -235px; overflow: visible; }
+.m .cup { width: 340px; height: 340px; margin: -160px 0 0 -170px; }
+
+/* меню */
+.sec { padding: 70px 0 60px; }
+.m .sec { padding: 48px 0 40px; }
+.sec h2 { margin: 0 0 22px; font-size: 44px; line-height: 1; }
+.m .sec h2 { font-size: 32px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+.tab { height: 36px; padding: 0 16px; border-radius: 18px; display: inline-flex; align-items: center; font-weight: 500; font-size: 14px; box-shadow: inset 0 0 0 1.5px var(--line); }
+.tab.on { background: var(--ink); color: var(--cream); box-shadow: none; }
+.menu { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.m .menu { grid-template-columns: 1fr; gap: 8px; }
+.item { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 16px; background: var(--cream); }
+.item b { display: block; font-weight: 600; font-size: 15.5px; }
+.item small { color: var(--ink-2); font-size: 13px; }
+.item .pr { font-weight: 600; font-variant-numeric: tabular-nums; }
+.dot { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; }
+.dot svg { width: 40px; height: 40px; }
+
+/* обжарка */
+.beans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.m .beans { grid-template-columns: 1fr; }
+.bean { border-radius: 20px; overflow: hidden; background: var(--cream); }
+.bean .band { height: 92px; display: flex; align-items: flex-end; padding: 14px 16px; color: var(--cream); font-size: 26px; }
+.bean .body { padding: 14px 16px 18px; }
+.bean .notes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.bean .notes span { padding: 3px 10px; border-radius: 12px; background: var(--sage); font-size: 12.5px; }
+.bean small { color: var(--ink-2); font-size: 13px; }
+
+/* адрес */
+.find { display: grid; grid-template-columns: 1fr 1.3fr; gap: 26px; align-items: center; }
+.m .find { grid-template-columns: 1fr; }
+.find h2 { margin-bottom: 14px; }
+.find p { margin: 0 0 6px; color: var(--ink-2); }
+.find p b { color: var(--ink); }
+.map { position: relative; height: 300px; border-radius: 20px; overflow: hidden; background: #E8EDE1; }
+.map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.foot { padding: 26px 0 40px; display: flex; justify-content: space-between; color: var(--ink-2); font-size: 13px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="head"><div class="wrap">
+  <span class="logo disp"><i></i>пена</span>
+  <nav class="nav"><span>Меню</span><span>Обжарка</span><span>Адрес</span></nav>
+  <span class="pill" data-order>Заказать заранее</span>
+</div></div>
+
+<div class="page" data-page>
+  <section class="hero wrap">
+    <div class="copy">
+      <h1 class="disp"><span class="ln"><span>Кофе, ради</span></span><span class="ln"><span>которого встают</span></span><span class="ln"><span><em>пораньше</em></span></span></h1>
+      <p data-rise>Обжариваем зерно сами по вторникам. Закажите заранее и&nbsp;заберите без очереди.</p>
+      <div class="btns" data-rise><span class="pill">Заказать заранее</span><span class="pill ghost">Меню</span></div>
+    </div>
+    <div class="art">
+      <svg class="cup" viewBox="-250 -250 500 500" data-cup>
+        <defs>
+          <radialGradient id="cof" cx="0" cy="0" r="140" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4E2A1A"/><stop offset=".7" stop-color="#6A3A23"/><stop offset="1" stop-color="#8A5032"/></radialGradient>
+          <radialGradient id="foam" cx="-10" cy="-20" r="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FBF1E2"/><stop offset="1" stop-color="#E9D2B4"/></radialGradient>
+          <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#1D2A21" flood-opacity=".22"/></filter>
+          <clipPath id="cc"><circle r="140"/></clipPath>
+        </defs>
+        <g data-beans>
+          <g transform="translate(-205 -170) rotate(30)"><ellipse rx="14" ry="20" fill="#5B3321"/><path d="M0 -16 C6 -6 -6 6 0 16" stroke="#2E1A11" stroke-width="2.5" fill="none"/></g>
+          <g transform="translate(215 -120) rotate(-50)"><ellipse rx="13" ry="19" fill="#6A3B25"/><path d="M0 -15 C6 -5 -6 5 0 15" stroke="#2E1A11" stroke-width="2.5" fill="none"/></g>
+          <g transform="translate(190 200) rotate(80)"><ellipse rx="14" ry="20" fill="#5B3321"/><path d="M0 -16 C6 -6 -6 6 0 16" stroke="#2E1A11" stroke-width="2.5" fill="none"/></g>
+          <g transform="translate(-225 140) rotate(-20)"><ellipse rx="12" ry="18" fill="#6A3B25"/><path d="M0 -14 C5 -5 -5 5 0 14" stroke="#2E1A11" stroke-width="2.5" fill="none"/></g>
+        </g>
+        <g data-saucer filter="url(#sh)">
+          <circle r="218" fill="#FDFCF8"/>
+          <circle r="218" fill="none" stroke="#1D2A21" stroke-opacity=".12" stroke-width="2"/>
+          <circle r="186" fill="none" stroke="#1D2A21" stroke-opacity=".08" stroke-width="10"/>
+          <!-- ложка -->
+          <g transform="rotate(-38) translate(0 -168)"><rect x="-7" y="-46" width="14" height="70" rx="7" fill="#C7CCCF"/><ellipse cy="40" rx="17" ry="24" fill="#D3D8DA"/></g>
+          <!-- чашка: ручка, стенка, кофе -->
+          <g data-mug>
+            <rect x="150" y="-24" width="70" height="48" rx="24" fill="#FFFFFF" stroke="#1D2A21" stroke-opacity=".14" stroke-width="2"/>
+            <circle r="164" fill="#FFFFFF" stroke="#1D2A21" stroke-opacity=".14" stroke-width="2"/>
+            <circle r="140" fill="url(#cof)"/>
+            <g clip-path="url(#cc)">
+              <circle r="140" fill="none" stroke="#A4623C" stroke-opacity=".55" stroke-width="10" data-crema/>
+              <g data-art>
+                <!-- латте-арт: сердце с прожилками розетты -->
+                <path fill="url(#foam)" d="M0 92 C-40 62 -104 26 -104 -26 C-104 -64 -76 -88 -44 -88 C-22 -88 -8 -76 0 -60 C8 -76 22 -88 44 -88 C76 -88 104 -64 104 -26 C104 26 40 62 0 92 Z"/>
+                <path fill="none" stroke="#C99A6C" stroke-opacity=".55" stroke-width="5" stroke-linecap="round" d="M-70 -40 C-40 -52 40 -52 70 -40 M-60 -8 C-30 -20 30 -20 60 -8 M-44 22 C-22 12 22 12 44 22"/>
+                <path fill="none" stroke="#B78456" stroke-opacity=".6" stroke-width="4" stroke-linecap="round" d="M0 -66 L0 86"/>
+              </g>
+              <circle r="140" fill="none" stroke="#FBF1E2" stroke-width="3" stroke-opacity="0" data-ripple/>
+              <circle r="140" fill="none" stroke="#FBF1E2" stroke-width="3" stroke-opacity="0" data-ripple/>
+            </g>
+            <path d="M-118 -78 A142 142 0 0 1 -40 -136" stroke="#fff" stroke-opacity=".5" stroke-width="5" stroke-linecap="round" fill="none"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="hours"><span><b>8:00–22:00</b> каждый день</span><span><b>ул. Садовая, 14</b> у метро</span></div>
+  </section>
+
+  <section class="sec wrap" data-menu-sec>
+    <h2 class="disp">Меню</h2>
+    <div class="tabs"><span class="tab on" data-tab="0">Кофе</span><span class="tab" data-tab="1">Альтернатива</span><span class="tab" data-tab="2">Десерты</span></div>
+    <div class="menu" data-menu></div>
+  </section>
+
+  <section class="sec wrap" data-beans-sec>
+    <h2 class="disp">Своя обжарка</h2>
+    <div class="beans">
+      <div class="bean" data-bean><div class="band disp" style="background:#7A3B22">Эфиопия</div><div class="body"><small>Иргачеффе, мытая обработка</small><div class="notes"><span>бергамот</span><span>персик</span><span>жасмин</span></div></div></div>
+      <div class="bean" data-bean><div class="band disp" style="background:#3E5A3E">Колумбия</div><div class="body"><small>Уила, натуральная обработка</small><div class="notes"><span>карамель</span><span>вишня</span><span>какао</span></div></div></div>
+      <div class="bean" data-bean><div class="band disp" style="background:#B8582E">Бразилия</div><div class="body"><small>Серрадо, для эспрессо</small><div class="notes"><span>орех</span><span>шоколад</span><span>сладкий финиш</span></div></div></div>
+    </div>
+  </section>
+
+  <section class="sec wrap" data-find-sec>
+    <div class="find">
+      <div><h2 class="disp">Заходите</h2><p><b>ул. Садовая, 14</b>, три минуты от метро</p><p>Каждый день с 8:00 до 22:00</p><p style="margin-top:16px"><span class="pill">Проложить маршрут</span></p></div>
+      <div class="map">
+        <svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice">
+          <rect width="600" height="300" fill="#E5EBDC"/>
+          <path d="M-20 210 C120 190 260 230 620 160" stroke="#FDFCF8" stroke-width="26" fill="none"/>
+          <path d="M140 -20 L210 320" stroke="#FDFCF8" stroke-width="20" fill="none"/>
+          <path d="M380 -20 C360 90 420 200 400 320" stroke="#FDFCF8" stroke-width="16" fill="none"/>
+          <path d="M-20 70 L620 110" stroke="#FDFCF8" stroke-width="12" fill="none"/>
+          <rect x="230" y="120" width="120" height="60" rx="8" fill="#CFDABF"/>
+          <rect x="430" y="30" width="140" height="60" rx="8" fill="#CFDABF"/>
+          <rect x="30" y="100" width="90" height="70" rx="8" fill="#CFDABF"/>
+          <circle cx="470" cy="220" r="44" fill="#BFD0AE"/>
+          <g data-pin transform="translate(300 152)"><circle r="26" fill="#D4562D" opacity=".18" data-pulse/><path d="M0 0 C-14 -16 -18 -24 -18 -32 A18 18 0 0 1 18 -32 C18 -24 14 -16 0 0 Z" fill="#D4562D"/><circle cy="-32" r="7" fill="#FAF9F4"/></g>
+        </svg>
+      </div>
+    </div>
+  </section>
+  <div class="wrap foot"><span>пена · кофейня и обжарка</span><span>@pena.coffee</span></div>
+</div>
+
+<script src="/node_modules/gsap/dist/gsap.min.js"></script>
+<script>
+const M = new URLSearchParams(location.search).has('m');
+if (M) document.body.classList.add('m');
+const q = (s) => document.querySelector(s), qa = (s) => [...document.querySelectorAll(s)];
+// иконки позиций: чашка, стакан, круассан, рисуются одной линией
+const ICON = {
+  cup: '<svg viewBox="0 0 40 40"><path d="M9 15h18v8a9 9 0 0 1-18 0z M27 17h3a4 4 0 0 1 0 8h-3" fill="none" stroke="#1D2A21" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 6c-2 3 2 4 0 7 M20 6c-2 3 2 4 0 7" fill="none" stroke="#1D2A21" stroke-width="2" stroke-linecap="round"/></svg>',
+  glass: '<svg viewBox="0 0 40 40"><path d="M12 9h16l-2 24h-12z M12.6 16h14.8" fill="none" stroke="#1D2A21" stroke-width="2.2" stroke-linejoin="round"/></svg>',
+  cake: '<svg viewBox="0 0 40 40"><path d="M7 25c4-11 22-11 26 0-5 3-21 3-26 0z M14 16l3 9 M20 15v10 M26 16l-3 9" fill="none" stroke="#1D2A21" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+};
+const MENU = [
+  [['Эспрессо', 'Бразилия, двойной', '160', 'cup', '#F2D9C7'], ['Капучино', 'с плотной пеной', '240', 'cup', '#E7DCC9'], ['Флэт уайт', 'двойной эспрессо', '260', 'cup', '#DCE4D2'], ['Раф лавандовый', 'на сливках', '320', 'cup', '#E3DDEC']],
+  [['Воронка V60', 'Эфиопия, 250 мл', '330', 'glass', '#F2D9C7'], ['Колд брю', 'настаиваем 18 часов', '290', 'glass', '#D9E4EC'], ['Аэропресс', 'Колумбия', '310', 'glass', '#DCE4D2'], ['Тоник эспрессо', 'с апельсином', '340', 'glass', '#F6E3C2']],
+  [['Круассан', 'на сливочном масле', '190', 'cake', '#F6E3C2'], ['Чизкейк', 'баскский', '310', 'cake', '#F2D9C7'], ['Морковный торт', 'с крем-чизом', '290', 'cake', '#E7DCC9'], ['Синнабон', 'с кардамоном', '230', 'cake', '#DCE4D2']],
+];
+const menu = q('[data-menu]');
+const fillMenu = (k) => { menu.innerHTML = MENU[k].map(([n, s, p, ic, c]) => `<div class="item"><span class="dot" style="background:${c}">${ICON[ic]}</span><span><b>${n}</b><small>${s}</small></span><span class="pr">${p}&nbsp;р.</span></div>`).join(''); };
+fillMenu(0);
+
+const page = q('[data-page]');
+const H = innerHeight;
+const sec = (s) => q(s).offsetTop;
+const tl = gsap.timeline({ paused: true });
+function build() {
+// 0. первый экран: строки заголовка снизу, чашка опускается на блюдце, пена расходится сердцем
+tl.from('.head', { y: -20, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.1);
+tl.from('.hero .ln span', { yPercent: 105, duration: 0.9, ease: 'expo.out', stagger: 0.1 }, 0.2);
+tl.from('[data-rise]', { y: 18, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.1 }, 0.6);
+tl.from('.hours', { opacity: 0, duration: 0.6 }, 1);
+tl.from('[data-saucer]', { scale: 0.86, opacity: 0, rotation: -20, transformOrigin: '50% 50%', duration: 1.1, ease: 'expo.out' }, 0.3);
+tl.from('[data-beans] g', { scale: 0, opacity: 0, transformOrigin: '50% 50%', duration: 0.6, ease: 'back.out(2)', stagger: 0.08 }, 0.8);
+tl.from('[data-art]', { scale: 0.15, opacity: 0, transformOrigin: '50% 50%', svgOrigin: '0 0', duration: 1.6, ease: 'power3.out' }, 0.9);
+qa('[data-ripple]').forEach((r, i) => tl.fromTo(r, { attr: { r: 20 }, strokeOpacity: 0.9 }, { attr: { r: 150 }, strokeOpacity: 0, duration: 1.4, ease: 'power2.out' }, 1 + i * 0.35));
+tl.to('[data-mug]', { rotation: 8, svgOrigin: '0 0', duration: 4, ease: 'sine.inOut' }, 1.2);
+// 3.6 прокрутка к меню, позиции поднимаются; вкладка «Альтернатива», затем «Десерты»
+const toY = (y, at, d = 1.1) => tl.to(page, { y: () => -y(), duration: d, ease: 'power3.inOut' }, at);
+tl.call(() => {}, [], 3.4);
+toY(() => sec('[data-menu-sec]') - (M ? 70 : 40), 3.6);
+tl.from('[data-menu-sec] h2', { y: 24, opacity: 0, duration: 0.6, ease: 'expo.out' }, 4.2);
+tl.from('.tab', { y: 14, opacity: 0, duration: 0.5, ease: 'expo.out', stagger: 0.06 }, 4.3);
+tl.fromTo(menu, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out' }, 4.45);
+const tabTo = (k, at) => {
+  tl.to(menu, { opacity: 0, y: -10, duration: 0.2, ease: 'power2.in' }, at);
+  tl.call(() => { qa('.tab').forEach((t, j) => t.classList.toggle('on', j === k)); fillMenu(k); }, [], at + 0.2);
+  tl.call(() => { qa('.tab').forEach((t, j) => t.classList.toggle('on', j === (k ? k - 1 : 0))); fillMenu(k ? k - 1 : 0); }, [], at + 0.19); // при перемотке назад
+  tl.fromTo(menu, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'expo.out', immediateRender: false }, at + 0.21);
+};
+tabTo(1, 6.0);
+tabTo(2, 7.5);
+// 9.0 своя обжарка
+toY(() => sec('[data-beans-sec]') - (M ? 70 : 40), 9.0);
+tl.from('[data-bean]', { y: 40, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.1 }, 9.6);
+// 11.6 адрес и метка на схеме
+toY(() => sec('[data-find-sec]') - (M ? 70 : 60), 11.6);
+tl.from('[data-pin]', { y: -60, opacity: 0, duration: 0.6, ease: 'bounce.out' }, 12.4);
+tl.fromTo('[data-pulse]', { attr: { r: 10 }, opacity: 0.5 }, { attr: { r: 46 }, opacity: 0, duration: 1.2, repeat: 1, ease: 'power2.out' }, 13.0);
+tl.set({}, {}, 15.2);
+}
+window.__seek = (t) => { tl.seek(t, false); return true; };
+const t0 = new URLSearchParams(location.search).get('t');
+// позиции разделов зависят от шрифтов: таймлайн собирается, когда они загружены
+document.fonts.ready.then(() => { build(); window.__dur = tl.duration(); if (t0) tl.seek(+t0, false); else tl.play(); window.__ready = true; });
+</script>
+</body>
+</html>
