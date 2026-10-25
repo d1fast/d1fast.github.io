@@ -3,7 +3,7 @@ import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { watchBlock, pointerArm } from '../../scripts/block';
-import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, type P } from './lamp';
+import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, MAN_STOP, MAN_VIEW, SWEAR_TIP, type P } from './lamp';
 
 gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
 
@@ -21,6 +21,7 @@ const DWELL = [4.6, 2.8, 2.8, 4];
 const MOVE = 0.8;
 const N = 4;
 const ZOOM = 1.3; // увеличение в лупе
+const ZOOM_MAN = 1.13; // над человечком лупа увеличивает меньше: он виден целиком
 const HOLD = 0.3; // столько лупа стоит над вопросом
 const WARM = '#FFE7A0';
 const DEG = Math.PI / 180;
@@ -73,6 +74,8 @@ export function init(root: HTMLElement) {
   const lens = one<SVGGElement>('[data-process-lens]');
   const lensView = one<SVGGElement>('[data-process-lens-view]');
   const lensHandle = one<SVGPathElement>('[data-process-lens-handle]');
+  const swear = one<SVGGElement>('[data-process-swear]');
+  const swearT = one<SVGTextElement>('[data-process-swear-t]');
   const belt = one('[data-process-belt]');
   const rail = one('[data-process-rail]');
   const track = one('.process__track');
@@ -237,15 +240,61 @@ export function init(root: HTMLElement) {
     if (L.k > 0.99) { y = clamp(LENS.minY, LENS.maxY, y); x = clamp(LENS.minX, LENS.right - HANDLE * Math.cos(handleAngle(y) * DEG), x); }
     lens.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
     lensHandle.setAttribute('transform', `rotate(${(handleAngle(y) - 45).toFixed(1)})`);
-    lensView.setAttribute('transform', `scale(${ZOOM}) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})`);
+    // у человечка увеличение плавно меньше, а вид внутри сдвигается к его середине: он помещается в стекло целиком
+    const dm = Math.hypot(x - MAN_STOP[0], y - MAN_STOP[1]);
+    const near = smooth(52, 8, dm);
+    const z = ZOOM - (ZOOM - ZOOM_MAN) * near;
+    const vx = x + (MAN_VIEW[0] - MAN_STOP[0]) * near, vy = y + (MAN_VIEW[1] - MAN_STOP[1]) * near;
+    lensView.setAttribute('transform', `scale(${z.toFixed(3)}) translate(${(-vx).toFixed(1)} ${(-vy).toFixed(1)})`);
     // вопрос под стеклом виден только увеличенным в лупе, снаружи он гаснет и не торчит из-под оправы
     const vis = opacityOf(lens);
     MARKS.forEach((m, i) => {
       const d = Math.hypot(m[0] - x, m[1] - y);
       marks[i].style.fillOpacity = (1 - vis * (1 - clamp(0, 1, (d - 36) / 26))).toFixed(2);
-      if (lensOn && L.k > 0.85 && !flipped[i] && d < 26) flip(i);
+      if (i !== MAN_I && lensOn && L.k > 0.85 && !flipped[i] && d < 26) flip(i);
     });
+    // лупа над человечком: он ругается; ушла: успокаивается, и над головой появляется «!»
+    if (lensOn && L.k > 0.85) { if (!angry && dm < 10) swearOn(); else if (angry && dm > 18) swearOff(); }
   }
+  /* человечек ругается: облачко над лупой, в нём перебираются звёздочки и решётки, кулак трясётся */
+  const MAN_I = 2;
+  const GRAWLIX = '#@%&*!$?';
+  let angry = false, cuss: gsap.core.Tween | null = null;
+  gsap.set(swear, { svgOrigin: `${SWEAR_TIP[0]} ${SWEAR_TIP[1]}`, scale: 0 });
+  const curse = () => {
+    const a = GRAWLIX.split('');
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    swearT.textContent = a.slice(0, 5).join('') + '!';
+  };
+  function swearOn() {
+    angry = true;
+    to(pair(MAN_I), { scale: 0, duration: 0.15, ease: 'power2.in', overwrite: 'auto' });
+    curse();
+    fromTo(swear, { scale: 0, rotation: -12, opacity: 1 }, { scale: 1, rotation: 0, duration: 0.5, ease: 'back.out(2.6)', overwrite: 'auto' });
+    cuss?.kill();
+    cuss = gsap.to({}, { duration: 0.13, repeat: -1, onRepeat: curse });
+    // кулак вверх и трясётся, сам подпрыгивает от злости
+    gsap.killTweensOf(manArm);
+    tl().to(manArm, { rotation: 0, morphSVG: MAN.armUp, duration: 0.18, ease: 'power2.out' }, 0)
+      .to(manArm, { rotation: 16, duration: 0.08, ease: 'sine.inOut', yoyo: true, repeat: 9 }, 0.18)
+      .to(man, { y: -4, duration: 0.12, ease: 'power2.out', yoyo: true, repeat: 3 }, 0.05);
+  }
+  function swearOff(quiet = false) {
+    const was = angry;
+    angry = false;
+    cuss?.kill(); cuss = null;
+    // смена шага убирает облачко сразу, даже если оно ещё уезжало
+    if (quiet) { gsap.killTweensOf(swear); gsap.set(swear, { scale: 0, opacity: 0 }); return; }
+    if (!was) return;
+    // уход облачка не привязан к шагу: смена шага его не заморозит на полпути
+    gsap.to(swear, { scale: 0, opacity: 0, duration: 0.28, ease: 'back.in(1.8)', overwrite: true });
+    gsap.killTweensOf(manArm, 'rotation');
+    to(manArm, { rotation: 0, duration: 0.2, ease: 'power2.out' });
+    // выругался и понял: вопрос над головой становится восклицательным знаком
+    if (!flipped[MAN_I]) flip(MAN_I);
+    else fromTo(pair(MAN_I), { scale: 0 }, { scale: 1, duration: 0.4, ease: 'back.out(2.5)', overwrite: 'auto' });
+  }
+
   let ticking = false;
   const tick = (on: boolean) => { if (on && !ticking) gsap.ticker.add(lensRender); if (!on && ticking) gsap.ticker.remove(lensRender); ticking = on; };
   function lensShow(delay: number) {
@@ -258,9 +307,11 @@ export function init(root: HTMLElement) {
     to(L, { k: 1, duration: 0.8, ease: 'power2.inOut', delay });
     // обход: переход с мягким разгоном и торможением, стоянка над вопросом; круг замкнут, повтор без рывка
     const walk = tl({ delay: delay + 0.8 + HOLD, repeat: -1 });
-    SEG.forEach((d, i) => { walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' }); walk.to({}, { duration: HOLD }); });
+    // у человечка лупа задерживается: он успевает выругаться
+    SEG.forEach((d, i) => { walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' }); walk.to({}, { duration: (i + 1) % SN === MAN_I ? 1.7 : HOLD }); });
   }
   function lensHide() {
+    swearOff(true);
     lensOn = false;
     const off = () => { if (!lensOn) { tick(false); unhideMarks(); } };
     if (opacityOf(lens) > 0.01) to(lens, { opacity: 0, duration: 0.3, ease: 'power1.in', onComplete: off });
@@ -632,7 +683,9 @@ export function init(root: HTMLElement) {
     gsap.set(allMarks, { scale: 0, opacity: 0 });
     gsap.set(lens, { opacity: 0 });
     Object.assign(L, { s: 0, k: 0 });
-    killEach([man, manArm, ...manLines]);
+    killEach([man, manArm, ...manLines, swear]);
+    angry = false; cuss?.kill(); cuss = null;
+    gsap.set(swear, { scale: 0, opacity: 0 });
     gsap.set(man, { opacity: 0, y: 0 });
     gsap.set(manArm, { rotation: 0, attr: { d: MAN.armR } });
     gsap.set(lines, { fill: BG, fillOpacity: 0 });

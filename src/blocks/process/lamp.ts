@@ -310,10 +310,23 @@ export const MAN = {
 // вопросы у ошибок наброска: над разрывом в локте, в выпавшей лампочке, над головой человечка, над задранной подставкой
 const gapMid = add(J1, mul(U2, (JOINT_R + GAP_FROM - ARM_R) / 2));
 export const MARKS: P[] = [add(gapMid, mul([U2[1], -U2[0]], 26)), BULB_LOST, [MAN_X + 3, 325], [288, 352]].map((p) => [r1(p[0]), r1(p[1])] as P);
+// у человечка лупа встаёт не на вопрос, а на него самого: стекло опускается к столу, а вид внутри
+// центрируется по его середине и меньше увеличивает, чтобы он помещался целиком, от макушки до ног
+export const MAN_STOP: P = [MAN_X, 360];
+export const MAN_VIEW: P = [MAN_X + 1, 372];
 // лупа встаёт ровно на вопрос: он оказывается в центре стекла
-export const LENS_STOPS: P[] = MARKS;
+export const LENS_STOPS: P[] = [MARKS[0], MARKS[1], MAN_STOP, MARKS[3]];
 /** где может стоять центр лупы: стекло и ручка не заходят на мягкие края рисунка и не уходят под стол */
-export const LENS = { r: 46, minX: 172, minY: 134, maxY: 356, right: 622 };
+export const LENS = { r: 46, minX: 172, minY: 134, maxY: 360, right: 622 };
+/* облачко, в котором человечек ругается: над оправой справа, хвостик упирается в оправу со стороны его головы */
+export const SWEAR: P = [MAN_X + 70, 296];
+export const SWEAR_TIP: P = [MAN_X + 26, 320];
+export const SWEAR_BUBBLE = (() => {
+  const w = 92, h = 38, r = 14, x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = h / 2;
+  const tip: P = [SWEAR_TIP[0] - SWEAR[0], SWEAR_TIP[1] - SWEAR[1]];
+  return `M${x0 + r} ${y0}H${x1 - r}A${r} ${r} 0 0 1 ${x1} ${y0 + r}V${y1 - r}A${r} ${r} 0 0 1 ${x1 - r} ${y1}` +
+    `H${x0 + 30}L${tip[0]} ${tip[1]}L${x0 + 17} ${y1}H${x0 + r}A${r} ${r} 0 0 1 ${x0} ${y1 - r}V${y0 + r}A${r} ${r} 0 0 1 ${x0 + r} ${y0}Z`;
+})();
 
 /* ---------- шестерня каретки ---------- */
 export function gear(teeth = 14, ro = 29, ri = 25, hole = 0) {

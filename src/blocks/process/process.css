@@ -48,6 +48,10 @@
 .pr-man-head { fill: var(--bg); }
 .pr-mark { font: 800 34px/1 var(--font-tech); fill: var(--accent); text-anchor: middle; dominant-baseline: central; }
 .pr-mark.is-got { fill: var(--fg); }
+/* облачко с ругательствами: тот же карандаш, что у человечка; звёздочки и решётки вместо слов */
+.pr-swear { opacity: 0; pointer-events: none; }
+.pr-swear-bub { fill: var(--bg); stroke: var(--fg); stroke-width: 2.2; stroke-linejoin: round; }
+.pr-swear-t { font: 800 22px/1 var(--font-tech); letter-spacing: .04em; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
 .pr-axis { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 16 4 2 4; }
 .pr-dim { fill: none; stroke: var(--blue); stroke-width: 1.3; stroke-linecap: square; }
 .pr-label { font: 600 17px/1 var(--font-tech); fill: var(--blue); text-anchor: middle; dominant-baseline: central; letter-spacing: .02em; }

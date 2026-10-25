@@ -1,7 +1,7 @@
 ---
 import './process.css';
 import { t, type Lang } from '../../i18n';
-import { VB_X, VB_Y, VB_W, VB_H, SHAPES, SKETCH, ORDER, SPRING, CONE, CONE_GRAD, RIM, CHECK_CIRCLE, CHECK_MARK, CHECK_RING, SPARKS, RAYS, POOL, DUST, BULB, GLINTS, AXES, DIMS, LABELS, MARKS, LENS, MAN, J0, J1, J2, gear } from './lamp';
+import { VB_X, VB_Y, VB_W, VB_H, SHAPES, SKETCH, ORDER, SPRING, CONE, CONE_GRAD, RIM, CHECK_CIRCLE, CHECK_MARK, CHECK_RING, SPARKS, RAYS, POOL, DUST, BULB, GLINTS, AXES, DIMS, LABELS, MARKS, LENS, MAN, SWEAR, SWEAR_BUBBLE, J0, J1, J2, gear } from './lamp';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
@@ -168,6 +168,12 @@ const compassTicks = Array.from({ length: 21 }, (_, i) => {
             </g>
             <circle class="pr-lens-rim" r={LENS.r} />
             <path class="pr-lens-glare" d="M-31 -13A34 34 0 0 1 -12 -32" />
+          </g>
+
+          <!-- человечку не нравится, что его разглядывают: над лупой всплывает облачко, а в нём он ругается звёздочками -->
+          <g class="pr-swear" transform={`translate(${SWEAR[0]} ${SWEAR[1]})`} data-process-swear>
+            <path class="pr-swear-bub" d={SWEAR_BUBBLE} />
+            <text class="pr-swear-t" x="0" y="1" data-process-swear-t>#@%&!</text>
           </g>
         </svg>
       </div>
