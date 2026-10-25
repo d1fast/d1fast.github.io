@@ -62,14 +62,14 @@ const other = lang === 'ru' ? 'en' : 'ru';
     <meta property="og:locale" content={lang === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta property="og:locale:alternate" content={other === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#2433B8" />
+    <meta name="theme-color" content="#FFD43B" />
     <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${base}/favicon-32.png`} sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="manifest" href={`${base}/site.webmanifest`} />
     <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
-    <link rel="preload" href={`${base}/fonts/geologica-cyr.woff2`} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={`${base}/fonts/golos-cyr.woff2`} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={`${base}/fonts/unbounded-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={`${base}/fonts/onest-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />
     <script is:inline>
       document.documentElement.classList.add('js');
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

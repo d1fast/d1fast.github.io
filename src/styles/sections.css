@@ -23,61 +23,107 @@
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
 html.stage-on .site-header { background: transparent; }
 
-/* Первый экран-воронка: у каждого вопроса своя насыщенная палитра (hero/palettes.ts), новый цвет разливается кругом
-   .hero__flood. Слева сменяющийся вопрос, под ним текст обо мне и кнопки, справа объёмное слово (холст в .hero__stage). */
-.hero { --gap: clamp(16px, 3vw, 48px);
+/* Первый экран-воронка: вопросы пролетают по кривым системы координат (hero/space.ts), у каждого своя палитра
+   (hero/palettes.ts), новый цвет разливается кругом .hero__flood. В конце слева ответ, текст обо мне и кнопки,
+   справа (стоя сверху) место цели .hero__aim, куда сходятся кривые. Шрифты: Unbounded для вопросов и ответа,
+   Onest для текста и кнопок. */
+.hero { --gap: clamp(16px, 3vw, 48px); --card-w: clamp(230px, 22vw, 330px);
   display: grid; grid-template-rows: minmax(0, 1fr); padding: calc(var(--header-h) + 8px) 0 clamp(20px, 4.5vh, 52px); overflow: hidden; background: var(--bg); }
 html.stage-on .hero { overflow: hidden; }
 /* круг заливки растёт за край блока: обёртка его обрезает, иначе у блока появилась бы прокрутка */
 .hero__floodbox { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .hero__flood { position: absolute; left: 0; top: 0; width: 200px; height: 200px; border-radius: 50%; visibility: hidden; pointer-events: none; will-change: transform, opacity; }
-.hero__grid { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 54fr) minmax(0, 46fr); column-gap: var(--gap); align-items: center; min-height: 0; }
+/* холст осей и лент и слой летящих вопросов на весь блок, в одной перспективе (её глубину ставит space.ts) */
+.hero__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; }
+.hero__space { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; perspective: var(--persp, 1400px); perspective-origin: 50% 50%; }
+html:not(.js) .hero__space, html:not(.js) .hero__gl { display: none; }
+.hero__q, .hero__card { position: absolute; left: 0; top: 0; margin: 0; visibility: hidden; will-change: transform, opacity; backface-visibility: hidden; }
+/* летящий вопрос: три строки, выделение плашкой цвета его кривой */
+.hero__q { display: grid; justify-items: start; font: 700 var(--fs-q, 56px)/1.1 var(--font-hero); letter-spacing: -.025em; color: var(--q-fg); white-space: nowrap; }
+.hero__ql { display: block; }
+.hero__ql.is-m { font-weight: 400; color: var(--q-muted, color-mix(in oklab, var(--q-fg) 64%, var(--q-bg))); }
+.hero__q--doubt { justify-items: center; }
+.hero__q em, .hero__w em { font-style: normal; padding: 0 .14em .05em; margin: 0 -.02em; border-radius: .16em; background: var(--q-acc); color: var(--q-side); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+.hero__grid { position: relative; z-index: 3; display: grid; grid-template-columns: minmax(0, 54fr) minmax(0, 46fr); column-gap: var(--gap); align-items: center; min-height: 0; }
 .hero__text { display: grid; gap: clamp(18px, 3.2vh, 34px); align-content: center; justify-items: start; min-width: 0; }
-/* кинетический заголовок: три строки-прорези одной высоты, кегль подгоняет hero.ts по самой длинной строке всех вопросов */
-.hero__say { --fs-say: clamp(40px, min(5.4vw, 9.5vh), 96px); justify-self: stretch; margin: 0; display: grid; font: 800 var(--fs-say)/1.02 var(--font-display); letter-spacing: -.035em; color: var(--fg); }
-.hero__ln { display: grid; overflow: clip; padding: .1em .06em .16em 0; margin: -.1em 0 -.16em; }
-.hero__w { grid-area: 1 / 1; display: block; white-space: nowrap; min-height: 1.02em; color: var(--fg); }
-.hero__w.is-m { color: var(--hero-muted, color-mix(in oklab, var(--fg) 62%, var(--bg))); }
-.hero__w em { font-style: normal; color: var(--accent); }
+/* ответ: строки поднимаются из прорезей, кегль подгоняет hero.ts по самой длинной строке */
+.hero__say { --fs-say: clamp(38px, min(4.9vw, 9vh), 92px); justify-self: stretch; margin: 0; display: grid; font: 700 var(--fs-say)/1.08 var(--font-hero); letter-spacing: -.03em; color: var(--fg); }
+.hero__ln { display: block; overflow: clip; padding: .06em .12em .16em 0; margin: -.06em 0 -.16em; }
+.hero__w { display: block; width: max-content; white-space: nowrap; transform-origin: 0 100%; }
+.hero__w.is-m { font-weight: 400; color: var(--hero-muted, color-mix(in oklab, var(--fg) 62%, var(--bg))); }
+.hero__w em { background: var(--accent); color: var(--accent-fg); }
 .hero__end { position: relative; display: grid; gap: clamp(16px, 2.6vh, 26px); justify-items: start; }
-.hero__sub { font: 500 clamp(17px, 1.25vw, 21px)/1.42 var(--font-display); max-width: 36ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 86%, var(--bg)); }
+.hero__sub { font: 500 clamp(17px, 1.25vw, 21px)/1.45 var(--font-hero-text); max-width: 36ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 88%, var(--bg)); }
 .hero__cta { display: flex; flex-wrap: wrap; gap: 12px; }
-.hero .btn { font-family: var(--font-display); font-weight: 600; }
+.hero .btn { font-family: var(--font-hero-text); font-weight: 600; font-size: 16px; }
 .hero .btn--ghost { border-color: color-mix(in oklab, var(--fg) 55%, transparent); }
 /* «Пропустить» мелкий: только полный цвет текста держит контраст на всех палитрах */
 .hero__skip { position: absolute; left: 0; bottom: 0; min-height: 44px; padding: 0 2px; font: 500 13px/1 var(--font-mono); letter-spacing: .04em; color: var(--fg); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in oklab, var(--fg) 45%, transparent); }
 html.js .hero:not(.is-bound) .hero__say, html.js .hero:not(.is-bound) .hero__end > * { opacity: 0; }
-/* место для слов: холст выходит за него вбок и вверх (вниз нельзя: блок получил бы прокрутку), чтобы уезжающие слова не обрезались о край колонки */
-.hero__stage { position: relative; align-self: stretch; min-height: 0; container-type: size; }
-.hero__gl { position: absolute; left: -6%; top: -6%; width: 112%; height: 106%; display: block; pointer-events: none; }
-/* без WebGL и без скрипта: та же стопка слов плоско, с тенью-объёмом; ширина слов одинаковая (кегль от ширины слова в em) */
-.hero__flat { position: absolute; inset: 0; display: none; align-content: center; justify-items: center; margin: 0;
-  --k: min(78cqw, 84cqh / var(--sum)); font: 800 1px/.9 var(--font-display); text-transform: uppercase; letter-spacing: 0; }
-.hero__flat span { font-size: calc(var(--k) / var(--em)); color: var(--face); text-shadow: .012em .012em 0 var(--side), .024em .024em 0 var(--side), .036em .036em 0 var(--side), .048em .048em 0 var(--side); }
-html:not(.js) .hero__flat, .hero.is-flat.is-answered .hero__flat { display: grid; }
-html:not(.js) .hero__gl { display: none; }
-/* экран стоя (телефон, планшет): слова сверху занимают всё свободное место, ниже вопрос, текст и кнопки */
+.hero__aim { align-self: stretch; min-height: 0; }
+
+/* картинки рядом с вопросами: белые карточки с чернильной обводкой и жёсткой тенью, как ленты кривых */
+.hero__card { width: var(--card-w); border-radius: 16px; overflow: hidden; font: 500 13px/1.35 var(--font-hero-text); color: #121110; background: #fff;
+  box-shadow: 0 0 0 2px #121110, 8px 10px 0 #121110; }
+.hc-chat { display: grid; gap: 8px; padding: 12px; }
+.hc-chat__head { display: flex; align-items: center; gap: 8px; padding-bottom: 9px; border-bottom: 1.5px solid rgb(18 17 16 / .14); }
+.hc-chat__head i { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #121110; background: var(--q-bg); font: 700 12px/1 var(--font-hero); font-style: normal; color: var(--q-fg); }
+.hc-chat__head b { font-weight: 700; }
+.hc-chat__head span { margin-left: auto; font-size: 11.5px; color: #5d5a66; }
+.hc-chat__msg { justify-self: start; max-width: 88%; margin: 0; padding: 7px 11px; border: 1.5px solid #121110; border-radius: 14px 14px 14px 4px; background: color-mix(in oklab, var(--q-bg) 50%, #fff); }
+.hc-chat__msg.is-me { justify-self: end; border-radius: 14px 14px 4px 14px; background: #121110; color: #fff; }
+.hc-chat__btns { display: flex; gap: 6px; }
+.hc-chat__btns span { flex: 1; padding: 7px 4px; border: 1.5px solid #121110; border-radius: 10px; font-size: 12px; font-weight: 600; text-align: center; }
+.hc-site { width: calc(var(--card-w) * 1.18); }
+.hc-site__bar { display: flex; align-items: center; gap: 5px; padding: 8px 10px; background: var(--q-bg); border-bottom: 2px solid #121110; }
+.hc-site__bar i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #121110; background: #fff; }
+.hc-site__bar i:first-child { background: var(--q-acc); }
+.hc-site__bar span { flex: 1; margin-left: 8px; padding: 3px 10px; border: 1.5px solid #121110; border-radius: 99px; background: #fff; font: 500 11px/1.2 var(--font-mono); }
+.hc-site img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.hc-book { display: grid; gap: 10px; padding: 14px; background: #F4FBF9; }
+.hc-book__title { font: 700 15px/1.2 var(--font-hero); letter-spacing: -.01em; color: var(--q-bg); }
+.hc-book__days, .hc-book__times { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.hc-book__days span, .hc-book__times span { padding: 7px 0; border: 1.5px solid #121110; border-radius: 10px; background: #fff; font-size: 12px; font-weight: 600; text-align: center; white-space: nowrap; }
+.hc-book .is-on { background: var(--q-acc); }
+.hc-book__btn { display: block; padding: 10px; border: 1.5px solid #121110; border-radius: 99px; background: var(--q-bg); color: var(--q-fg); font-weight: 700; text-align: center; }
+.hc-game { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; padding: 16px 14px 14px; background: #FFF6EE; }
+.hc-game__wheel { position: relative; width: calc(var(--card-w) * .42); aspect-ratio: 1; border: 2px solid #121110; border-radius: 50%; }
+.hc-game__wheel i { position: absolute; inset: 36%; border: 2px solid #121110; border-radius: 50%; background: #FFF6EE; }
+.hero.is-telling .hc-game__wheel { animation: hc-spin 2.4s cubic-bezier(.15, .7, .25, 1) infinite; }
+.hc-game__pin { position: absolute; left: calc(14px + var(--card-w) * .21 - 8px); top: 6px; width: 16px; height: 18px; background: var(--q-bg); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.hc-game__txt { display: grid; gap: 3px; min-width: 0; }
+.hc-game__txt span { font-size: 12px; font-weight: 600; }
+.hc-game__txt strong { font: 800 calc(var(--card-w) * .15)/1 var(--font-hero); letter-spacing: -.03em; color: var(--q-bg); }
+.hc-game__txt small { font-size: 11.5px; color: #6a5a52; }
+@keyframes hc-spin { to { transform: rotate(720deg); } }
+
+/* экран стоя (телефон, планшет): цель сверху, ответ, текст и кнопки снизу; вопрос ниже середины, картинка над ним */
 @media (orientation: portrait) {
-  .hero { padding: calc(var(--header-h) + 4px) 0 clamp(16px, 3dvh, 40px); }
+  .hero { --card-w: min(62vw, 280px); padding: calc(var(--header-h) + 4px) 0 clamp(16px, 3dvh, 40px); }
   .hero__grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; row-gap: clamp(12px, 2.2dvh, 26px); align-items: stretch; }
-  .hero__stage { order: -1; min-height: 22dvh; }
+  .hero__aim { order: -1; min-height: 22dvh; }
   .hero__text { gap: clamp(12px, 2dvh, 22px); }
-  .hero__say { --fs-say: clamp(34px, min(10.4vw, 6.6dvh), 88px); }
+  .hero__say { --fs-say: clamp(30px, min(9.2vw, 6dvh), 80px); }
   .hero__end { gap: clamp(12px, 1.8dvh, 20px); }
-  .hero__sub { font-size: clamp(15.5px, 2.1vw, 20px); line-height: 1.38; max-width: 40ch; }
+  .hero__sub { font-size: clamp(15.5px, 2.1vw, 20px); line-height: 1.4; max-width: 40ch; }
 }
 @media (orientation: portrait) and (max-width: 600px) {
   .hero__cta { width: 100%; }
   .hero__cta .btn { flex: 1 1 auto; }
+  .hero__card { font-size: 12px; }
 }
 /* телефон боком: всё плотнее */
 @media (orientation: landscape) and (max-height: 540px) {
-  .hero { padding-bottom: 12px; }
+  .hero { --card-w: 200px; padding-bottom: 12px; }
   .hero__text { gap: 10px; }
-  .hero__say { --fs-say: clamp(28px, min(4.6vw, 9.6vh), 52px); }
+  .hero__say { --fs-say: clamp(24px, min(4.2vw, 9vh), 46px); }
   .hero__end { gap: 10px; }
   .hero__sub { font-size: 14px; line-height: 1.35; }
-  .hero .btn { min-height: 42px; }
+  .hero .btn { min-height: 42px; font-size: 14px; }
+  .hero__card { font-size: 11px; }
+  .hc-chat, .hc-book { padding: 9px; gap: 6px; }
+  .hc-chat__btns, .hc-book__times { display: none; }
 }
 /* шапка и точки перекрашиваются вместе с палитрой первого экрана */
 html.stage-on .site-header, html.stage-on .dots { transition: color .25s var(--ease-out); }
@@ -137,8 +183,8 @@ body:has(.not-found) main { min-height: calc(100dvh - 72px); display: grid; }
 body:has(.policy) { display: flex; flex-direction: column; min-height: 100dvh; }
 body:has(.policy) main { flex: 1 0 auto; }
 .not-found { min-height: 80dvh; display: grid; align-content: center; gap: 16px; padding-block: 120px 80px; }
-.not-found__code { font: 900 clamp(96px, 24vw, 320px)/.9 var(--font-display); letter-spacing: -.05em; color: var(--accent); }
-.not-found__title { font: 800 clamp(28px, 4vw, 56px)/1.05 var(--font-display); letter-spacing: -.03em; text-transform: uppercase; }
+.not-found__code { font: 800 clamp(96px, 22vw, 300px)/.9 var(--font-hero); letter-spacing: -.05em; color: var(--accent); }
+.not-found__title { font: 700 clamp(26px, 3.6vw, 52px)/1.08 var(--font-hero); letter-spacing: -.03em; text-transform: uppercase; }
 .not-found__text { font-size: var(--text-lg); }
 .not-found__links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .policy { max-width: 72ch; padding-block: clamp(120px, 14vh, 160px) clamp(40px, 8vh, 96px); display: grid; gap: 16px; }

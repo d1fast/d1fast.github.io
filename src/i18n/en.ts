@@ -35,6 +35,12 @@ export const en: Dict = {
     skip: 'Skip',
     ctaContact: 'Discuss a project',
     ctaWorks: 'Work',
+    cards: {
+      chat: { name: 'Ugli · bot', status: 'online', me: 'Pick a wine for steak', bot: 'A 2021 Malbec fits. Book a table for 7\u00a0pm?', yes: 'Yes, for two', other: 'Other time' },
+      site: { url: 'pena · café' },
+      book: { title: 'Book a haircut', days: ['Mon 12', 'Tue 13', 'Wed 14', 'Thu 15'], times: ['10:00', '12:30', '14:00', '16:30'], button: 'Book 14:00' },
+      game: { label: 'Spin the wheel', prize: '−20%', note: 'off your first order' },
+    },
   },
 
   services: {

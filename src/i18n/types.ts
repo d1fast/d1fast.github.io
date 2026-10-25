@@ -19,6 +19,13 @@ export interface Dict {
     ask: { lines: string[]; word: string }[];
     doubt: string[]; answer: string[]; sub: string; skip: string;
     ctaContact: string; ctaWorks: string;
+    /** картинки, которые летят рядом с вопросами: чат бота, сайт кофейни, запись, колесо призов */
+    cards: {
+      chat: { name: string; status: string; me: string; bot: string; yes: string; other: string };
+      site: { url: string };
+      book: { title: string; days: string[]; times: string[]; button: string };
+      game: { label: string; prize: string; note: string };
+    };
   };
   services: { title: string; items: { title: string; text: string }[] };
   /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера;

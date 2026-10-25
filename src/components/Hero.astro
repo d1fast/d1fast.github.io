@@ -1,32 +1,67 @@
 ---
-// Первый экран-воронка. Слева в трёх строках-прорезях сменяются вопросы, справа объёмное слово того,
-// о чём спросили, и у каждого вопроса своя палитра (hero.ts, hero/type3d.ts, hero/palettes.ts).
-// Потом сомнение, ответ, кто я и кнопки. Без скрипта виден ответ, текст обо мне, кнопки и плоская стопка слов.
-// Для поиска и скринридеров есть обычный h1.
+// Первый экран-воронка. Вопросы («Хотите Telegram-бота…», «Или эстетичный сайт…») по очереди пролетают
+// по кривым системы координат, у каждого своя палитра и своя картинка рядом (hero.ts, hero/space.ts,
+// hero/palettes.ts). Потом сомнение, ответ «Тогда вы попали по адресу.», кто я и кнопки; кривые сходятся в цель.
+// Без скрипта виден ответ, текст обо мне и кнопки на жёлтом. Для поиска и скринридеров есть обычный h1.
 import { t, type Lang } from '../i18n';
-import geo from '../scripts/hero/geologica-800.json';
-import { STACK_FACES, ANSWER } from '../scripts/hero/palettes';
+import { ASK, DOUBT, qvars } from '../scripts/hero/palettes';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
+const c = d.hero.cards;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-/** строка заголовка: «~» в начале приглушает её, *…* выделяет акцентом */
+/** строка заголовка: «~» в начале приглушает её, *…* выделяет плашкой */
 const line = (s: string) => ({ muted: s.startsWith('~'), html: esc(s.replace(/^~/, '')).replace(/\*(.+?)\*/g, '<em>$1</em>') });
-/** ширина слова в em по ширинам знаков Geologica 800: плоская стопка ставит все слова одной ширины */
-const glyphs = geo.glyphs as Record<string, { ha: number }>;
-const em = (w: string) => [...w].reduce((a, c) => a + (glyphs[c]?.ha ?? 1200), 0) / geo.resolution;
-const ems = d.hero.ask.map((a) => em(a.word));
-const sum = ems.reduce((a, e) => a + 0.9 / e, 0);
 const states = { ask: d.hero.ask.map((a) => ({ lines: a.lines.map(line), word: a.word })), doubt: d.hero.doubt.map(line), answer: d.hero.answer.map(line) };
+const words = d.hero.ask.map((a) => a.word.toLocaleLowerCase(lang));
+// колесо призов: восемь секторов в цветах кривых
+const wheel = ['#2547FF', '#FFF6EE', '#FFC83D', '#121110', '#2547FF', '#FFF6EE', '#FFC83D', '#121110'];
 ---
-<section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero data-states={JSON.stringify(states)}>
+<section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero
+  data-states={JSON.stringify(states)} data-words={JSON.stringify(words)} data-nick={d.hero.nick}>
   <div class="hero__floodbox" aria-hidden="true"><i class="hero__flood" data-hero-flood></i></div>
+  <canvas class="hero__gl" aria-hidden="true" data-hero-gl></canvas>
+
+  <!-- летящие вопросы и картинки: transform ставит hero/space.ts -->
+  <div class="hero__space" aria-hidden="true" data-hero-space>
+    <div class="hero__card hc-chat" data-hero-card="0" style={qvars(ASK[0])}>
+      <div class="hc-chat__head"><i>{c.chat.name.slice(0, 1)}</i><b>{c.chat.name}</b><span>{c.chat.status}</span></div>
+      <p class="hc-chat__msg is-me">{c.chat.me}</p>
+      <p class="hc-chat__msg">{c.chat.bot}</p>
+      <div class="hc-chat__btns"><span>{c.chat.yes}</span><span>{c.chat.other}</span></div>
+    </div>
+    <div class="hero__card hc-site" data-hero-card="1" style={qvars(ASK[1])}>
+      <div class="hc-site__bar"><i></i><i></i><i></i><span>{c.site.url}</span></div>
+      <img src={`${base}/work/pena/hero-800.webp`} alt="" width="800" height="450" decoding="async" />
+    </div>
+    <div class="hero__card hc-book" data-hero-card="2" style={qvars(ASK[2])}>
+      <b class="hc-book__title">{c.book.title}</b>
+      <div class="hc-book__days">{c.book.days.map((x, i) => <span class:list={{ 'is-on': i === 2 }}>{x}</span>)}</div>
+      <div class="hc-book__times">{c.book.times.map((x, i) => <span class:list={{ 'is-on': i === 2 }}>{x}</span>)}</div>
+      <span class="hc-book__btn">{c.book.button}</span>
+    </div>
+    <div class="hero__card hc-game" data-hero-card="3" style={qvars(ASK[3])}>
+      <div class="hc-game__wheel" style={`background:conic-gradient(${wheel.map((w, i) => `${w} ${i * 45}deg ${(i + 1) * 45}deg`).join(',')})`}><i></i></div>
+      <b class="hc-game__pin"></b>
+      <div class="hc-game__txt"><span>{c.game.label}</span><strong>{c.game.prize}</strong><small>{c.game.note}</small></div>
+    </div>
+    {states.ask.map((a, k) => (
+      <p class="hero__q" data-hero-q={k} style={qvars(ASK[k])}>
+        {a.lines.map((l) => <span class:list={['hero__ql', { 'is-m': l.muted }]} set:html={l.html} />)}
+      </p>
+    ))}
+    <p class="hero__q hero__q--doubt" data-hero-doubt style={qvars(DOUBT)}>
+      {states.doubt.map((l) => <span class:list={['hero__ql', { 'is-m': l.muted }]} set:html={l.html} />)}
+    </p>
+  </div>
+
   <div class="container hero__grid">
     <div class="hero__text">
       <h1 class="visually-hidden">{d.hero.h1}</h1>
       <p class="hero__say" aria-hidden="true" data-hero-say>
         {states.answer.map((l) => (
-          <span class="hero__ln" data-hero-ln><span class:list={['hero__w', { 'is-m': l.muted }]} set:html={l.html} /><span class="hero__w" /></span>
+          <span class="hero__ln"><span class:list={['hero__w', { 'is-m': l.muted }]} set:html={l.html} /></span>
         ))}
       </p>
       <div class="hero__end">
@@ -38,9 +73,7 @@ const states = { ask: d.hero.ask.map((a) => ({ lines: a.lines.map(line), word: a
         <button class="hero__skip" type="button" data-hero-skip hidden>{d.hero.skip} <span aria-hidden="true">→</span></button>
       </div>
     </div>
-    <div class="hero__stage" aria-hidden="true">
-      <canvas class="hero__gl" data-hero-gl></canvas>
-      <p class="hero__flat" style={`--sum:${sum.toFixed(4)};--side:${ANSWER.side}`}>{d.hero.ask.map((a, i) => <span style={`--em:${ems[i].toFixed(4)};--face:${STACK_FACES[i]}`}>{a.word}</span>)}</p>
-    </div>
+    <!-- место цели: сюда в конце сходятся кривые -->
+    <div class="hero__aim" aria-hidden="true" data-hero-aim></div>
   </div>
 </section>
