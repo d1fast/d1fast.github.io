@@ -5,12 +5,20 @@ export interface Dict {
   htmlLang: string;
   meta: { title: string; description: string; ogTitle: string; ogDescription: string };
   nav: {
-    about: string; services: string; works: string; process: string; contacts: string;
+    services: string; works: string; process: string; contacts: string;
     langSwitch: string; langSwitchTitle: string; skipToContent: string;
   };
-  hero: { name: string; nick: string; tagline: string; ctaContact: string; ctaWorks: string };
-  /** lead: одно короткое вступление; notes: пометки от руки; stickers: короткие наклейки-факты */
-  about: { title: string; photoAlt: string; lead: string; reviewsLabel: string; reviews: { text: string; name: string; role: string }[]; stickers: string[] };
+  /**
+   * Первый экран-воронка. ask: вопросы, которые сменяют друг друга (строки заголовка; «~» в начале строки:
+   * приглушённая, *…*: акцент), shape: во что складываются знаки; doubt: сомнение; answer: ответ;
+   * sub: кто я и как работаю (до 20 слов); h1: заголовок для поиска и скринридеров.
+   */
+  hero: {
+    name: string; nick: string; h1: string;
+    ask: { lines: string[]; shape: 'browser' | 'dashboard' | 'phone' | 'plane' | 'knot' | 'wheel' }[];
+    doubt: string[]; answer: string[]; sub: string; skip: string;
+    ctaContact: string; ctaWorks: string;
+  };
   services: { title: string; items: { title: string; text: string }[] };
   /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера */
   works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string };

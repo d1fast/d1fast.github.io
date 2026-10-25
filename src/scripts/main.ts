@@ -7,7 +7,6 @@ import { initStage } from './stage';
 
 /* Скрипты блоков главной подгружаются, когда блок первый раз приближается к экрану. */
 const BLOCKS: Record<string, () => Promise<{ init: (root: HTMLElement) => void }>> = {
-  about: () => import('../blocks/about/about'),
   services: () => import('../blocks/services/services'),
   works: () => import('../blocks/works/works'),
   process: () => import('../blocks/process/process'),
@@ -29,10 +28,18 @@ function ensureBlock(root: HTMLElement) {
 function initBlocks() {
   const roots = [...document.querySelectorAll<HTMLElement>('[data-block]:not([data-block="hero"])')];
   if (!roots.length) return;
-  // текущий блок сразу, остальные, когда браузер свободен
+  // текущий блок сразу, остальные по одному, когда браузер свободен. Пока на первом экране идёт рассказ,
+  // их не трогаем: сборка блоков заняла бы главный поток, и заставка дёргалась бы
   roots.filter((r) => r.classList.contains('is-current')).forEach(ensureBlock);
   const idle = (cb: () => void) => ('requestIdleCallback' in window ? (window as any).requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 600));
-  idle(() => roots.forEach(ensureBlock));
+  const queue = () => { let i = 0; const next = () => { if (i < roots.length) ensureBlock(roots[i++]).then(() => idle(next)); }; idle(next); };
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
+  if (document.documentElement.classList.contains('stage-on') && hero?.classList.contains('is-current')) {
+    let started = false;
+    const go = () => { if (!started) { started = true; queue(); } };
+    document.addEventListener('hero:settled', go, { once: true });
+    setTimeout(go, 12000);
+  } else queue();
   if (!document.documentElement.classList.contains('stage-on')) {
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); ensureBlock(e.target as HTMLElement); }

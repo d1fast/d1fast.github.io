@@ -11,7 +11,6 @@ export const en: Dict = {
     ogDescription: 'Websites, apps, Telegram bots and 3D. From idea to launch.',
   },
   nav: {
-    about: 'About',
     services: 'What I do',
     works: 'Work',
     process: 'How I work',
@@ -23,21 +22,19 @@ export const en: Dict = {
   hero: {
     name: 'Saveliy Lopatin',
     nick: 'd1fast',
-    tagline: 'I make websites, apps, Telegram bots and 3D. From idea to launch.',
-    ctaContact: 'Write to me',
-    ctaWorks: 'Work',
-  },
-  about: {
-    title: 'About',
-    photoAlt: 'Photo of Saveliy Lopatin',
-    lead: 'I love building quality products and seeing *your delight* at the result.',
-    reviewsLabel: 'Reviews',
-    reviews: [
-      { text: 'Delivered faster than promised and suggested a couple of ideas we ended up keeping.', name: 'Anna', role: 'coffee shop owner' },
-      { text: 'Takes feedback calmly and is always in touch. The site came out exactly as we wanted.', name: 'Dmitry', role: 'marketer' },
-      { text: 'The booking bot took the load off our admin: clients book themselves, no calls needed.', name: 'Irina', role: 'nail studio' },
+    h1: 'Saveliy Lopatin: websites, Telegram bots and apps, end to end',
+    ask: [
+      { lines: ['~Want a', 'Telegram bot', 'with AI?'], shape: 'plane' },
+      { lines: ['~Or a', 'beautiful site', 'for your café?'], shape: 'browser' },
+      { lines: ['~Maybe an', 'app for', 'bookings?'], shape: 'phone' },
+      { lines: ['~Or even', 'a game for', 'your promo?'], shape: 'wheel' },
     ],
-    stickers: ['feedback? sure', 'hard means fun', 'always in touch'],
+    doubt: ['~But not sure', 'who to trust', 'with it?'],
+    answer: ['~Then you', 'came to the', '*right place.*'],
+    sub: 'I’m Saveliy. I build sites, Telegram bots and apps end to end, show a working version early and stay in touch.',
+    skip: 'Skip',
+    ctaContact: 'Discuss a project',
+    ctaWorks: 'Work',
   },
 
   services: {

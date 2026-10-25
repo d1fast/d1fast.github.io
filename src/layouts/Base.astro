@@ -27,7 +27,7 @@ interface Props {
 }
 const { lang, path, noindex = false, theme = 'hero', footer = true, snap = false, ogWidth = 1200, ogHeight = 630 } = Astro.props;
 const d = t(lang);
-const blocks: [string, string][] = [['top', lang === 'ru' ? 'Начало' : 'Start'], ['about', d.nav.about], ['services', d.nav.services], ['works', d.nav.works], ['process', d.nav.process], ['contacts', d.nav.contacts]];
+const blocks: [string, string][] = [['top', lang === 'ru' ? 'Начало' : 'Start'], ['services', d.nav.services], ['works', d.nav.works], ['process', d.nav.process], ['contacts', d.nav.contacts]];
 const title = Astro.props.title ?? d.meta.title;
 const description = Astro.props.description ?? d.meta.description;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');

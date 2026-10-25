@@ -146,7 +146,6 @@ const planeFx: Draw = (ctx, w, h, p, cover, dir, c) => {
 
 const EFFECTS: Record<string, Draw> = {
   hero: waveFx(2),
-  about: waveFx(1),
   services: pixelFx,
   works: irisFx,
   process: blindsFx,

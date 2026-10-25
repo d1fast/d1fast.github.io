@@ -2,9 +2,9 @@ import * as THREE from 'three';
 
 /**
  * Скульптура из знаков кода. Несколько тысяч символов ({ } < / > ; 0 1 …) в объёме складываются в предмет
- * и покачиваются: окно сайта, панель сервиса с графиком, телефон, бумажный самолётик, узел 3D, колесо призов.
- * Каждые несколько секунд знаки срываются вихрем и перетекают в следующий предмет. Курсор расталкивает
- * знаки, тап пускает по ним волну.
+ * и покачиваются: окно сайта, панель сервиса с графиком, телефон, бумажный самолётик, узел 3D, колесо призов,
+ * галочка. Переходами управляет первый экран (morphTo), а в спокойном режиме (auto) знаки сами перетекают
+ * из предмета в предмет. Курсор расталкивает знаки, тап пускает по ним волну.
  *
  * Всё движение считает видеокарта: у каждой точки есть «откуда» и «куда», шейдер смешивает их со своим
  * запаздыванием и завихрением. Процессор только подменяет массив «куда» при смене предмета.
@@ -34,6 +34,7 @@ uniform vec3 uPointer;
 uniform float uPointerOn;
 uniform vec4 uPulse; // xyz: центр волны, w: время с начала
 uniform float uScan; // высота полосы «сборки», которая пробегает по предмету снизу вверх
+uniform float uDrift; // знаки плывут сами по себе: облако сомнений не стоит на месте
 varying float vGlyph;
 varying float vAlpha;
 varying float vHot;
@@ -55,7 +56,7 @@ void main() {
   float th = aRnd.z * 6.2831 + aRnd.x * 2.0, cp = aRnd.w * 2.0 - 1.0, sp = sqrt(1.0 - cp * cp);
   p += vec3(sp * cos(th), cp * 0.75, sp * sin(th) * 0.6) * fly * 0.85;
   vec3 n = vec3(sin(p.y * 2.3 + uTime * 0.9 + ph), sin(p.z * 1.9 + uTime * 1.1 + ph * 1.3), sin(p.x * 2.1 + uTime * 0.8 + ph * 0.7));
-  p += n * (fly * 0.5 + 0.012);
+  p += n * (fly * 0.5 + 0.012 + uDrift);
   vec4 wp = modelMatrix * vec4(p, 1.0);
   // курсор расталкивает знаки
   vec2 d = wp.xy - uPointer.xy;
@@ -249,8 +250,24 @@ function wheel(): Part[] {
   return parts;
 }
 /** порядок совпадает с разделами «Что делаю» */
-const SHAPES = [browser, dashboard, phone, plane, knot, wheel];
-export const SHAPE_COUNT = SHAPES.length;
+/** галочка в круге: «решено». Штрихи галочки горячие, круг бумажный */
+function check(): Part[] {
+  const A: V3 = [-1.05, 0.02, 0], B: V3 = [-0.32, -0.7, 0], C: V3 = [1.12, 0.86, 0];
+  const W = 0.19, D = 0.13;
+  const ribbon = (a: V3, b: V3, wt: number): Part => ({ w: wt, hot: 1, at: (r) => {
+    const t = r(), dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l;
+    // чаще по краям ленты: контур галочки чёткий, середина заполнена реже
+    const side = r() < 0.62 ? (r() < 0.5 ? -1 : 1) : r() * 2 - 1;
+    return [a[0] + dx * t + nx * W * side, a[1] + dy * t + ny * W * side, (r() * 2 - 1) * D];
+  } });
+  return [ribbon(A, B, 1.1), ribbon(B, C, 2.3), disc(B[0], B[1], W * 1.05, 0, 0.18, 1),
+    ring(0, 0, 1.62, 0.07, 2.2), ring(0, 0, 1.62, -0.07, 1.1), ring(0, 0, 1.44, 0.07, 0.7)];
+}
+/** порядок совпадает с разделами «Что делаю»; галочка последней и в круг автопоказа не входит */
+const SHAPES = [browser, dashboard, phone, plane, knot, wheel, check];
+export const SHAPE_NAMES = ['browser', 'dashboard', 'phone', 'plane', 'knot', 'wheel', 'check'] as const;
+export type ShapeName = typeof SHAPE_NAMES[number];
+const CYCLE = 6;
 
 function rng(seed: number) {
   return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -290,8 +307,8 @@ export function createSculpt(o: SculptOpts) {
   const N = o.count;
   const shapes = SHAPES.map((f, i) => sample(f(), N, 17 + i * 31));
   const r = rng(5);
-  // разлёт для появления: знаки в широком облаке по всему экрану
-  const cloud = new Float32Array(N * 3);
+  // облако: знаки разлетаются по всему экрану (появление и сомнение)
+  const cloud = new Float32Array(N * 3), noHot = new Float32Array(N);
   for (let i = 0; i < N; i++) { const a = r() * Math.PI * 2, b = Math.acos(r() * 2 - 1), d = 2.6 + r() * 4.5; cloud.set([Math.sin(b) * Math.cos(a) * d * 1.5, Math.cos(b) * d * 0.75, Math.sin(b) * Math.sin(a) * d * 0.6], i * 3); }
   const rnd = new Float32Array(N * 4);
   for (let i = 0; i < N; i++) rnd.set([r(), Math.floor(r() * GLYPHS.length), r(), r()], i * 4);
@@ -309,7 +326,7 @@ export function createSculpt(o: SculptOpts) {
   const { tex, rows } = atlas(o.font);
   const uni = {
     uT: { value: 0 }, uSwirl: { value: 2.4 }, uTime: { value: 0 }, uSize: { value: 10 }, uPR: { value: 1 }, uFade: { value: 1 }, uCamZ: { value: 8 }, uCount: { value: GLYPHS.length },
-    uScan: { value: -9 }, uPointer: { value: new THREE.Vector3(99, 99, 0) }, uPointerOn: { value: 0 }, uPulse: { value: new THREE.Vector4(0, 0, 0, -1) },
+    uScan: { value: -9 }, uDrift: { value: 0 }, uPointer: { value: new THREE.Vector3(99, 99, 0) }, uPointerOn: { value: 0 }, uPulse: { value: new THREE.Vector4(0, 0, 0, -1) },
     uAtlas: { value: tex }, uGrid: { value: new THREE.Vector2(COLS, rows) },
     // цвета как есть, без перевода в линейное пространство: шейдер пишет их прямо на экран
     uColor: { value: new THREE.Color().setStyle(o.color, THREE.LinearSRGBColorSpace) }, uHot: { value: new THREE.Color().setStyle(o.hot, THREE.LinearSRGBColorSpace) },
@@ -317,24 +334,59 @@ export function createSculpt(o: SculptOpts) {
   const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: uni, transparent: true, depthWrite: false, depthTest: false, blending: THREE.NormalBlending, premultipliedAlpha: true });
   group.add(new THREE.Points(geo, mat));
 
-  let cur = 0, phase: 'intro' | 'hold' | 'morph' = 'intro', tPhase = 0, running = false, raf = 0, last = 0, time = 0;
-  const HOLD = o.calm ? 5 : 3.2, MORPH = o.calm ? 1.6 : 2.2, INTRO = 2.6;
+  const HOLD = o.calm ? 5 : 3.2, MORPH = o.calm ? 1.6 : 2.2;
+  // cur: предмет, к которому идут знаки (-1: облако); dur: длительность текущего перехода
+  let cur = 0, dur = 2.6, tPhase = 0, running = false, raf = 0, last = 0, time = 0, autoOn = false, scanned = true;
   let onShape: ((i: number, dur: number) => void) | null = null;
   const tilt = { x: 0, y: 0, tx: 0, ty: 0, on: 0, ton: 0 };
+  // мягкие ручки: прозрачность и дрейф догоняют цель за ~0,4 с
+  const soft = { fade: 1, drift: 0 };
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane0 = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), hit = new THREE.Vector3();
   let frameBox = { cx: 0, cy: 0, s: 0 };
+  // качество: плотность пикселей не выше 1,5; если кадры не успевают, сначала 1, потом меньше знаков
+  let prCap = 1.5, slow = { n: 0, sum: 0, stage: 0 };
 
-  function setTarget(i: number, start: Float32Array, startHot: Float32Array | null) {
+  const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  /** где знаки сейчас на самом деле: та же математика, что в шейдере (без курсора и волны) */
+  function snapshot() {
+    const f = from.array as Float32Array, t = to.array as Float32Array, h = hot.array as Float32Array;
+    const out = new Float32Array(N * 3), oh = new Float32Array(N);
+    const T = uni.uT.value, sw = uni.uSwirl.value, tm = uni.uTime.value;
+    for (let i = 0; i < N; i++) {
+      const rx = rnd[i * 4], rz = rnd[i * 4 + 2], rw = rnd[i * 4 + 3];
+      const k = Math.min(1, Math.max(0, (T - rx * 0.42) / 0.58)), e = ease(k), fly = Math.sin(k * Math.PI);
+      let x = f[i * 3] + (t[i * 3] - f[i * 3]) * e, y = f[i * 3 + 1] + (t[i * 3 + 1] - f[i * 3 + 1]) * e, z = f[i * 3 + 2] + (t[i * 3 + 2] - f[i * 3 + 2]) * e;
+      const a = fly * sw * (0.55 + rz * 0.9), c = Math.cos(a), s2 = Math.sin(a);
+      const x2 = c * x + s2 * z, z2 = -s2 * x + c * z; x = x2; z = z2;
+      const ph = rw * Math.PI * 2, th = rz * Math.PI * 2 + rx * 2, cp = rw * 2 - 1, sp = Math.sqrt(1 - cp * cp);
+      x += sp * Math.cos(th) * fly * 0.85; y += cp * 0.75 * fly * 0.85; z += sp * Math.sin(th) * 0.6 * fly * 0.85;
+      // летящая часть шума остаётся, постоянную добавит шейдер сам: без скачка на старте нового перехода
+      const amp = fly * 0.5;
+      const nx = Math.sin(y * 2.3 + tm * 0.9 + ph), ny = Math.sin(z * 1.9 + tm * 1.1 + ph * 1.3), nz = Math.sin(x * 2.1 + tm * 0.8 + ph * 0.7);
+      out[i * 3] = x + nx * amp; out[i * 3 + 1] = y + ny * amp; out[i * 3 + 2] = z + nz * amp;
+      oh[i] = h[i * 2] + (h[i * 2 + 1] - h[i * 2]) * e;
+    }
+    return { pos: out, hot: oh };
+  }
+  function setTarget(pos: Float32Array, hotTo: Float32Array, start: Float32Array, startHot: Float32Array | null) {
     (from.array as Float32Array).set(start); from.needsUpdate = true;
-    (to.array as Float32Array).set(shapes[i].pos); to.needsUpdate = true;
-    const h = hot.array as Float32Array, nh = shapes[i].hot;
-    for (let k = 0; k < N; k++) { h[k * 2] = startHot ? startHot[k] : 0; h[k * 2 + 1] = nh[k]; }
+    (to.array as Float32Array).set(pos); to.needsUpdate = true;
+    const h = hot.array as Float32Array;
+    for (let k = 0; k < N; k++) { h[k * 2] = startHot ? startHot[k] : 0; h[k * 2 + 1] = hotTo[k]; }
     hot.needsUpdate = true;
+  }
+  const targetOf = (i: number) => (i < 0 ? { pos: cloud, hot: noHot } : shapes[i]);
+  function go(i: number, d: number, swirl: number, fromCloud = false) {
+    const t = targetOf(i);
+    if (fromCloud) setTarget(t.pos, t.hot, cloud, null);
+    else { const now = snapshot(); setTarget(t.pos, t.hot, now.pos, now.hot); }
+    cur = i; dur = Math.max(0.2, d); tPhase = 0; uni.uT.value = 0; uni.uScan.value = -9; scanned = i < 0;
+    uni.uSwirl.value = o.calm ? Math.min(swirl, 0.4) : swirl;
   }
   function size() {
     const w = o.canvas.clientWidth, h = o.canvas.clientHeight;
     if (!w || !h) return;
-    const pr = Math.min(2, window.devicePixelRatio || 1);
+    const pr = Math.min(prCap, window.devicePixelRatio || 1);
     renderer.setPixelRatio(pr);
     renderer.setSize(w, h, false);
     // предмет радиусом R помещается в квадрат со стороной s с центром в cx, cy (пиксели холста)
@@ -350,28 +402,42 @@ export function createSculpt(o: SculptOpts) {
     // знак примерно 1/46 размера предмета: на телефоне мельче, но не меньше 7 пикселей
     uni.uSize.value = Math.max(7, Math.min(15, s / 46));
   }
+  function watchSpeed(dt: number) {
+    if (slow.stage > 1) return;
+    slow.n++;
+    if (slow.n < 20) return; // первые кадры всегда неровные: шейдеры, текстура
+    slow.sum += dt;
+    if (slow.n < 80) return;
+    const avg = slow.sum / 60;
+    slow.n = 0; slow.sum = 0;
+    if (avg < 0.021) { slow.stage = 9; return; } // успевает: больше не проверяем
+    if (slow.stage === 0 && Math.min(prCap, window.devicePixelRatio || 1) > 1) { prCap = 1; size(); slow.stage = 1; return; }
+    geo.setDrawRange(0, Math.floor(N * 0.6));
+    slow.stage = 9;
+  }
   function frame(now: number) {
     raf = requestAnimationFrame(frame);
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
     last = now;
+    watchSpeed(dt);
     time += dt; tPhase += dt;
     uni.uTime.value = time;
-    if (phase === 'intro' || phase === 'morph') {
-      const dur = phase === 'intro' ? INTRO : MORPH;
+    if (uni.uT.value < 1) {
       uni.uT.value = Math.min(1, tPhase / dur);
-      if (tPhase >= dur) { phase = 'hold'; tPhase = 0; uni.uT.value = 1; }
-    } else if (tPhase < HOLD) {
-      // через полсекунды после сборки по предмету снизу вверх проходит полоса
+      if (uni.uT.value >= 1) tPhase = 0;
+    } else if (cur >= 0) {
+      // предмет собран: через полсекунды по нему снизу вверх проходит полоса, в автопоказе потом следующий
       const k = (tPhase - 0.5) / 1.7;
-      uni.uScan.value = k > 0 && k < 1 && !o.calm ? -2.1 + k * 4.4 : -9;
-    } else {
-      uni.uScan.value = -9;
-      const prev = cur;
-      cur = (cur + 1) % shapes.length;
-      setTarget(cur, shapes[prev].pos, shapes[prev].hot);
-      phase = 'morph'; tPhase = 0; uni.uT.value = 0; uni.uSwirl.value = o.calm ? 0.4 : 1.7;
-      onShape?.(cur, MORPH + HOLD);
+      uni.uScan.value = !scanned && k > 0 && k < 1 && !o.calm ? -2.1 + k * 4.4 : -9;
+      if (k >= 1) scanned = true;
+      if (autoOn && tPhase >= HOLD) {
+        const next = cur >= 0 && cur < CYCLE ? (cur + 1) % CYCLE : 0;
+        go(next, MORPH, 1.7);
+        onShape?.(next, MORPH + HOLD);
+      }
     }
+    uni.uFade.value += (soft.fade - uni.uFade.value) * Math.min(1, dt * 7);
+    uni.uDrift.value += (soft.drift - uni.uDrift.value) * Math.min(1, dt * 5);
     // покачивание и наклон к курсору: плоские предметы читаются, объёмные показывают глубину
     tilt.x += (tilt.tx - tilt.x) * 0.05; tilt.y += (tilt.ty - tilt.y) * 0.05; tilt.on += (tilt.ton - tilt.on) * 0.08;
     const sway = o.calm ? 0.12 : 1;
@@ -383,18 +449,21 @@ export function createSculpt(o: SculptOpts) {
     renderer.render(scene, camera);
   }
 
+  const index = (n: ShapeName | 'cloud') => (n === 'cloud' ? -1 : SHAPE_NAMES.indexOf(n));
   return {
     /** место предмета на холсте: центр и сторона квадрата в пикселях */
     layout(cx: number, cy: number, s: number) { frameBox = { cx, cy, s }; size(); },
     resize: size,
     start() { if (running) return; running = true; last = 0; raf = requestAnimationFrame(frame); },
     stop() { running = false; cancelAnimationFrame(raf); raf = 0; },
-    /** появление: знаки слетаются из облака в первый предмет */
-    intro() {
-      cur = 0; phase = 'intro'; tPhase = 0; uni.uT.value = 0; uni.uScan.value = -9; uni.uSwirl.value = o.calm ? 0.4 : 2.6;
-      setTarget(0, cloud, null);
-      onShape?.(0, INTRO + HOLD);
-    },
+    /** появление: знаки слетаются из облака в предмет */
+    intro(n: ShapeName = 'browser', d = 2.6) { autoOn = false; go(index(n), d, o.calm ? 0.4 : 2.6, true); },
+    /** переход из того места, где знаки сейчас; 'cloud': разлететься по экрану */
+    morphTo(n: ShapeName | 'cloud', d = MORPH, swirl = 1.7) { autoOn = false; go(index(n), d, swirl); },
+    /** спокойный режим: предметы сменяют друг друга сами, начиная с n */
+    auto(n: ShapeName = 'browser', d = MORPH) { const i = index(n); go(i, d, 1.7); autoOn = true; onShape?.(i, d + HOLD); },
+    /** прозрачность всех знаков и их дрейф (догоняют цель плавно) */
+    mood(fade: number, drift: number) { soft.fade = fade; soft.drift = drift; },
     onShape(f: (i: number, dur: number) => void) { onShape = f; },
     /** курсор в пикселях холста; on: курсор над первым экраном */
     pointer(x: number, y: number, on: boolean) {
@@ -404,7 +473,9 @@ export function createSculpt(o: SculptOpts) {
       ray.setFromCamera(ndc, camera);
       if (ray.ray.intersectPlane(plane0, hit)) uni.uPointer.value.copy(hit);
     },
-    pulse(x: number, y: number) {
+    /** волна из точки экрана; без координат: из центра предмета */
+    pulse(x?: number, y?: number) {
+      if (x === undefined || y === undefined) { uni.uPulse.value.set(0, 0, 0, 0); return; }
       const w = o.canvas.clientWidth || 1, h = o.canvas.clientHeight || 1;
       ndc.set((x / w) * 2 - 1, -(y / h) * 2 + 1);
       ray.setFromCamera(ndc, camera);

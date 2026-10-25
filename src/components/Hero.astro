@@ -1,23 +1,35 @@
 ---
-// Первый экран. Слева имя, подпись и кнопки, справа (на телефоне сверху) скульптура из знаков кода
-// (hero.ts + sculpt.ts, WebGL): она по очереди складывается в то, что я делаю. Подпись под ней называет предмет.
+// Первый экран-воронка. Крупные вопросы сменяют друг друга в трёх строках-прорезях, рядом знаки кода
+// складываются в то, о чём спрашивают (hero.ts + sculpt.ts). Потом сомнение, ответ, кто я и кнопки.
+// Без скрипта сразу виден ответ, текст обо мне и кнопки. Для поиска и скринридеров есть обычный h1.
 import { t, type Lang } from '../i18n';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
-const [first, last] = d.hero.name.split(' ');
 const labels = d.services.items.map((s) => s.title);
 const pad = (n: number) => String(n).padStart(2, '0');
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+/** строка заголовка: «~» в начале приглушает её, *…* выделяет акцентом */
+const line = (s: string) => ({ muted: s.startsWith('~'), html: esc(s.replace(/^~/, '')).replace(/\*(.+?)\*/g, '<em>$1</em>') });
+const states = { ask: d.hero.ask.map((a) => ({ lines: a.lines.map(line), shape: a.shape })), doubt: d.hero.doubt.map(line), answer: d.hero.answer.map(line) };
 ---
-<section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero>
+<section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero data-states={JSON.stringify(states)}>
   <canvas class="hero__gl" aria-hidden="true" data-hero-gl></canvas>
   <div class="container hero__grid">
     <div class="hero__text">
-      <h1 class="hero__name"><span class="hero__line" data-hero-line>{first}</span> <span class="hero__line hero__line--2" data-hero-line>{last}</span></h1>
-      <p class="hero__tag" data-hero-tag>{d.hero.tagline}</p>
-      <div class="hero__cta" data-hero-cta>
-        <a class="btn btn--primary" href="#contacts" data-magnetic>{d.hero.ctaContact}</a>
-        <a class="btn btn--ghost" href="#works" data-magnetic="0.2">{d.hero.ctaWorks}</a>
+      <h1 class="visually-hidden">{d.hero.h1}</h1>
+      <p class="hero__say" aria-hidden="true" data-hero-say>
+        {states.answer.map((l) => (
+          <span class="hero__ln" data-hero-ln><span class:list={['hero__w', { 'is-m': l.muted }]} set:html={l.html} /><span class="hero__w" /></span>
+        ))}
+      </p>
+      <div class="hero__end">
+        <p class="hero__sub" data-hero-sub>{d.hero.sub}</p>
+        <div class="hero__cta" data-hero-cta>
+          <a class="btn btn--primary" href="#contacts" data-magnetic>{d.hero.ctaContact}</a>
+          <a class="btn btn--ghost" href="#works" data-magnetic="0.2">{d.hero.ctaWorks}</a>
+        </div>
+        <button class="hero__skip" type="button" data-hero-skip hidden>{d.hero.skip} <span aria-hidden="true">→</span></button>
       </div>
     </div>
     <div class="hero__stage" data-hero-stage aria-hidden="true">

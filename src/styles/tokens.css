@@ -57,7 +57,6 @@
 
 /* Темы. Селектор без :root, чтобы работал и на <html>, и на самом блоке. */
 [data-theme="hero"]     { --bg: var(--ink);      --fg: var(--paper);    --accent: var(--flame);   --accent-fg: var(--ink);      --focus: var(--paper);   --error: #FFC2B3; }
-[data-theme="about"]    { --bg: var(--butter);   --fg: var(--forest);   --accent: var(--forest);  --accent-fg: var(--butter);   --focus: var(--forest);  --error: #8A1400; }
 [data-theme="services"] { --bg: var(--matcha);   --fg: var(--cherry);   --accent: #C8174F;        --accent-fg: var(--matcha);   --focus: var(--cherry);  --error: #8A1400; }
 [data-theme="works"]    { --bg: var(--night);    --fg: var(--frost);    --accent: var(--amber);   --accent-fg: #1A1407;         --focus: var(--frost);   --error: #FFB4A8; }
 [data-theme="process"]  { --bg: var(--concrete); --fg: var(--charcoal); --accent: var(--slate);   --accent-fg: var(--concrete); --focus: var(--charcoal);--error: #B3230D; }

@@ -13,13 +13,16 @@ const fontCss = fs.readFileSync('src/styles/fonts.generated.css', 'utf8')
 
 const page = (w, h, scale = 1) => browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
 
-// Снимок первого экрана: имя, подпись и скульптура из знаков, без шапки, кнопок и подписи под скульптурой.
+// Снимок первого экрана: ответ, текст обо мне и галочка из знаков, без шапки, кнопок и подписи под скульптурой.
 for (const lang of ['ru', 'en']) {
   const p = await page(1200, 630);
   await p.goto(base + (lang === 'ru' ? '' : 'en/'), { waitUntil: 'networkidle' });
-  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__hud,.cursor{visibility:hidden!important}.hero__tag{font-size:26px!important}' });
-  // знаки успевают собраться в окно сайта
-  await p.waitForTimeout(4200);
+  await p.waitForTimeout(800);
+  // рассказ пропускается сразу к ответу: «Тогда вы попали по адресу» и галочка из знаков
+  await p.click('[data-hero-skip]');
+  await p.mouse.move(2, 2);
+  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.hero__hud,.hero__skip,.cursor{visibility:hidden!important}.hero__sub{font-size:24px!important}' });
+  await p.waitForTimeout(1300);
   await p.screenshot({ path: `public/${lang === 'ru' ? 'og' : 'og-en'}.png` });
   await p.close();
   console.log('og', lang);

@@ -23,30 +23,30 @@
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
 html.stage-on .site-header { background: transparent; }
 
-/* Первый экран: почти чёрный фон, слева имя, подпись и кнопки, справа скульптура из знаков кода.
-   Холст на весь блок: знаки при появлении и перетекании летают и за пределами своего места. */
-/* кегль имени от ширины колонки текста и от высоты экрана. --fit: ширина второй строки со сдвигом в кеглях
-   (по-русски «ЛОПАТИН» шире, по-английски имя короче и набирается крупнее) */
-.hero { --gap: clamp(16px, 3vw, 48px); --fit: 5.5;
-  --colw: calc((min(100vw, var(--container)) - var(--gutter) - max(var(--gutter), 64px) - var(--gap)) * .54);
-  --fs-name: clamp(52px, min(calc(var(--colw) / var(--fit)), 21vh), 210px);
+/* Первый экран-воронка: почти чёрный фон, слева крупный сменяющийся вопрос, под ним текст обо мне и кнопки,
+   справа скульптура из знаков кода. Холст на весь блок: знаки при появлении и сомнении летают по всему экрану. */
+.hero { --gap: clamp(16px, 3vw, 48px);
   display: grid; grid-template-rows: minmax(0, 1fr); padding: calc(var(--header-h) + 8px) 0 clamp(20px, 4.5vh, 52px); overflow: hidden;
-  background: radial-gradient(52% 62% at 74% 50%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 72%), var(--bg); }
+  background: radial-gradient(52% 62% at 74% 50%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 72%), var(--bg); }
 html.stage-on .hero { overflow: hidden; }
 .hero__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; }
 .hero__grid { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 54fr) minmax(0, 46fr); column-gap: var(--gap); align-items: center; min-height: 0; }
-.hero__text { display: grid; gap: clamp(16px, 2.8vh, 30px); align-content: center; justify-items: start; }
-.hero__name { margin: 0; font: 900 var(--fs-name)/.86 var(--font-display); letter-spacing: -.035em; text-transform: uppercase; color: var(--fg); }
-/* строка имени режет буквы, пока они поднимаются; сверху запас под кратку «Й» */
-.hero__line { display: block; width: max-content; white-space: nowrap; overflow: clip; padding: .24em .04em .02em 0; margin-top: -.19em; }
-.hero__line--2 { margin-left: calc(var(--fs-name) * .42); }
-html[lang="en"] .hero { --fit: 4.75; }
-.hero__ch { display: inline-block; will-change: transform; transform-origin: 0% 100%; }
-.hero__tag { font: 500 clamp(17px, 1.3vw, 22px)/1.35 var(--font-display); max-width: 30ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 82%, var(--bg)); }
-html.js .hero:not(.is-split) .hero__name, html.js .hero:not(.is-bound) .hero__tag, html.js .hero:not(.is-bound) .hero__cta > *, html.js .hero:not(.is-bound) .hero__hud { opacity: 0; }
+.hero__text { display: grid; gap: clamp(18px, 3.2vh, 34px); align-content: center; justify-items: start; min-width: 0; }
+/* кинетический заголовок: три строки-прорези одной высоты, кегль подгоняет hero.ts по самой длинной строке всех вопросов */
+.hero__say { --fs-say: clamp(40px, min(5.4vw, 9.5vh), 96px); justify-self: stretch; margin: 0; display: grid; font: 800 var(--fs-say)/1.02 var(--font-display); letter-spacing: -.035em; color: var(--fg); }
+.hero__ln { display: grid; overflow: clip; padding: .1em .06em .16em 0; margin: -.1em 0 -.16em; }
+.hero__w { grid-area: 1 / 1; display: block; white-space: nowrap; min-height: 1.02em; }
+.hero__w.is-m { color: color-mix(in oklab, var(--fg) 50%, var(--bg)); }
+.hero__w em { font-style: normal; color: var(--accent); }
+.hero__end { position: relative; display: grid; gap: clamp(16px, 2.6vh, 26px); justify-items: start; }
+.hero__sub { font: 500 clamp(17px, 1.25vw, 21px)/1.42 var(--font-display); max-width: 36ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 80%, var(--bg)); }
 .hero__cta { display: flex; flex-wrap: wrap; gap: 12px; }
 .hero .btn { font-family: var(--font-display); font-weight: 600; }
 .hero .btn--ghost { border-color: color-mix(in oklab, var(--fg) 45%, transparent); }
+/* пока идёт рассказ, на месте текста и кнопок только «Пропустить» */
+.hero__skip { position: absolute; left: 0; bottom: 0; min-height: 44px; padding: 0 2px; font: 500 13px/1 var(--font-mono); letter-spacing: .04em; color: color-mix(in oklab, var(--fg) 62%, var(--bg)); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in oklab, var(--fg) 30%, transparent); transition: color var(--dur-base); }
+.hero__skip:hover, .hero__skip:focus-visible { color: var(--fg); }
+html.js .hero:not(.is-bound) .hero__say, html.js .hero:not(.is-bound) .hero__end > *, html.js .hero:not(.is-bound) .hero__hud { opacity: 0; }
 .hero__stage { position: relative; align-self: stretch; min-height: 0; }
 /* подпись под скульптурой: номер раздела, его название и полоска до следующего */
 .hero__hud { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; font: 500 12px/1 var(--font-mono); letter-spacing: .04em; color: color-mix(in oklab, var(--fg) 72%, var(--bg)); white-space: nowrap; }
@@ -56,26 +56,31 @@ html.js .hero:not(.is-split) .hero__name, html.js .hero:not(.is-bound) .hero__ta
 .hero__bar { position: relative; display: block; width: 72px; height: 1px; background: color-mix(in oklab, var(--fg) 22%, transparent); }
 .hero__bar i { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
 .hero.is-flat .hero__hud { display: none; }
-/* экран стоя (телефон, планшет): скульптура сверху занимает всё свободное место, ниже имя, подпись и кнопки */
+/* экран стоя (телефон, планшет): скульптура сверху занимает всё свободное место, ниже вопрос, текст и кнопки */
 @media (orientation: portrait) {
-  .hero { --colw: calc(100vw - 2 * var(--gutter)); --fs-name: clamp(40px, min(calc(var(--colw) / var(--fit)), 9.6dvh), 150px); padding: calc(var(--header-h) + 4px) 0 clamp(18px, 3.4dvh, 40px);
-    background: radial-gradient(70% 38% at 50% 30%, color-mix(in oklab, var(--accent) 11%, transparent), transparent 75%), var(--bg); }
-  .hero__grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; row-gap: clamp(14px, 2.4dvh, 28px); align-items: stretch; }
-  .hero__stage { order: -1; min-height: 26dvh; }
+  .hero { padding: calc(var(--header-h) + 4px) 0 clamp(16px, 3dvh, 40px);
+    background: radial-gradient(70% 38% at 50% 30%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 75%), var(--bg); }
+  .hero__grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; row-gap: clamp(12px, 2.2dvh, 26px); align-items: stretch; }
+  .hero__stage { order: -1; min-height: 22dvh; }
   .hero__text { gap: clamp(12px, 2dvh, 22px); }
-  .hero__tag { font-size: clamp(16px, 2.2vw, 20px); }
+  .hero__say { --fs-say: clamp(34px, min(10.4vw, 6.6dvh), 88px); }
+  .hero__end { gap: clamp(12px, 1.8dvh, 20px); }
+  .hero__sub { font-size: clamp(15.5px, 2.1vw, 20px); line-height: 1.38; max-width: 40ch; }
   .hero__hud { left: 0; transform: none; }
 }
 @media (orientation: portrait) and (max-width: 600px) {
+  .hero__cta { width: 100%; }
   .hero__cta .btn { flex: 1 1 auto; }
   .hero__hud { gap: 10px; font-size: 11px; }
 }
-/* телефон боком: всё плотнее, кнопки ниже */
+/* телефон боком: всё плотнее */
 @media (orientation: landscape) and (max-height: 540px) {
-  .hero { --fs-name: clamp(36px, min(calc(var(--colw) / var(--fit)), 17vh), 120px); padding-bottom: 12px; }
-  .hero__text { gap: 12px; }
-  .hero__tag { font-size: 15px; }
-  .hero .btn { min-height: 44px; }
+  .hero { padding-bottom: 12px; }
+  .hero__text { gap: 10px; }
+  .hero__say { --fs-say: clamp(28px, min(4.6vw, 9.6vh), 52px); }
+  .hero__end { gap: 10px; }
+  .hero__sub { font-size: 14px; line-height: 1.35; }
+  .hero .btn { min-height: 42px; }
   .hero__hud { font-size: 11px; }
 }
 
