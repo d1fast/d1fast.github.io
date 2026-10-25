@@ -124,7 +124,8 @@ const world = `--w-clouds: ${clouds}; --w-hills: ${hills}; --w-ground: ${ground}
           {items.map((_, i) => <i class:list={[{ 'is-on': i === 0 }]}><b></b></i>)}
         </span>
         <!-- рамка видоискателя: проявляется, когда камера наезжает на место действия -->
-        <span class="services__focus" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="services__focus" aria-hidden="true"></span>
+        <span class="services__corners" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         <span class="services__scan" aria-hidden="true"></span>
         <span class="services__flash" aria-hidden="true" data-services-flash></span>
       </div>

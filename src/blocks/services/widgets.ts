@@ -116,7 +116,9 @@ class Cam {
   v: View = { w: 0, h: 0, res: 0, k: 0, pad: 0 };
   private last = '';
   private lastF = '';
+  private lastC = '';
   private host: HTMLElement | null = null;
+  private corners: HTMLElement[] = [];
   /** b: содержимое сцены, оно же общий план */
   constructor(private layer: HTMLElement, readonly b: Box = FULL) {}
   at(r: Box) { return { x: r[0] + r[2] / 2, y: r[1] + r[3] / 2, lw: Math.log(r[2]), lh: Math.log(r[3]) }; }
@@ -147,9 +149,28 @@ class Cam {
     // насколько камера наехала: по этому экран затемняет края и показывает рамку видоискателя вокруг места действия
     const cap = capS(s0, W);
     const f = cap > s0 * 1.01 ? Math.max(0, Math.min(1, (s - s0) / (cap - s0))).toFixed(2) : '0';
-    if (f !== this.lastF && this.layer.closest('.svc-w.is-shown')) {
-      this.lastF = f;
-      (this.host ??= this.layer.closest<HTMLElement>('[data-services-screen]'))?.style.setProperty('--focus', f);
+    if (!this.layer.closest('.svc-w.is-shown')) return;
+    this.host ??= this.layer.closest<HTMLElement>('[data-services-screen]');
+    if (f !== this.lastF) { this.lastF = f; this.host?.style.setProperty('--focus', f); }
+    // уголки видоискателя обнимают сам кадр, на который наехала камера (а не края экранчика):
+    // точка сцены P видна в экранчике в (W/2 + (P − cx)·s, res + H/2 + (P − cy)·s)
+    if (+f === 0) this.lastC = ''; // уголки мог переставить другой экран: при следующем наезде ставятся заново
+    if (+f > 0 && this.host) {
+      if (!this.corners.length) this.corners = [...this.host.querySelectorAll<HTMLElement>('.services__corners i')];
+      const fw = Math.exp(this.s.lw), fh = Math.exp(this.s.lh), g = 5; // зазор вокруг кадра
+      const lim = (a: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, a));
+      const x0 = lim(W / 2 + (this.s.x - fw / 2 - cx) * s - g, pad / 2, W - pad / 2), x1 = lim(W / 2 + (this.s.x + fw / 2 - cx) * s + g, pad / 2, W - pad / 2);
+      const y0 = lim(res + H / 2 + (this.s.y - fh / 2 - cy) * s - g, res + pad / 2, h - pad / 2), y1 = lim(res + H / 2 + (this.s.y + fh / 2 - cy) * s + g, res + pad / 2, h - pad / 2);
+      // уголки сжимаются к кадру по мере наезда (1,25 → 1)
+      const k = (1.25 - +f * 0.25).toFixed(3);
+      const c = `${x0.toFixed(1)},${y0.toFixed(1)},${x1.toFixed(1)},${y1.toFixed(1)},${k}`;
+      if (c !== this.lastC && this.corners.length === 4) {
+        this.lastC = c;
+        const S = 12; // размер уголка
+        [[x0, y0], [x1 - S, y0], [x0, y1 - S], [x1 - S, y1 - S]].forEach(([x, y], i) => {
+          this.corners[i].style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${k})`;
+        });
+      }
     }
   };
 }

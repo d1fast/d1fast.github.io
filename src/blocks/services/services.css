@@ -90,14 +90,16 @@
 .services__scan { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(18 2 8 / .2) 2px 3px), radial-gradient(120% 140% at 50% 50%, transparent 60%, rgb(18 2 8 / .45) 100%); }
 .services__scan::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 28%; background: linear-gradient(to bottom, transparent, rgb(234 245 214 / .05), transparent); transform: translateY(-100%); animation: services-roll 7s linear infinite; }
 @keyframes services-roll { to { transform: translateY(460%); } }
-/* фокус камеры: края темнеют, по углам видимой части уголки видоискателя; всё по --focus от 0 до 1 */
+/* фокус камеры: края темнеют по --focus от 0 до 1 */
 .services__focus { position: absolute; inset: calc(var(--res, 0px) + 6px) 6px 6px; z-index: 2; pointer-events: none; opacity: var(--focus, 0);
   background: radial-gradient(closest-side at 50% 50%, transparent 72%, rgb(18 2 8 / .55) 100%); }
-.services__focus i { position: absolute; width: 12px; height: 12px; border: 0 solid var(--scr-ac, #EAF5D6); transform: scale(calc(1.25 - var(--focus, 0) * .25)); }
-.services__focus i:nth-child(1) { left: 0; top: 0; border-width: 2px 0 0 2px; transform-origin: 0 0; }
-.services__focus i:nth-child(2) { right: 0; top: 0; border-width: 2px 2px 0 0; transform-origin: 100% 0; }
-.services__focus i:nth-child(3) { left: 0; bottom: 0; border-width: 0 0 2px 2px; transform-origin: 0 100%; }
-.services__focus i:nth-child(4) { right: 0; bottom: 0; border-width: 0 2px 2px 0; transform-origin: 100% 100%; }
+/* уголки видоискателя: их ставит камера (widgets.ts, Cam.apply) вокруг кадра, на который наехала, в координатах экранчика */
+.services__corners { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: var(--focus, 0); }
+.services__corners i { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border: 0 solid var(--scr-ac, #EAF5D6); }
+.services__corners i:nth-child(1) { border-width: 2px 0 0 2px; transform-origin: 0 0; }
+.services__corners i:nth-child(2) { border-width: 2px 2px 0 0; transform-origin: 100% 0; }
+.services__corners i:nth-child(3) { border-width: 0 0 2px 2px; transform-origin: 0 100%; }
+.services__corners i:nth-child(4) { border-width: 0 2px 2px 0; transform-origin: 100% 100%; }
 .services__flash { position: absolute; left: 0; right: 0; top: 50%; z-index: 4; height: 4px; margin-top: -2px; background: var(--accent); opacity: 0; pointer-events: none; }
 
 /* имя на всю ширину окна; описание оставляет справа место под кнопку ▼ */
