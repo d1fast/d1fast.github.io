@@ -37,7 +37,7 @@ html.stage-on .hero { overflow: hidden; }
 .hero__say { --fs-say: clamp(40px, min(5.4vw, 9.5vh), 96px); justify-self: stretch; margin: 0; display: grid; font: 800 var(--fs-say)/1.02 var(--font-display); letter-spacing: -.035em; color: var(--fg); }
 .hero__ln { display: grid; overflow: clip; padding: .1em .06em .16em 0; margin: -.1em 0 -.16em; }
 .hero__w { grid-area: 1 / 1; display: block; white-space: nowrap; min-height: 1.02em; color: var(--fg); }
-.hero__w.is-m { color: color-mix(in oklab, var(--fg) 62%, var(--bg)); }
+.hero__w.is-m { color: var(--hero-muted, color-mix(in oklab, var(--fg) 62%, var(--bg))); }
 .hero__w em { font-style: normal; color: var(--accent); }
 .hero__end { position: relative; display: grid; gap: clamp(16px, 2.6vh, 26px); justify-items: start; }
 .hero__sub { font: 500 clamp(17px, 1.25vw, 21px)/1.42 var(--font-display); max-width: 36ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 86%, var(--bg)); }
@@ -80,7 +80,7 @@ html:not(.js) .hero__gl { display: none; }
   .hero .btn { min-height: 42px; }
 }
 /* шапка и точки перекрашиваются вместе с палитрой первого экрана */
-html.stage-on .site-header, html.stage-on .dots { transition: color .45s var(--ease-out); }
+html.stage-on .site-header, html.stage-on .dots { transition: color .25s var(--ease-out); }
 
 /* Размерные линии (первый экран и блок процесса) */
 .dim { position: absolute; z-index: 2; pointer-events: none; font: 500 11px/1 var(--font-mono); color: var(--fg); }

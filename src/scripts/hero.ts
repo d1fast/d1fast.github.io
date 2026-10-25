@@ -32,7 +32,9 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
   const html = document.documentElement;
   const isTouch = matchMedia('(hover: none), (pointer: coarse)').matches;
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const staged = () => html.classList.contains('stage-on');
+  // класс stage стоит в разметке, stage-on ставит сцена позже: первый экран судит по первому, иначе при открытии
+  // страницы на другом блоке он счёл бы себя открытым и перекрасил шапку
+  const staged = () => html.classList.contains('stage');
   const isOpen = () => !staged() || hero.classList.contains('is-current');
   const endEls = [sub, ...cta].filter(Boolean) as HTMLElement[];
   let type: Type3D | null = null;
@@ -40,12 +42,15 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
   let played = false, telling = false;
   const front = slots.map(() => 0);
 
-  /* ---------- палитра: блок, а пока он открыт, и <html> (шапка, точки, курсор) ---------- */
+  /* ---------- палитра: блок, а пока он открыт, и шапка, точки, курсор ---------- */
+  // переменные пишутся на эти элементы, а не на <html>: смена на <html> пересчитывала бы стили всей страницы
+  const chrome = () => [...document.querySelectorAll<HTMLElement>('.site-header, .dots, .cursor')];
+  const unchrome = () => chrome().forEach((el) => unpaint(el));
   let pal: Palette = calm ? ANSWER : ASK[0];
   const setPal = (p: Palette) => {
     pal = p;
     paint(hero, p);
-    if (isOpen()) paint(html, p);
+    if (isOpen()) chrome().forEach((el) => paint(el, p));
   };
   setPal(pal);
   let flooding: gsap.core.Tween | null = null;
@@ -129,7 +134,8 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
   const endHide = () => { gsap.killTweensOf(endEls); gsap.set(endEls, { opacity: 0, y: 18, visibility: 'hidden' }); };
   const endIn = (delay = 0) => {
     gsap.fromTo(endEls, { opacity: 0, y: 18, visibility: 'visible' }, { opacity: 1, y: 0, duration: 0.8, ease: 'expo.out', stagger: 0.08, delay, overwrite: true });
-    if (skip && !skip.hidden) gsap.to(skip, { opacity: 0, duration: 0.25, delay, onComplete: () => { skip.hidden = true; } });
+    // «Пропустить» стоит там же, где поднимаются кнопки: исчезает сразу, чтобы они не наложились
+    if (skip && !skip.hidden) { gsap.killTweensOf(skip); skip.hidden = true; }
   };
   const skipIn = () => { if (!skip) return; skip.hidden = false; gsap.fromTo(skip, { opacity: 0 }, { opacity: 1, duration: 0.5, delay: 0.9 }); };
 
@@ -155,6 +161,8 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
   /* ---------- сценарии ---------- */
   // начало каждого вопроса: слово успевает выйти и показать своё действие (около 1,5 с)
   const Q = 1.6, T0 = 0.2;
+  /** где сейчас рассказ: номер вопроса, сомнение или ответ (слова, загрузившиеся позже, встают сюда же) */
+  let beat: number | 'doubt' | 'answer' | null = null;
   function tell() {
     seq?.kill(); idleStop();
     played = true; telling = true;
@@ -171,6 +179,7 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
       const t = at(k);
       const p = ASK[k % ASK.length];
       tl.call(() => {
+        beat = k;
         type?.enter(k);
         if (k > 0) { flood(p, spot()); type?.tone(p, 0.3); }
       }, [], t - 0.08);
@@ -178,10 +187,10 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     });
     // сомнение: цвет сереет по всему экрану, слова падают в шаткую башню
     const tDoubt = at(ask.length) + 0.15, tAns = tDoubt + 1.8;
-    tl.call(() => { flood(DOUBT, null, 0.8); type?.tone(DOUBT, 0.7); type?.pile(); }, [], tDoubt - 0.1);
+    tl.call(() => { beat = 'doubt'; flood(DOUBT, spot(), 0.8); type?.tone(DOUBT, 0.6); type?.pile(); }, [], tDoubt - 0.1);
     tl.call(() => swapTo(states.doubt, true), [], tDoubt);
     // ответ: ультрамарин разливается из середины, слова встают стопкой
-    tl.call(() => { type?.stack('gather'); flood(ANSWER, spot(), 0.8); type?.tone(ANSWER, 0.5, STACK_FACES); answered(true); }, [], tAns - 0.12);
+    tl.call(() => { beat = 'answer'; type?.stack('gather'); flood(ANSWER, spot(), 0.8); type?.tone(ANSWER, 0.5, STACK_FACES); answered(true); }, [], tAns - 0.12);
     tl.call(() => swapTo(states.answer), [], tAns);
     tl.call(() => endIn(), [], tAns + 0.5);
     tl.call(settle, [], tAns + 1.2);
@@ -200,20 +209,27 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     setPal(ANSWER);
     answered(true);
     type?.tone(ANSWER, 0, STACK_FACES);
+    beat = 'answer';
+    type?.hide();
+    // стопка падает, когда волна перехода уже открыла экран
     const tl = gsap.timeline();
-    tl.call(() => type?.stack('drop'), [], 0);
+    tl.call(() => type?.stack('drop'), [], 0.32);
     tl.call(() => swapTo(states.answer), [], 0.08);
     tl.call(() => endIn(), [], 0.35);
     tl.call(settle, [], 0.6);
-    tl.call(() => idleStart(1.4), [], 0.6);
+    tl.call(() => idleStart(1.6), [], 0.6);
     seq = tl;
   }
   /** пропуск рассказа: ультрамарин, ответ, текст и кнопки, слова собираются в стопку */
   function finish() {
     if (!telling) return;
     seq?.kill();
+    const focused = document.activeElement === skip;
     setLines(states.answer);
     endIn();
+    // фокус был на «Пропустить», которая исчезла: он переходит на главную кнопку, а не на начало страницы
+    if (focused) cta[0]?.focus({ preventScroll: true });
+    beat = 'answer';
     answered(true);
     type?.stack('gather');
     type?.tone(ANSWER, 0.4, STACK_FACES);
@@ -228,6 +244,7 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     if (skip) skip.hidden = true;
     gsap.set(endEls, { opacity: 1, y: 0, visibility: 'visible' });
     setPal(ANSWER);
+    beat = 'answer';
     answered(true);
     type?.tone(ANSWER, 0, STACK_FACES);
     type?.stack('snap');
@@ -240,58 +257,105 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
   setLines([]);
   endHide();
 
-  // модуль слов (three.js) грузится вместе со шрифтами, а не после них
-  const typeMod = canvas ? import('./hero/type3d').catch(() => null) : Promise.resolve(null);
+  /* ---------- уход и возвращение ---------- */
+  // слушатель ставится сразу, а не после загрузки слов: уйти можно и раньше
+  let leftT = 0;
+  hero.addEventListener('block:leave', () => {
+    type?.stop(); seq?.kill(); idleStop();
+    flooding?.progress(1);
+    unchrome();
+    if (telling) settle();
+    // когда волна перехода закроет экран, блок ждёт возвращения уже в цветах ответа (короткий вход)
+    clearTimeout(leftT);
+    leftT = window.setTimeout(() => { if (played && !hero.classList.contains('is-current')) { pal = ANSWER; paint(hero, ANSWER); } }, 1200);
+  });
+
+  /* ---------- мышь и касание ---------- */
+  // клик или тап по пустому месту: во время рассказа пропускает его, потом слово стопки показывает действие
+  let down = { x: 0, y: 0, t: 0 };
+  skip?.addEventListener('click', finish);
+  hero.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  hero.addEventListener('pointerup', (e) => {
+    if ((e.target as Element).closest('a, button')) return;
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10 || performance.now() - down.t > 450) return;
+    if (telling) finish(); else if (!calm) type?.act(nextAct++ % states.ask.length);
+  });
+  if (!calm) {
+    hero.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' || !type) return;
+      const r = hero.getBoundingClientRect();
+      type.pointer(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1, true);
+    }, { passive: true });
+    hero.addEventListener('pointerleave', () => type?.pointer(0, 0, false));
+  }
+
+  /* ---------- объёмные слова ---------- */
+  /** одиночное слово на компьютере стоит на высоте вопроса; стоя (телефон) место над текстом, слово по его середине */
+  const aim = () => {
+    if (!type || !canvas) return;
+    if (matchMedia('(orientation: portrait)').matches) { type.aim(null); return; }
+    const cr = canvas.getBoundingClientRect(), sr = say.getBoundingClientRect();
+    type.aim(sr.top + sr.height / 2 - cr.top);
+  };
+  const flat = () => { type = null; hero.classList.remove('is-gl'); hero.classList.add('is-flat'); };
+  /** слова подключаются, когда модуль загрузился, и встают туда, где сейчас рассказ */
+  const attach = (mod: typeof import('./hero/type3d') | null) => {
+    if (!mod || !canvas) { flat(); return; }
+    try {
+      const lite = isTouch && ((navigator.hardwareConcurrency || 8) <= 4 || ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4);
+      type = mod.createType3D({ canvas, words: states.ask.map((a) => a.word), lite });
+    } catch { flat(); return; }
+    const t3 = type;
+    hero.classList.remove('is-flat');
+    hero.classList.add('is-gl');
+    t3.layout();
+    aim();
+    // потеря контекста (драйвер, нехватка памяти): остаются палитры, текст и плоская стопка
+    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); t3.stop(); if (type === t3) flat(); }, { once: true });
+    if (!staged()) new IntersectionObserver(([en]) => { if (en.isIntersecting) t3.start(); else t3.stop(); }).observe(hero);
+    if (isOpen()) t3.start();
+    if (typeof beat === 'number') { t3.tone(ASK[beat % ASK.length], 0); t3.enter(beat); }
+    else if (beat === 'doubt') { t3.tone(DOUBT, 0); t3.pile(); }
+    else if (beat === 'answer') {
+      t3.tone(ANSWER, 0, STACK_FACES);
+      t3.stack(calm ? 'snap' : 'drop');
+      if (calm) t3.draw(); else if (!telling) idleStart(1.4);
+    }
+  };
+
+  // До шрифтов строки пустые, текст и кнопки спрятаны (без скрипта виден ответ). Модуль слов (three.js)
+  // грузится одновременно со шрифтами; рассказ ждёт его не дольше 0,9 с, слова, пришедшие позже, догоняют рассказ.
+  // Есть ли WebGL, проверяется до загрузки: без него модуль не нужен вовсе
+  setLines([]);
+  endHide();
+  const glOk = (() => {
+    if (!canvas) return false;
+    const c = document.createElement('canvas');
+    const g = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
+    g?.getExtension('WEBGL_lose_context')?.loseContext();
+    return !!g;
+  })();
+  const typeMod = glOk ? import('./hero/type3d').catch(() => null) : Promise.resolve(null);
   (document.fonts?.ready ?? Promise.resolve()).then(async () => {
     fit();
     let rt = 0;
-    addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => { fit(); type?.layout(); if (calm) type?.draw(); }, 120); }, { passive: true });
-    if (canvas) {
-      try {
-        const mod = await typeMod;
-        if (!mod) throw new Error('no 3d');
-        const lite = isTouch && ((navigator.hardwareConcurrency || 8) <= 4 || ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4);
-        type = mod.createType3D({ canvas, words: states.ask.map((a) => a.word), lite });
-        type.layout();
-        hero.classList.add('is-gl');
-      } catch { type = null; hero.classList.add('is-flat'); }
-    } else hero.classList.add('is-flat');
-    const t3 = type;
-    if (isOpen()) { t3?.start(); play(); }
+    addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => { fit(); type?.layout(); aim(); if (calm) type?.draw(); }, 120); }, { passive: true });
+    let late = false;
+    const mod = await Promise.race([typeMod, new Promise<'late'>((r) => setTimeout(() => r('late'), 900))]);
+    if (mod === 'late') { late = true; hero.classList.add('is-flat'); }
+    else attach(mod);
+    if (isOpen()) play();
     else document.dispatchEvent(new CustomEvent('hero:settled'));
+    if (late) typeMod.then(attach);
     onDone?.(hero);
-
-    // клик или тап по пустому месту: во время рассказа пропускает его, потом слово стопки показывает действие
-    let down = { x: 0, y: 0, t: 0 };
-    skip?.addEventListener('click', finish);
-    hero.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
-    hero.addEventListener('pointerup', (e) => {
-      if ((e.target as Element).closest('a, button')) return;
-      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10 || performance.now() - down.t > 450) return;
-      if (telling) finish(); else t3?.act(nextAct++ % states.ask.length);
-    });
-    if (t3) {
-      hero.addEventListener('pointermove', (e) => {
-        if (e.pointerType !== 'mouse') return;
-        const r = hero.getBoundingClientRect();
-        t3.pointer(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1, true);
-      }, { passive: true });
-      hero.addEventListener('pointerleave', () => t3.pointer(0, 0, false));
-    }
-    // уход с первого экрана: рендер и покой останавливаются, шапка возвращается к теме следующего блока
-    hero.addEventListener('block:leave', () => {
-      t3?.stop(); seq?.kill(); idleStop();
-      flooding?.progress(1);
-      unpaint(html);
-      if (telling) settle();
-    });
-    if (!staged() && t3) new IntersectionObserver(([en]) => { if (en.isIntersecting) t3.start(); else t3.stop(); }).observe(hero);
   });
 
   /** Возвращение на первый экран: если рассказ ещё не видели, он целиком, иначе короткий вход. */
   (hero as HTMLElement & { _reenter?: () => void })._reenter = () => {
-    paint(html, pal);
+    clearTimeout(leftT);
+    chrome().forEach((el) => paint(el, pal));
     type?.layout();
+    aim();
     type?.start();
     play();
   };
