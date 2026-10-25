@@ -42,12 +42,14 @@
   --charcoal: #21262B;  --slate: #5F7389;
   --night: #0E0F10;     --frost: #EEECE6;  --amber: #F2B44C;
   --concrete: #EEF0F2;
+  /* первый экран: ответ рассказа и страницы без своего блока (404, политика); вопросы перебирают свои палитры (src/scripts/hero/palettes.ts) */
+  --ultra: #2433B8;     --ultra-fg: #F2F2FF;  --ultra-pink: #FFADD9;  --ultra-deep: #0D1462;
 
   /* значения по умолчанию = первый экран */
-  --bg: var(--ink);
-  --fg: var(--paper);
-  --accent: var(--flame);
-  --accent-fg: var(--ink);
+  --bg: var(--ultra);
+  --fg: var(--ultra-fg);
+  --accent: var(--ultra-pink);
+  --accent-fg: var(--ultra-deep);
   --muted: color-mix(in oklab, var(--fg) 70%, var(--bg));
   --line: color-mix(in oklab, var(--fg) 22%, transparent);
   --line-strong: color-mix(in oklab, var(--fg) 55%, transparent);
@@ -56,7 +58,7 @@
 }
 
 /* Темы. Селектор без :root, чтобы работал и на <html>, и на самом блоке. */
-[data-theme="hero"]     { --bg: var(--ink);      --fg: var(--paper);    --accent: var(--flame);   --accent-fg: var(--ink);      --focus: var(--paper);   --error: #FFC2B3; }
+[data-theme="hero"]     { --bg: var(--ultra);    --fg: var(--ultra-fg); --accent: var(--ultra-pink); --accent-fg: var(--ultra-deep); --focus: var(--ultra-fg); --error: #FFD1C7; }
 [data-theme="services"] { --bg: var(--matcha);   --fg: var(--cherry);   --accent: #C8174F;        --accent-fg: var(--matcha);   --focus: var(--cherry);  --error: #8A1400; }
 [data-theme="works"]    { --bg: var(--night);    --fg: var(--frost);    --accent: var(--amber);   --accent-fg: #1A1407;         --focus: var(--frost);   --error: #FFB4A8; }
 [data-theme="process"]  { --bg: var(--concrete); --fg: var(--charcoal); --accent: var(--slate);   --accent-fg: var(--concrete); --focus: var(--charcoal);--error: #B3230D; }

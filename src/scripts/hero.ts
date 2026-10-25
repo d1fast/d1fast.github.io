@@ -1,48 +1,78 @@
 import { gsap } from 'gsap';
-import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import type { Sculpt, ShapeName } from './sculpt';
-
-gsap.registerPlugin(ScrambleTextPlugin);
+import { ASK, DOUBT, ANSWER, STACK_FACES, paint, unpaint, pin, type Palette } from './hero/palettes';
+import type { Type3D } from './hero/type3d';
 
 type Line = { muted: boolean; html: string };
-interface States { ask: { lines: Line[]; shape: ShapeName }[]; doubt: Line[]; answer: Line[] }
+interface States { ask: { lines: Line[]; word: string }[]; doubt: Line[]; answer: Line[] }
 
 /**
- * Первый экран-воронка. В трёх строках-прорезях сменяются вопросы («Хотите Telegram-бота с нейросетью?»,
- * «Или эстетичный сайт для кофейни?»…), и рядом знаки кода складываются в то, о чём спросили. Потом
- * сомнение («Но не знаете, кому это доверить?»): знаки разлетаются по экрану и тускнеют. Ответ
- * («Тогда вы попали по адресу.»): знаки схлопываются в оранжевую галочку, поднимаются текст обо мне и кнопки,
- * дальше знаки спокойно перебирают всё, что я делаю. Рассказ можно пропустить кликом или кнопкой.
- * При возвращении на первый экран он короче: сразу ответ и кнопки.
- * Анимируются только transform и opacity; знаки считает видеокарта. Без WebGL остаётся текст.
+ * Первый экран-воронка. Слева в трёх строках-прорезях сменяются вопросы («Хотите Telegram-бота с нейросетью?»,
+ * «Или эстетичный сайт для кофейни?»…), справа объёмное слово того, о чём спросили, и у каждого вопроса
+ * своя палитра: новый цвет разливается кругом от слова. Сомнение («Но не знаете, кому это доверить?»):
+ * цвет сереет, слова падают в шаткую башню. Ответ («Тогда вы попали по адресу.»): ультрамарин, слова встают
+ * ровной стопкой «бот, сайт, запись, игра», поднимаются текст обо мне и кнопки; дальше слова по очереди
+ * показывают своё действие. Рассказ пропускается кликом или кнопкой, при возвращении он короче.
+ * Анимируются только transform и opacity, слова рисует видеокарта (hero/type3d.ts). Без WebGL остаются
+ * палитры, текст и плоская стопка слов.
  */
 export function initHero(onDone?: (hero: HTMLElement) => void) {
-  const hero = document.querySelector<HTMLElement>('[data-hero]');
-  if (!hero || hero.classList.contains('is-bound')) return;
+  const found = document.querySelector<HTMLElement>('[data-hero]');
+  if (!found || found.classList.contains('is-bound')) return;
+  const hero: HTMLElement = found;
   hero.classList.add('is-bound');
   const states: States = JSON.parse(hero.dataset.states || '{"ask":[],"doubt":[],"answer":[]}');
   const canvas = hero.querySelector<HTMLCanvasElement>('[data-hero-gl]');
-  const stage = hero.querySelector<HTMLElement>('[data-hero-stage]');
   const say = hero.querySelector<HTMLElement>('[data-hero-say]')!;
   const slots = [...hero.querySelectorAll<HTMLElement>('[data-hero-ln]')];
   const spans = slots.map((s) => [...s.querySelectorAll<HTMLElement>('.hero__w')]);
   const sub = hero.querySelector<HTMLElement>('[data-hero-sub]');
   const cta = [...hero.querySelectorAll<HTMLElement>('[data-hero-cta] > *')];
   const skip = hero.querySelector<HTMLButtonElement>('[data-hero-skip]');
-  const hud = hero.querySelector<HTMLElement>('[data-hero-hud]');
-  const idx = hero.querySelector<HTMLElement>('[data-hero-idx]');
-  const now = hero.querySelector<HTMLElement>('[data-hero-now]');
-  const bar = hero.querySelector<HTMLElement>('[data-hero-bar]');
-  const labels: string[] = JSON.parse(hud?.dataset.labels || '[]');
+  const disc = hero.querySelector<HTMLElement>('[data-hero-flood]');
+  const html = document.documentElement;
   const isTouch = matchMedia('(hover: none), (pointer: coarse)').matches;
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const staged = () => document.documentElement.classList.contains('stage-on');
+  const staged = () => html.classList.contains('stage-on');
   const isOpen = () => !staged() || hero.classList.contains('is-current');
   const endEls = [sub, ...cta].filter(Boolean) as HTMLElement[];
-  let sculpt: Sculpt | null = null;
+  let type: Type3D | null = null;
   let seq: gsap.core.Timeline | null = null;
   let played = false, telling = false;
   const front = slots.map(() => 0);
+
+  /* ---------- палитра: блок, а пока он открыт, и <html> (шапка, точки, курсор) ---------- */
+  let pal: Palette = calm ? ANSWER : ASK[0];
+  const setPal = (p: Palette) => {
+    pal = p;
+    paint(hero, p);
+    if (isOpen()) paint(html, p);
+  };
+  setPal(pal);
+  let flooding: gsap.core.Tween | null = null;
+  /** Новый цвет разливается кругом из точки (x, y) блока; fade: проявляется по всему блоку (сомнение). */
+  function flood(p: Palette, at: { x: number; y: number } | null, dur = 0.7) {
+    flooding?.progress(1);
+    if (!disc) { setPal(p); return; }
+    const r = hero.getBoundingClientRect();
+    const o = at ?? { x: r.width / 2, y: r.height / 2 };
+    const reach = Math.hypot(Math.max(o.x, r.width - o.x), Math.max(o.y, r.height - o.y));
+    const D = 200; // диаметр круга в разметке, px
+    gsap.set(disc, { x: o.x - D / 2, y: o.y - D / 2, backgroundColor: p.bg, visibility: 'visible', opacity: at ? 1 : 0, scale: at ? 0.01 : (reach * 2) / D + 0.2 });
+    let swapped = false;
+    const t = flooding = gsap.to(disc, {
+      ...(at ? { scale: (reach * 2) / D + 0.2, ease: 'expo.out' } : { opacity: 1, ease: 'power1.inOut' }), duration: dur,
+      // переменные меняются, когда круг уже закрыл почти всё: старые строки гаснут в своих цветах (pin)
+      onUpdate: () => { if (!swapped && t.progress() > (at ? 0.3 : 0.5)) { swapped = true; setPal(p); } },
+      onComplete: () => { if (!swapped) setPal(p); gsap.set(disc, { visibility: 'hidden', scale: 0.01 }); if (flooding === t) flooding = null; },
+    });
+  }
+  /** точка, откуда разливается цвет: середина места для слов */
+  const spot = () => {
+    if (!canvas || !type) return null;
+    const hr = hero.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+    const o = type.origin();
+    return { x: cr.left - hr.left + o.x, y: cr.top - hr.top + o.y };
+  };
 
   /* ---------- строки-прорези: старый текст уходит вверх, новый поднимается снизу ---------- */
   const fill = (el: HTMLElement, l: Line | undefined) => { el.innerHTML = l ? l.html : ''; el.classList.toggle('is-m', !!l?.muted); };
@@ -54,10 +84,10 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     slots.forEach((_, i) => {
       const old = spans[i][front[i]], neu = spans[i][1 - front[i]];
       front[i] = 1 - front[i];
+      pin(old, pal); // уходящая строка остаётся в цветах своего вопроса
+      pin(neu, null);
       fill(neu, lines[i]);
       const at = i * (heavy ? 0.1 : 0.07);
-      // строки стоят плотно, а прорезь шире строки (запас под «й» и «у»): уходящий и входящий текст гаснут,
-      // чтобы не мелькать между строк
       const out = heavy ? 0.4 : 0.3;
       swaps.push(
         gsap.to(old, { yPercent: -100, opacity: 0, duration: out, ease: 'power2.in', delay: at, overwrite: true }),
@@ -71,6 +101,7 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     slots.forEach((_, i) => {
       gsap.killTweensOf(spans[i]);
       front[i] = 0;
+      spans[i].forEach((s) => pin(s, null));
       fill(spans[i][0], lines[i]); fill(spans[i][1], undefined);
       gsap.set(spans[i][0], { yPercent: 0, rotate: 0, opacity: 1 });
       gsap.set(spans[i][1], { yPercent: 100, rotate: 0, opacity: 0 });
@@ -94,22 +125,27 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
     if (max > box * 0.97) say.style.setProperty('--fs-say', `${Math.floor((fs * box * 0.97) / max)}px`);
   }
 
-  /* ---------- текст обо мне, кнопки, «Пропустить», подпись под скульптурой ---------- */
+  /* ---------- текст обо мне, кнопки, «Пропустить» ---------- */
   const endHide = () => { gsap.killTweensOf(endEls); gsap.set(endEls, { opacity: 0, y: 18, visibility: 'hidden' }); };
   const endIn = (delay = 0) => {
     gsap.fromTo(endEls, { opacity: 0, y: 18, visibility: 'visible' }, { opacity: 1, y: 0, duration: 0.8, ease: 'expo.out', stagger: 0.08, delay, overwrite: true });
     if (skip && !skip.hidden) gsap.to(skip, { opacity: 0, duration: 0.25, delay, onComplete: () => { skip.hidden = true; } });
   };
   const skipIn = () => { if (!skip) return; skip.hidden = false; gsap.fromTo(skip, { opacity: 0 }, { opacity: 1, duration: 0.5, delay: 0.9 }); };
-  let barTween: gsap.core.Tween | null = null;
-  const onShape = (i: number, dur: number) => {
-    if (i < 0 || i >= labels.length) return;
-    if (idx) idx.textContent = String(i + 1).padStart(2, '0');
-    if (now && labels[i]) gsap.to(now, { duration: 0.7, scrambleText: { text: labels[i], chars: '{}<>/=+*#01', speed: 0.6 }, overwrite: true });
-    barTween?.kill();
-    if (bar) barTween = gsap.fromTo(bar, { scaleX: 0 }, { scaleX: 1, duration: dur, ease: 'none' });
+
+  /* ---------- покой: слова стопки по очереди показывают своё действие ---------- */
+  let idleT = 0, nextAct = 0;
+  const idleStop = () => { clearInterval(idleT); idleT = 0; };
+  const idleStart = (delay = 1.2) => {
+    idleStop();
+    if (calm || !type) return;
+    idleT = window.setTimeout(() => {
+      const tick = () => { if (isOpen() && !document.hidden) type?.act(nextAct++ % states.ask.length); };
+      tick();
+      idleT = window.setInterval(tick, 3800);
+    }, delay * 1000);
   };
-  const hudIn = () => hud && gsap.fromTo(hud, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' });
+  const answered = (on: boolean) => hero.classList.toggle('is-answered', on);
   const settle = () => {
     telling = false;
     hero.classList.remove('is-telling');
@@ -117,136 +153,146 @@ export function initHero(onDone?: (hero: HTMLElement) => void) {
   };
 
   /* ---------- сценарии ---------- */
+  // начало каждого вопроса: слово успевает выйти и показать своё действие (около 1,5 с)
+  const Q = 1.6, T0 = 0.2;
   function tell() {
-    seq?.kill();
+    seq?.kill(); idleStop();
     played = true; telling = true;
-    hero!.classList.add('is-telling');
+    hero.classList.add('is-telling');
+    answered(false);
     endHide();
-    if (hud) gsap.set(hud, { opacity: 0 });
     skipIn();
-    // каждый предмет успевает собраться (0,75 с) и постоять полсекунды; первый слетается из облака чуть дольше
-    const ask = states.ask, FIRST = 1.55, Q = 1.3;
-    const at = (k: number) => 0.2 + (k > 0 ? FIRST + (k - 1) * Q : 0);
+    setPal(ASK[0]);
+    type?.tone(ASK[0], 0);
+    const ask = states.ask;
+    const at = (k: number) => T0 + k * Q;
     const tl = gsap.timeline();
-    tl.call(() => { sculpt?.mood(1, 0); sculpt?.intro(ask[0]?.shape ?? 'plane', 1.05); }, [], 0);
     ask.forEach((a, k) => {
       const t = at(k);
-      if (k > 0) tl.call(() => sculpt?.morphTo(a.shape, 0.75, 1.5), [], t - 0.1);
+      const p = ASK[k % ASK.length];
+      tl.call(() => {
+        type?.enter(k);
+        if (k > 0) { flood(p, spot()); type?.tone(p, 0.3); }
+      }, [], t - 0.08);
       tl.call(() => swapTo(a.lines), [], t);
     });
-    const tDoubt = at(ask.length), tAns = tDoubt + 1.6;
-    // сомнение: знаки разлетаются по экрану, тускнеют и плывут
-    tl.call(() => { sculpt?.morphTo('cloud', 1.15, 2.4); sculpt?.mood(0.45, 0.22); sculpt?.pulse(); }, [], tDoubt - 0.1);
+    // сомнение: цвет сереет по всему экрану, слова падают в шаткую башню
+    const tDoubt = at(ask.length) + 0.15, tAns = tDoubt + 1.8;
+    tl.call(() => { flood(DOUBT, null, 0.8); type?.tone(DOUBT, 0.7); type?.pile(); }, [], tDoubt - 0.1);
     tl.call(() => swapTo(states.doubt, true), [], tDoubt);
-    // ответ: знаки схлопываются в галочку, по ней проходит волна
-    tl.call(() => { sculpt?.morphTo('check', 0.9, 1.1); sculpt?.mood(1, 0); }, [], tAns - 0.15);
+    // ответ: ультрамарин разливается из середины, слова встают стопкой
+    tl.call(() => { type?.stack('gather'); flood(ANSWER, spot(), 0.8); type?.tone(ANSWER, 0.5, STACK_FACES); answered(true); }, [], tAns - 0.12);
     tl.call(() => swapTo(states.answer), [], tAns);
-    tl.call(() => endIn(), [], tAns + 0.45);
-    tl.call(() => sculpt?.pulse(), [], tAns + 0.8);
-    tl.call(() => { sculpt?.auto('browser'); hudIn(); }, [], tAns + 2.3);
-    tl.call(settle, [], tAns + 2.3);
+    tl.call(() => endIn(), [], tAns + 0.5);
+    tl.call(settle, [], tAns + 1.2);
+    tl.call(() => idleStart(1), [], tAns + 1.2);
     seq = tl;
   }
-  /** короткий вход: сразу ответ, текст и кнопки; знаки слетаются в галочку */
+  /** короткий вход: сразу ответ, текст и кнопки; слова падают в стопку сверху */
   function brief() {
-    seq?.kill();
+    seq?.kill(); idleStop();
+    flooding?.progress(1);
     telling = false;
-    hero!.classList.remove('is-telling');
+    hero.classList.remove('is-telling');
     if (skip) skip.hidden = true;
     endHide();
-    if (hud) gsap.set(hud, { opacity: 0 });
     setLines([]);
+    setPal(ANSWER);
+    answered(true);
+    type?.tone(ANSWER, 0, STACK_FACES);
     const tl = gsap.timeline();
-    tl.call(() => { sculpt?.mood(1, 0); sculpt?.intro('check', 1.3); }, [], 0);
+    tl.call(() => type?.stack('drop'), [], 0);
     tl.call(() => swapTo(states.answer), [], 0.08);
     tl.call(() => endIn(), [], 0.35);
-    tl.call(() => { sculpt?.auto('browser'); hudIn(); }, [], 2.1);
     tl.call(settle, [], 0.6);
+    tl.call(() => idleStart(1.4), [], 0.6);
     seq = tl;
   }
-  /** пропуск рассказа: сразу ответ, текст и кнопки, знаки идут в галочку и дальше по кругу */
+  /** пропуск рассказа: ультрамарин, ответ, текст и кнопки, слова собираются в стопку */
   function finish() {
     if (!telling) return;
     seq?.kill();
     setLines(states.answer);
     endIn();
-    sculpt?.mood(1, 0);
-    sculpt?.morphTo('check', 0.8, 1.1);
-    seq = gsap.timeline().call(() => { sculpt?.auto('browser'); hudIn(); }, [], 1.5);
+    answered(true);
+    type?.stack('gather');
+    type?.tone(ANSWER, 0.4, STACK_FACES);
+    flood(ANSWER, spot(), 0.5);
     settle();
+    idleStart(1.6);
   }
   function still() {
-    seq?.kill();
+    seq?.kill(); idleStop();
     telling = false;
     setLines(states.answer);
     if (skip) skip.hidden = true;
     gsap.set(endEls, { opacity: 1, y: 0, visibility: 'visible' });
-    if (hud) gsap.set(hud, { opacity: 1 });
-    sculpt?.mood(1, 0);
-    sculpt?.auto('browser');
+    setPal(ANSWER);
+    answered(true);
+    type?.tone(ANSWER, 0, STACK_FACES);
+    type?.stack('snap');
+    type?.draw();
     settle();
   }
   const play = () => (calm ? still() : played ? brief() : tell());
 
-  /* ---------- место скульптуры: квадрат внутри [data-hero-stage] над подписью ---------- */
-  const place = () => {
-    if (!sculpt || !stage) return;
-    const hr = hero.getBoundingClientRect(), sr = stage.getBoundingClientRect();
-    const hudH = hud ? hud.offsetHeight + 14 : 0;
-    const w = sr.width, h = sr.height - hudH;
-    if (w < 10 || h < 10) return;
-    sculpt.layout(sr.left - hr.left + w / 2, sr.top - hr.top + h / 2, Math.min(w * 1.04, h * 0.94));
-  };
-
-  // до шрифтов и скульптуры: строки пустые, текст и кнопки спрятаны (без скрипта виден ответ)
+  // до шрифтов: строки пустые, текст и кнопки спрятаны (без скрипта виден ответ)
   setLines([]);
   endHide();
-  if (hud) gsap.set(hud, { opacity: 0 });
 
+  // модуль слов (three.js) грузится вместе со шрифтами, а не после них
+  const typeMod = canvas ? import('./hero/type3d').catch(() => null) : Promise.resolve(null);
   (document.fonts?.ready ?? Promise.resolve()).then(async () => {
     fit();
     let rt = 0;
-    addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => { fit(); place(); }, 120); }, { passive: true });
-    if (canvas && stage) {
+    addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => { fit(); type?.layout(); if (calm) type?.draw(); }, 120); }, { passive: true });
+    if (canvas) {
       try {
-        const mod = await import('./sculpt');
-        const cs = getComputedStyle(hero);
-        const mono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace';
-        try { await document.fonts?.load(`700 46px ${mono}`); } catch { /* знаки нарисуются запасным моноширинным */ }
-        sculpt = mod.createSculpt({ canvas, color: cs.getPropertyValue('--fg').trim() || '#F3F0E8', hot: cs.getPropertyValue('--accent').trim() || '#FF6A3D', font: mono, count: isTouch ? 3000 : 5200, calm });
-        sculpt.onShape(onShape);
+        const mod = await typeMod;
+        if (!mod) throw new Error('no 3d');
+        const lite = isTouch && ((navigator.hardwareConcurrency || 8) <= 4 || ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4);
+        type = mod.createType3D({ canvas, words: states.ask.map((a) => a.word), lite });
+        type.layout();
         hero.classList.add('is-gl');
-        place();
-      } catch { sculpt = null; hero.classList.add('is-flat'); }
+      } catch { type = null; hero.classList.add('is-flat'); }
     } else hero.classList.add('is-flat');
-    const sc = sculpt;
-    if (isOpen()) { sc?.start(); play(); }
+    const t3 = type;
+    if (isOpen()) { t3?.start(); play(); }
     else document.dispatchEvent(new CustomEvent('hero:settled'));
     onDone?.(hero);
 
-    // клик или тап по пустому месту: во время рассказа пропускает его, потом пускает волну по знакам
-    const local = (e: PointerEvent) => { const r = hero.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    // клик или тап по пустому месту: во время рассказа пропускает его, потом слово стопки показывает действие
     let down = { x: 0, y: 0, t: 0 };
     skip?.addEventListener('click', finish);
-    hero.addEventListener('pointerdown', (e) => { const p = local(e); down = { ...p, t: performance.now() }; });
+    hero.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
     hero.addEventListener('pointerup', (e) => {
       if ((e.target as Element).closest('a, button')) return;
-      const p = local(e);
-      if (Math.hypot(p.x - down.x, p.y - down.y) > 10 || performance.now() - down.t > 450) return;
-      if (telling) finish(); else sc?.pulse(p.x, p.y);
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10 || performance.now() - down.t > 450) return;
+      if (telling) finish(); else t3?.act(nextAct++ % states.ask.length);
     });
-    if (!sc) return;
-    hero.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse') return; const p = local(e); sc.pointer(p.x, p.y, true); }, { passive: true });
-    hero.addEventListener('pointerleave', () => sc.pointer(0, 0, false));
-    // рендер идёт, только пока первый экран открыт
-    hero.addEventListener('block:leave', () => { sc.stop(); seq?.kill(); if (telling) settle(); });
-    if (!staged()) new IntersectionObserver(([en]) => { if (en.isIntersecting) sc.start(); else sc.stop(); }).observe(hero);
+    if (t3) {
+      hero.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        const r = hero.getBoundingClientRect();
+        t3.pointer(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1, true);
+      }, { passive: true });
+      hero.addEventListener('pointerleave', () => t3.pointer(0, 0, false));
+    }
+    // уход с первого экрана: рендер и покой останавливаются, шапка возвращается к теме следующего блока
+    hero.addEventListener('block:leave', () => {
+      t3?.stop(); seq?.kill(); idleStop();
+      flooding?.progress(1);
+      unpaint(html);
+      if (telling) settle();
+    });
+    if (!staged() && t3) new IntersectionObserver(([en]) => { if (en.isIntersecting) t3.start(); else t3.stop(); }).observe(hero);
   });
 
   /** Возвращение на первый экран: если рассказ ещё не видели, он целиком, иначе короткий вход. */
   (hero as HTMLElement & { _reenter?: () => void })._reenter = () => {
-    place();
-    sculpt?.start();
+    paint(html, pal);
+    type?.layout();
+    type?.start();
     play();
   };
 }

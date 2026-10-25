@@ -23,55 +23,52 @@
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
 html.stage-on .site-header { background: transparent; }
 
-/* Первый экран-воронка: почти чёрный фон, слева крупный сменяющийся вопрос, под ним текст обо мне и кнопки,
-   справа скульптура из знаков кода. Холст на весь блок: знаки при появлении и сомнении летают по всему экрану. */
+/* Первый экран-воронка: у каждого вопроса своя насыщенная палитра (hero/palettes.ts), новый цвет разливается кругом
+   .hero__flood. Слева сменяющийся вопрос, под ним текст обо мне и кнопки, справа объёмное слово (холст в .hero__stage). */
 .hero { --gap: clamp(16px, 3vw, 48px);
-  display: grid; grid-template-rows: minmax(0, 1fr); padding: calc(var(--header-h) + 8px) 0 clamp(20px, 4.5vh, 52px); overflow: hidden;
-  background: radial-gradient(52% 62% at 74% 50%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 72%), var(--bg); }
+  display: grid; grid-template-rows: minmax(0, 1fr); padding: calc(var(--header-h) + 8px) 0 clamp(20px, 4.5vh, 52px); overflow: hidden; background: var(--bg); }
 html.stage-on .hero { overflow: hidden; }
-.hero__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; }
+/* круг заливки растёт за край блока: обёртка его обрезает, иначе у блока появилась бы прокрутка */
+.hero__floodbox { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.hero__flood { position: absolute; left: 0; top: 0; width: 200px; height: 200px; border-radius: 50%; visibility: hidden; pointer-events: none; will-change: transform, opacity; }
 .hero__grid { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 54fr) minmax(0, 46fr); column-gap: var(--gap); align-items: center; min-height: 0; }
 .hero__text { display: grid; gap: clamp(18px, 3.2vh, 34px); align-content: center; justify-items: start; min-width: 0; }
 /* кинетический заголовок: три строки-прорези одной высоты, кегль подгоняет hero.ts по самой длинной строке всех вопросов */
 .hero__say { --fs-say: clamp(40px, min(5.4vw, 9.5vh), 96px); justify-self: stretch; margin: 0; display: grid; font: 800 var(--fs-say)/1.02 var(--font-display); letter-spacing: -.035em; color: var(--fg); }
 .hero__ln { display: grid; overflow: clip; padding: .1em .06em .16em 0; margin: -.1em 0 -.16em; }
-.hero__w { grid-area: 1 / 1; display: block; white-space: nowrap; min-height: 1.02em; }
-.hero__w.is-m { color: color-mix(in oklab, var(--fg) 50%, var(--bg)); }
+.hero__w { grid-area: 1 / 1; display: block; white-space: nowrap; min-height: 1.02em; color: var(--fg); }
+.hero__w.is-m { color: color-mix(in oklab, var(--fg) 62%, var(--bg)); }
 .hero__w em { font-style: normal; color: var(--accent); }
 .hero__end { position: relative; display: grid; gap: clamp(16px, 2.6vh, 26px); justify-items: start; }
-.hero__sub { font: 500 clamp(17px, 1.25vw, 21px)/1.42 var(--font-display); max-width: 36ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 80%, var(--bg)); }
+.hero__sub { font: 500 clamp(17px, 1.25vw, 21px)/1.42 var(--font-display); max-width: 36ch; text-wrap: pretty; color: color-mix(in oklab, var(--fg) 86%, var(--bg)); }
 .hero__cta { display: flex; flex-wrap: wrap; gap: 12px; }
 .hero .btn { font-family: var(--font-display); font-weight: 600; }
-.hero .btn--ghost { border-color: color-mix(in oklab, var(--fg) 45%, transparent); }
-/* пока идёт рассказ, на месте текста и кнопок только «Пропустить» */
-.hero__skip { position: absolute; left: 0; bottom: 0; min-height: 44px; padding: 0 2px; font: 500 13px/1 var(--font-mono); letter-spacing: .04em; color: color-mix(in oklab, var(--fg) 62%, var(--bg)); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in oklab, var(--fg) 30%, transparent); transition: color var(--dur-base); }
-.hero__skip:hover, .hero__skip:focus-visible { color: var(--fg); }
-html.js .hero:not(.is-bound) .hero__say, html.js .hero:not(.is-bound) .hero__end > *, html.js .hero:not(.is-bound) .hero__hud { opacity: 0; }
-.hero__stage { position: relative; align-self: stretch; min-height: 0; }
-/* подпись под скульптурой: номер раздела, его название и полоска до следующего */
-.hero__hud { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; font: 500 12px/1 var(--font-mono); letter-spacing: .04em; color: color-mix(in oklab, var(--fg) 72%, var(--bg)); white-space: nowrap; }
-.hero__idx b { color: var(--accent); font-weight: 600; }
-.hero__now { color: var(--fg); text-transform: lowercase; min-width: 16ch; }
-.hero__now:lang(en) { text-transform: none; }
-.hero__bar { position: relative; display: block; width: 72px; height: 1px; background: color-mix(in oklab, var(--fg) 22%, transparent); }
-.hero__bar i { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
-.hero.is-flat .hero__hud { display: none; }
-/* экран стоя (телефон, планшет): скульптура сверху занимает всё свободное место, ниже вопрос, текст и кнопки */
+.hero .btn--ghost { border-color: color-mix(in oklab, var(--fg) 55%, transparent); }
+/* «Пропустить» мелкий: только полный цвет текста держит контраст на всех палитрах */
+.hero__skip { position: absolute; left: 0; bottom: 0; min-height: 44px; padding: 0 2px; font: 500 13px/1 var(--font-mono); letter-spacing: .04em; color: var(--fg); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in oklab, var(--fg) 45%, transparent); }
+html.js .hero:not(.is-bound) .hero__say, html.js .hero:not(.is-bound) .hero__end > * { opacity: 0; }
+/* место для слов: холст выходит за него вбок и вверх (вниз нельзя: блок получил бы прокрутку), чтобы уезжающие слова не обрезались о край колонки */
+.hero__stage { position: relative; align-self: stretch; min-height: 0; container-type: size; }
+.hero__gl { position: absolute; left: -6%; top: -6%; width: 112%; height: 106%; display: block; pointer-events: none; }
+/* без WebGL и без скрипта: та же стопка слов плоско, с тенью-объёмом; ширина слов одинаковая (кегль от ширины слова в em) */
+.hero__flat { position: absolute; inset: 0; display: none; align-content: center; justify-items: center; margin: 0;
+  --k: min(78cqw, 84cqh / var(--sum)); font: 800 1px/.9 var(--font-display); text-transform: uppercase; letter-spacing: 0; }
+.hero__flat span { font-size: calc(var(--k) / var(--em)); color: var(--face); text-shadow: .012em .012em 0 var(--side), .024em .024em 0 var(--side), .036em .036em 0 var(--side), .048em .048em 0 var(--side); }
+html:not(.js) .hero__flat, .hero.is-flat.is-answered .hero__flat { display: grid; }
+html:not(.js) .hero__gl { display: none; }
+/* экран стоя (телефон, планшет): слова сверху занимают всё свободное место, ниже вопрос, текст и кнопки */
 @media (orientation: portrait) {
-  .hero { padding: calc(var(--header-h) + 4px) 0 clamp(16px, 3dvh, 40px);
-    background: radial-gradient(70% 38% at 50% 30%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 75%), var(--bg); }
+  .hero { padding: calc(var(--header-h) + 4px) 0 clamp(16px, 3dvh, 40px); }
   .hero__grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; row-gap: clamp(12px, 2.2dvh, 26px); align-items: stretch; }
   .hero__stage { order: -1; min-height: 22dvh; }
   .hero__text { gap: clamp(12px, 2dvh, 22px); }
   .hero__say { --fs-say: clamp(34px, min(10.4vw, 6.6dvh), 88px); }
   .hero__end { gap: clamp(12px, 1.8dvh, 20px); }
   .hero__sub { font-size: clamp(15.5px, 2.1vw, 20px); line-height: 1.38; max-width: 40ch; }
-  .hero__hud { left: 0; transform: none; }
 }
 @media (orientation: portrait) and (max-width: 600px) {
   .hero__cta { width: 100%; }
   .hero__cta .btn { flex: 1 1 auto; }
-  .hero__hud { gap: 10px; font-size: 11px; }
 }
 /* телефон боком: всё плотнее */
 @media (orientation: landscape) and (max-height: 540px) {
@@ -81,8 +78,9 @@ html.js .hero:not(.is-bound) .hero__say, html.js .hero:not(.is-bound) .hero__end
   .hero__end { gap: 10px; }
   .hero__sub { font-size: 14px; line-height: 1.35; }
   .hero .btn { min-height: 42px; }
-  .hero__hud { font-size: 11px; }
 }
+/* шапка и точки перекрашиваются вместе с палитрой первого экрана */
+html.stage-on .site-header, html.stage-on .dots { transition: color .45s var(--ease-out); }
 
 /* Размерные линии (первый экран и блок процесса) */
 .dim { position: absolute; z-index: 2; pointer-events: none; font: 500 11px/1 var(--font-mono); color: var(--fg); }

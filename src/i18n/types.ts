@@ -15,7 +15,8 @@ export interface Dict {
    */
   hero: {
     name: string; nick: string; h1: string;
-    ask: { lines: string[]; shape: 'browser' | 'dashboard' | 'phone' | 'plane' | 'knot' | 'wheel' }[];
+    /** вопросы воронки: строки (~ приглушает строку, *…* выделяет) и слово, которое встаёт объёмными буквами */
+    ask: { lines: string[]; word: string }[];
     doubt: string[]; answer: string[]; sub: string; skip: string;
     ctaContact: string; ctaWorks: string;
   };
