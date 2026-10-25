@@ -336,6 +336,47 @@ export function init(root: HTMLElement) {
   form.querySelectorAll<HTMLInputElement>('.reply__line input').forEach((inp) => inp.addEventListener('input', () => clearErr(inp, inp.value.trim().length > 0)));
   consentBox?.addEventListener('change', () => clearErr(consentBox, consentBox.checked));
 
+  // черта под полем: одна линия на каждое поле. При фокусе (и при ошибке) она сама изгибается волной,
+  // волна бежит слева направо; при уходе линия выпрямляется справа налево. Так у имени, контакта и письма.
+  form.querySelectorAll<SVGSVGElement>('.field__line').forEach((svg) => {
+    const host = svg.parentElement!;
+    const path = svg.querySelector('path')!;
+    const field = host.querySelector<HTMLElement>('input, textarea');
+    if (!field) return;
+    const st = { p: 0 };
+    let w = 0, tw: gsap.core.Tween | null = null, on = false;
+    const RAMP = 90, AMP = 2.2, WAVE = 22, MID = 5;
+    const draw = () => {
+      if (!w) return;
+      const front = st.p * (w + RAMP);
+      let d = `M0 ${MID}`;
+      for (let x = 3; x <= w + 2.9; x += 3) {
+        const xx = Math.min(x, w);
+        const k = Math.min(1, Math.max(0, (front - xx) / RAMP)), e = k * k * (3 - 2 * k);
+        d += ` L${xx.toFixed(1)} ${(MID + Math.sin((xx / WAVE) * Math.PI * 2) * AMP * e).toFixed(2)}`;
+      }
+      path.setAttribute('d', d);
+    };
+    new ResizeObserver(() => {
+      const nw = Math.round(host.clientWidth);
+      if (!nw || nw === w) return;
+      w = nw; svg.setAttribute('viewBox', `0 0 ${w} 10`); draw();
+    }).observe(host);
+    const sync = () => {
+      const bad = field.getAttribute('aria-invalid') === 'true';
+      const want = host.contains(document.activeElement) || bad;
+      svg.classList.toggle('is-on', want && !bad);
+      svg.classList.toggle('is-bad', bad);
+      if (want === on) return;
+      on = want;
+      tw?.kill();
+      tw = gsap.to(st, { p: on ? 1 : 0, duration: on ? 0.75 : 0.5, ease: on ? 'power2.out' : 'power2.inOut', onUpdate: draw });
+    };
+    host.addEventListener('focusin', sync);
+    host.addEventListener('focusout', () => requestAnimationFrame(sync));
+    new MutationObserver(sync).observe(field, { attributes: true, attributeFilter: ['aria-invalid'] });
+  });
+
   new MutationObserver(() => {
     const kind = status.dataset.kind;
     if (kind === 'ok' && root.classList.contains('is-on') && !sending) sendOff();

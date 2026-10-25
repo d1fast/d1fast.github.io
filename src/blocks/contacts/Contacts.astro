@@ -30,9 +30,10 @@ const planeLow = 'M18 0 L-7 1 L-12 12 Z';
 const planeKeel = 'M18 0 L-7 1';
 // облака: плоское дно и шапка из нескольких горбов
 const cloudA = 'M8 58 C6 47 16 40 27 44 C29 29 47 22 58 32 C64 20 86 21 90 37 C103 34 114 45 110 58 Z';
-// волнистая черта под полем при фокусе и галочка: ровная, чуть выгнутая, внутри квадрата
-const wave = 'M0 4 ' + 'q6 -2.6 12 0 t12 0 '.repeat(12).trim() + ' t12 0';
-const tick = 'M6.6 12.4 L10.3 16.1 L17.6 8.2';
+// галочка внутри квадрата: квадрат и отметка в одном SVG, при любом масштабе экрана отметка стоит ровно по центру
+const tick = 'M6.6 12.5 L10.4 16.3 L17.5 8.3';
+// черта под полем: прямая до фокуса; волной её делает contacts.ts, без скрипта остаётся прямой
+const line = 'M0 5 H300';
 const kinds = {
   tg: { type: 'text', mode: 'text', auto: 'off' },
   email: { type: 'email', mode: 'email', auto: 'email' },
@@ -94,7 +95,7 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         <div class="field">
           <label class="field__label" for="cf-name">{d.contacts.nameLabel}</label>
           <input class="field__input" id="cf-name" name="name" type="text" autocomplete="name" maxlength="120" placeholder={d.contacts.namePlaceholder} />
-          <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d={wave} /></svg>
+          <svg class="field__line" viewBox="0 0 300 10" preserveAspectRatio="none" aria-hidden="true"><path d={line} /></svg>
         </div>
         <!-- куда ответить: отмеченный способ открывает строку для своего контакта -->
         <div class="field reply" role="radiogroup" aria-labelledby="cf-reply" data-reply data-keys>
@@ -103,7 +104,7 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
             {d.contacts.via.map((v, i) => (
               <label class="check">
                 <input class="check__box" type="radio" name="via" value={v.id} checked={i === 0} aria-controls={`cf-${v.id}`} />
-                <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d={tick} /></svg></span>
+                <svg class="check__mark" viewBox="0 0 24 24" aria-hidden="true"><rect class="check__frame" x="1" y="1" width="22" height="22" rx="4.5" /><path class="check__tick" d={tick} /></svg>
                 <span class="check__text">{v.label}</span>
               </label>
             ))}
@@ -112,13 +113,14 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
             <div class="reply__line" class:list={[{ 'has-prefix': !!v.prefix }]} data-via={v.id} hidden={i !== 0}>
               {v.prefix && <span class="reply__prefix" aria-hidden="true">{v.prefix}</span>}
               <input class="field__input" id={`cf-${v.id}`} name={`c_${v.id}`} data-prefix={v.prefix} type={kinds[v.id].type} inputmode={kinds[v.id].mode} autocomplete={kinds[v.id].auto} maxlength="160" placeholder={v.placeholder} aria-label={v.label} />
-              <svg class="field__ink" viewBox="0 0 300 8" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d={wave} /></svg>
+              <svg class="field__line" viewBox="0 0 300 10" preserveAspectRatio="none" aria-hidden="true"><path d={line} /></svg>
             </div>
           ))}
         </div>
         <div class="field">
           <label class="field__label" for="cf-message">{d.contacts.messageLabel}</label>
           <textarea class="field__input field__textarea" id="cf-message" name="message" rows="3" maxlength="2000" required placeholder={d.contacts.messagePlaceholder}></textarea>
+          <svg class="field__line" viewBox="0 0 300 10" preserveAspectRatio="none" aria-hidden="true"><path d={line} /></svg>
         </div>
         <div class="field field--hp" aria-hidden="true">
           <label for="cf-website">Website</label>
@@ -126,7 +128,7 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         </div>
         <label class="check consent">
           <input class="check__box" type="checkbox" name="consent" required />
-          <span class="check__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d={tick} /></svg></span>
+          <svg class="check__mark" viewBox="0 0 24 24" aria-hidden="true"><rect class="check__frame" x="1" y="1" width="22" height="22" rx="4.5" /><path class="check__tick" d={tick} /></svg>
           <span class="check__text">{d.contacts.consent} <a href={policyHref}>{d.contacts.consentLink}</a></span>
         </label>
         <div class="contact-form__actions">
@@ -134,12 +136,12 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         </div>
         <p class="contact-form__status" id="cf-status" data-form-status role="status" aria-live="polite"></p>
       </form>
-      <!-- клапан конверта и сгибы: видны, пока письмо не раскрылось -->
+      <!-- клапан конверта и нижний клапан: верхний заходит на нижний, печать стоит на нахлёсте и держит оба -->
       <div class="contacts__flap" aria-hidden="true" data-flap>
         <svg viewBox="0 0 100 40" preserveAspectRatio="none"><path class="contacts__flap-back" d="M0 0 H100 L50 40 Z" /><path class="contacts__flap-edge" d="M0 0 L50 40 L100 0" /></svg>
         <span class="contacts__seal"></span>
       </div>
-      <svg class="contacts__folds" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-folds><path d="M0 100 L50 52 L100 100" /></svg>
+      <svg class="contacts__folds" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-folds><path d="M0 100 L50 42 L100 100" /></svg>
       <!-- письмо при отправке складывается в самолётик и улетает -->
       <svg class="contacts__send" aria-hidden="true" data-send>
         <defs>
