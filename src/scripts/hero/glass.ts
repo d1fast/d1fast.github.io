@@ -1,8 +1,6 @@
 import {
-  WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshPhysicalMaterial, PMREMGenerator, ShaderMaterial, PlaneGeometry,
-  TextureLoader, ACESFilmicToneMapping, SRGBColorSpace, NoColorSpace, DirectionalLight, BufferGeometry, FrontSide, BackSide, DoubleSide, Vector2, Vector4,
-  SphereGeometry,
-  type WebGLProgramParametersWithUniforms, type Texture,
+  WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, ShaderMaterial, PlaneGeometry, BufferGeometry, Float32BufferAttribute,
+  Vector2, Vector3, FrontSide,
 } from 'three';
 import { gsap } from 'gsap';
 import { Font, type FontData } from 'three/addons/loaders/FontLoader.js';
@@ -11,59 +9,83 @@ import { mergeGeometries, toCreasedNormals } from 'three/addons/utils/BufferGeom
 import typeface from './unbounded.json';
 
 /**
- * Стекло первого экрана. Фразы набраны объёмными буквами Unbounded и лежат на невидимом вертикальном цилиндре:
- * каждая строка изогнута по его поверхности (изгиб считает вершинный шейдер, поэтому геометрия строится один раз
- * и не перестраивается при смене размера окна). Фраза поворачивается вокруг оси цилиндра: въезжает справа из-за
- * его края, встаёт лицом к зрителю и уезжает влево; у краёв цилиндра буквы мягко гаснут.
- * Материал: физическое стекло (преломление, лак, отражения студии), только чёрное, белое и серое.
- * Позади букв фон-шейдер: глубокий графит, две мягкие полосы света (их видно сквозь стекло изогнутыми)
- * и фото, которое проявляется, как отпечаток в проявителе.
- * Координаты: ось цилиндра = мировая ось Y, камера на +Z смотрит на переднюю образующую.
+ * Стекло первого экрана. Фразы набраны объёмными буквами Unbounded; посреди экрана светится тонкое кольцо,
+ * по нему бежит искра и дорисовывает его, пока идёт рассказ. Кольцо держит взгляд: фразы прилетают к нему
+ * с разных сторон, у кольца тормозят, стоят и быстро улетают дальше.
+ * Форма фразы считается в вершинном шейдере, геометрия строится один раз: фраза тянется вслед за движением
+ * (буквы позади ведущего края отстают, сами буквы вытягиваются, хвост чуть провисает) и выгибается
+ * тем сильнее, чем быстрее летит; на месте она почти ровная и только слегка выпуклая.
+ * Стекло своё, без отдельного прохода преломления: фон (графит, кольцо, искра) задан формулой, и буква
+ * берёт его в точке, куда её грань отклоняет луч. Отражения из той же формулы студии. Поэтому стекло не рябит:
+ * нет картинки в половинном размере, нет зерна, которое меняется каждый кадр, блики мягкие.
+ * Координаты: 1 единица = 1 css-пиксель на плоскости z = 0, начало в центре кольца, y вверх, z к зрителю.
  */
 
 export interface BeatState {
-  /** поворот фразы вокруг оси цилиндра, радианы: > 0 справа (въезжает), < 0 слева (уехала) */
-  rot: number;
-  /** подлёт к зрителю: доля радиуса, на которую фраза ближе поверхности цилиндра */
-  push: number;
-  /** общая видимость 0…1 */
+  /** середина фразы относительно центра кольца, px: x вправо, y вверх, z к зрителю */
+  x: number; y: number; z: number;
+  /** видимость 0…1 */
   on: number;
+  /** буквы по очереди уходят вглубь: последняя дальше первой на столько px (въезд из глубины) */
+  deep: number;
+  /** поворот букв вокруг своей вертикали, рад: последние повёрнуты сильнее */
+  twist: number;
+  /** наклон фразы в плоскости экрана, рад */
+  roll: number;
+  /** сколько растяжения и изгиба от скорости: 1 обычно, 0 без них */
+  flex: number;
+  /** блик наискось по фразе: от -1,6 (ещё слева) до 1,6 (ушёл вправо) */
+  sheen: number;
 }
-export interface Backdrop { photo: number; light: number; fade: number }
+export interface RingState {
+  /** нарисованная часть кольца: доля окружности от верха по часовой */
+  draw: number;
+  /** где искра, доля окружности; больше 1: следующий круг */
+  head: number;
+  /** яркость искры и хвоста за ней */
+  spark: number;
+  /** яркость нарисованной части */
+  glow: number;
+  /** волна от замыкания кольца 0…1 */
+  pulse: number;
+}
+export interface Backdrop { light: number; fade: number }
 export interface Glass {
   readonly beat: BeatState[];
+  readonly ring: RingState;
   readonly bd: Backdrop;
-  /** вертикальный центр текста в px от верха холста; фото стоит в своём месте */
-  readonly view: { cy: number };
-  /** раскладка: где стоит последняя фраза (место заголовка) и куда встаёт фото */
+  /** размер холста, px */
+  readonly size: { w: number; h: number };
+  /** раскладка: середина кольца и место заголовка (последняя фраза встаёт в него) */
   layout(final: { cx: number; cy: number; w: number; h: number }): void;
-  /** где по высоте стоит фраза k (доля высоты холста) */
-  slotY(k: number): number;
-  /** полуширина фразы k на цилиндре, радианы: на сколько её повернуть, чтобы она целиком ушла за край */
-  span(k: number): number;
+  /** полуширина и полувысота фразы k, px */
+  half(k: number): { w: number; h: number };
   start(): void;
   stop(): void;
+  /** указатель над первым экраном: x, y от -1 до 1 */
   pointer(x: number, y: number, on: boolean): void;
+  /** рассказ закончился: искра сама обходит кольцо, на компьютере тянется к курсору */
+  idle(on: boolean): void;
   /** один кадр сразу: прогрев шейдеров и геометрии, пока экран чёрный */
   warm(): void;
   dispose(): void;
 }
 
-interface Opts { canvas: HTMLCanvasElement; beats: string[][]; photo: string; calm: boolean; coarse: boolean }
+interface Opts { canvas: HTMLCanvasElement; beats: string[][]; calm: boolean; coarse: boolean }
+type Glyph = { ha: number; x_min: number; x_max: number };
 
 const font = new Font(typeface as unknown as FontData);
+const GLYPHS = typeface.glyphs as unknown as Record<string, Glyph>;
 const EM = typeface.resolution;
 const CAP = typeface.capHeight / EM;
-const LH = 1.12; // межстрочный интервал в кеглях
-const DEPTH = 0.26; // толщина букв в кеглях
-const K = 1.55; // расстояние камеры до передней образующей, в радиусах цилиндра
-const R = 10; // радиус цилиндра, мировые единицы
-const EDGE = 1.2, SOFT = 0.62; // где буквы гаснут у края цилиндра: угол от передней образующей, радианы
+const LH = 1.1; // межстрочный интервал в кеглях
+const DEPTH = 0.3; // толщина букв в кеглях
+const TRACK = -0.02; // трекинг, кегли: Unbounded широкий, чуть плотнее читается крупнее
+const FILL = 1.4; // на узком экране строки фразы выравниваются по ширине самой длинной, но не крупнее в 1,4 раза
+const adv = (ch: string) => (GLYPHS[ch]?.ha ?? 0) / EM + TRACK;
+const widthEm = (s: string) => [...s].reduce((w, ch) => w + adv(ch), 0) - TRACK;
 
-/** ширина строки в кеглях по шагам знаков (так раскладывает TextGeometry) */
-const widthEm = (s: string) => [...s].reduce((w, ch) => w + ((typeface.glyphs as Record<string, { ha: number }>)[ch]?.ha ?? 0) / EM, 0);
-
-/* ---------- геометрия: знак строится один раз, строки собираются из копий ---------- */
+/* ---------- геометрия: знак строится один раз, фразы собираются из копий ---------- */
 const glyphCache = new Map<string, BufferGeometry | null>();
 function glyph(ch: string, q: { curve: number; bevel: number }): BufferGeometry | null {
   if (glyphCache.has(ch)) return glyphCache.get(ch)!;
@@ -71,20 +93,19 @@ function glyph(ch: string, q: { curve: number; bevel: number }): BufferGeometry 
   if (ch.trim()) {
     const t = new TextGeometry(ch, {
       font, size: 1, depth: DEPTH, curveSegments: q.curve,
-      bevelEnabled: true, bevelThickness: 0.045, bevelSize: 0.028, bevelOffset: 0, bevelSegments: q.bevel,
+      bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.03, bevelOffset: 0, bevelSegments: q.bevel,
     });
     t.deleteAttribute('uv');
     // гладкие фаски, острые рёбра между лицом буквы и боковиной без фаски не размываются
     g = toCreasedNormals(t, 0.75);
     t.dispose();
-    // лицо буквы плоское: у треугольников, которые целиком лежат в плоскости лица (и тыла), нормаль строго
-    // вперёд (назад). По положению, а не по нормали: у тонких треугольников-щепок нормаль неустойчива и давала полосы
+    // лицо буквы плоское: треугольники, которые целиком лежат в плоскости лица (и тыла), смотрят строго вперёд (назад)
     const P = g.getAttribute('position'), Nn = g.getAttribute('normal');
     let z0 = Infinity, z1 = -Infinity;
     for (let i = 0; i < P.count; i++) { const z = P.getZ(i); if (z < z0) z0 = z; if (z > z1) z1 = z; }
     for (let i = 0; i < P.count; i += 3) {
       const a = P.getZ(i), b = P.getZ(i + 1), c = P.getZ(i + 2);
-      const side = Math.max(a, b, c) - z1 > -1e-4 && Math.min(a, b, c) - z1 > -1e-4 ? 1 : Math.min(a, b, c) - z0 < 1e-4 && Math.max(a, b, c) - z0 < 1e-4 ? -1 : 0;
+      const side = Math.min(a, b, c) - z1 > -1e-4 ? 1 : Math.max(a, b, c) - z0 < 1e-4 ? -1 : 0;
       if (side) for (let j = 0; j < 3; j++) Nn.setXYZ(i + j, 0, 0, side);
     }
     g.translate(0, 0, -DEPTH / 2);
@@ -92,324 +113,415 @@ function glyph(ch: string, q: { curve: number; bevel: number }): BufferGeometry 
   glyphCache.set(ch, g);
   return g;
 }
-/** фраза: строки по центру, блок по центру высоты прописных; x = длина дуги, y вверх, z от оси наружу */
-function phrase(lines: string[], q: { curve: number; bevel: number }): BufferGeometry {
+/** Фраза: строки по центру, блок по центру между верхом прописных первой строки и базовой линией последней.
+ *  У каждой вершины aG: порядок буквы во фразе (0…1) и середина её буквы, кегли. */
+function phrase(lines: string[], q: { curve: number; bevel: number }, fill: boolean) {
+  const ws = lines.map(widthEm);
+  const widest = Math.max(...ws);
+  const sc = ws.map((w) => (fill ? Math.min(FILL, widest / w) : 1));
+  const base: number[] = [];
+  let y = -CAP * sc[0];
+  base.push(y);
+  for (let i = 1; i < lines.length; i++) { y -= ((LH - CAP) * (sc[i - 1] + sc[i])) / 2 + CAP * sc[i]; base.push(y); }
+  const lift = -y / 2;
+  const total = lines.reduce((n, l) => n + [...l].filter((ch) => ch.trim()).length, 0);
   const parts: BufferGeometry[] = [];
-  const n = lines.length;
+  let idx = 0;
   lines.forEach((line, i) => {
-    const w = widthEm(line);
-    let x = -w / 2;
-    const y = ((n - 1) / 2 - i) * LH - CAP / 2;
+    const s = sc[i];
+    let x = (-ws[i] * s) / 2;
     for (const ch of line) {
       const g = glyph(ch, q);
-      if (g) { const c = g.clone(); c.translate(x, y, 0); parts.push(c); }
-      x += ((typeface.glyphs as Record<string, { ha: number }>)[ch]?.ha ?? 0) / EM;
+      if (g) {
+        const c = g.clone();
+        c.scale(s, s, 1);
+        c.translate(x, base[i] + lift, 0);
+        const gl = GLYPHS[ch];
+        const cx = x + (((gl?.x_min ?? 0) + (gl?.x_max ?? 0)) / 2 / EM) * s, cy = base[i] + lift + (CAP * s) / 2;
+        const order = total > 1 ? idx / (total - 1) : 0.5;
+        const a = new Float32Array(c.getAttribute('position').count * 3);
+        for (let k = 0; k < a.length; k += 3) { a[k] = order; a[k + 1] = cx; a[k + 2] = cy; }
+        c.setAttribute('aG', new Float32BufferAttribute(a, 3));
+        parts.push(c);
+        idx++;
+      }
+      x += adv(ch) * s;
     }
   });
-  const out = parts.length ? mergeGeometries(parts) : new BufferGeometry();
+  const geo = parts.length ? mergeGeometries(parts) : new BufferGeometry();
   parts.forEach((p) => p.dispose());
-  return out;
+  return { geo, w: Math.max(...ws.map((w, i) => w * sc[i])), h: -y };
 }
 
 /* ---------- шейдеры ---------- */
-// изгиб по цилиндру и затухание у его краёв поверх физического материала three.js
-function bend(shader: WebGLProgramParametersWithUniforms, u: { uSize: { value: number }; uR: { value: number }; uOn: { value: number } }) {
-  Object.assign(shader.uniforms, u, { uEdge: { value: EDGE }, uSoft: { value: SOFT }, uRim: { value: 0.9 } });
-  shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', '#include <common>\nuniform float uSize;\nuniform float uR;\nvarying vec3 vBendW;')
-    .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
-      float bPhi = position.x * uSize / uR;
-      float bC = cos(bPhi), bS = sin(bPhi);
-      objectNormal = vec3(objectNormal.x * bC + objectNormal.z * bS, objectNormal.y, -objectNormal.x * bS + objectNormal.z * bC);`)
-    .replace('#include <begin_vertex>', `vec3 transformed = position * uSize;
-      float bRad = uR + transformed.z;
-      transformed = vec3(bRad * bS, transformed.y, bRad * bC);`)
-    .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvBendW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-  shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\nuniform float uEdge;\nuniform float uSoft;\nuniform float uOn;\nuniform float uRim;\nvarying vec3 vBendW;')
-    .replace('#include <opaque_fragment>', `// кромка стекла светится под скользящим углом: буквы читаются на тёмном
-      float bRim = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0);
-      outgoingLight += vec3(uRim) * bRim;
-      #include <opaque_fragment>
-      gl_FragColor.a *= uOn * smoothstep(uEdge, uEdge - uSoft, abs(atan(vBendW.x, vBendW.z)));`);
-}
-
-const BG_VERT = /* glsl */ `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-const BG_FRAG = /* glsl */ `
-uniform vec2 uRes; uniform float uTime; uniform sampler2D uPhoto; uniform float uHas; uniform float uDev; uniform vec4 uRect;
-uniform float uLight; uniform float uFade; uniform float uBand; varying vec2 vUv;
-float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-void main() {
-  vec2 px = vec2(vUv.x * uRes.x, (1.0 - vUv.y) * uRes.y);
-  vec2 c = (px - 0.5 * uRes) / uRes.y;
-  float asp = uRes.x / uRes.y;
-  // графит, за текстом мягкий свет студии (значения в яркостях экрана, в линейные переводятся в конце).
-  // На экране стоя всё уже: полосы у краёв и тоньше, иначе светлый фон съедает буквы
-  float por = step(asp, 0.9);
-  float r = length(c * vec2(mix(0.75, 2.2, por), 1.0));
-  vec3 col = vec3(0.027) + vec3(0.075) * exp(-r * r * 3.0) * uLight;
-  // две вертикальные полосы света позади букв: сквозь стекло они видны изогнутыми
-  float sx = mix(min(0.36 * asp, 0.62), 0.5 * asp - 0.035, por);
-  float w1 = mix(0.05, 0.02, por), w2 = mix(0.075, 0.026, por), si = mix(1.0, 0.6, por);
-  float s1 = exp(-pow((c.x + sx + 0.035 * sin(uTime * 0.23) * (1.0 - por)) / w1, 2.0)) * smoothstep(0.62, 0.05, abs(c.y + 0.02));
-  float s2 = exp(-pow((c.x - sx * mix(0.9, 1.0, por) + 0.04 * sin(uTime * 0.19 + 1.7) * (1.0 - por)) / w2, 2.0)) * smoothstep(0.66, 0.0, abs(c.y - 0.03));
-  col += (vec3(0.30) * s1 + vec3(0.2) * s2) * uLight * si;
-  // мягкая светлая полоса за строками: сквозь стекло она видна преломлённой, буквы читаются
-  float by = (px.y - uBand) / uRes.y;
-  col += vec3(mix(0.2, 0.12, por)) * exp(-by * by * 30.0) * smoothstep(0.95 * asp, 0.1, abs(c.x)) * uLight;
-  // фото проявляется, как отпечаток: сначала светлые места и мягко, потом полутона и резче
-  if (uHas > 0.5 && uDev > 0.002) {
-    vec2 pu = (px - uRect.xy) / uRect.zw;
-    if (pu.x > 0.0 && pu.x < 1.0 && pu.y > 0.0 && pu.y < 1.0) {
-      // фото в sRGB как есть (без перевода в линейные): яркости как на снимке
-      float L = texture2D(uPhoto, vec2(pu.x, 1.0 - pu.y), (1.0 - uDev) * 3.5).r;
-      float th = 1.05 - 1.25 * uDev;
-      float v = L * smoothstep(th, th + 0.45, L);
-      float m = smoothstep(0.0, 0.26, pu.x) * smoothstep(1.0, 0.74, pu.x) * smoothstep(0.0, 0.1, pu.y) * smoothstep(1.0, 0.7, pu.y);
-      col = mix(col, vec3(v) * 0.78, m * smoothstep(0.0, 0.35, uDev));
-    }
-  }
-  // плёночное зерно и виньетка по углам
-  col += (hash(px * 0.73 + fract(uTime * 7.13) * 97.0) - 0.5) * 0.03;
-  col *= mix(1.0, smoothstep(1.35, 0.25, length(c * vec2(0.9, 1.1))), 0.6);
+// фон, общий для подложки и для стекла: стекло берёт его в точке, куда отклонился луч
+const SCENE = /* glsl */ `
+uniform vec2 uRes; uniform float uDpr; uniform vec3 uRing;
+uniform float uLight; uniform float uFade; uniform float uDraw; uniform float uHead; uniform float uSpark; uniform float uGlow; uniform float uPulse;
+float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+// px: css-пиксели от левого верхнего угла; soft: 1 для взгляда сквозь стекло, линия кольца мягче
+vec3 scene(vec2 px, float soft) {
+  float H = uRes.y;
+  // графит: к середине чуть светлее, по краям темнее
+  vec2 cv = (px - 0.5 * uRes) / H;
+  vec3 col = vec3(0.028 + 0.022 * exp(-dot(cv, cv) * 2.4) * uLight);
+  vec2 d = px - uRing.xy;
+  float r = length(d), R = uRing.z;
+  // внутри кольца мягкий свет: стеклу есть что преломлять
+  col += vec3(0.035) * exp(-(r * r) / (R * R) * 1.6) * uLight;
+  float f = fract(atan(d.x, -d.y) / 6.2831853 + 1.0); // 0 сверху, по часовой
+  float dr = r - R;
+  // края нарисованной дуги и хвоста мягкие, и чем дальше от линии, тем мягче: ореол не режется клином
+  float ea = (2.5 + abs(dr) * 0.9) / (6.2831853 * max(r, 1.0));
+  float fs = f > 0.5 + 0.5 * uDraw ? f - 1.0 : f;
+  float drawn = uDraw >= 0.999 ? 1.0 : smoothstep(-ea, ea, fs) * smoothstep(-ea, ea, uDraw - fs) * step(0.0004, uDraw);
+  float hd = fract(uHead - f + 0.5) - 0.5; // > 0 позади искры, < 0 впереди
+  float tail = hd >= 0.0 ? exp(-hd * 7.0) : exp(hd / ea);
+  float w = 0.75 + soft * 2.2;
+  float core = exp(-(dr * dr) / (w * w));
+  float halo = exp(-abs(dr) / (R * (dr > 0.0 ? 0.11 : 0.05)));
+  float lit = drawn * (uGlow * (0.75 + 0.25 * tail) + 1.3 * uSpark * tail);
+  // бледный след всего кольца: глаз видит круг ещё до того, как он нарисован
+  float ring = (core * 0.9 + halo * 0.3) * lit + (core * 0.06 + halo * 0.02);
+  // искра: яркая точка, ореол и тонкий горизонтальный луч, как блик в объективе
+  float ha = uHead * 6.2831853;
+  vec2 ds = px - (uRing.xy + R * vec2(sin(ha), -cos(ha)));
+  float sd = length(ds);
+  float spark = uSpark * (exp(-(sd * sd) / (R * R * 0.0007 + 3.0)) * 1.4 + exp(-sd / (R * 0.075)) * 0.45
+    + exp(-abs(ds.y) / (1.3 + soft) - abs(ds.x) / (R * 0.85)) * 0.3);
+  // волна от замыкания кольца
+  float pr = R * (1.0 + 0.85 * uPulse), pw = 2.0 + 34.0 * uPulse;
+  float pulse = step(0.001, uPulse) * (1.0 - uPulse) * (1.0 - uPulse) * exp(-((r - pr) * (r - pr)) / (pw * pw));
+  col += vec3(ring + spark + pulse * 0.7) * uLight;
+  // виньетка
+  vec2 v = (px / uRes - 0.5) * 2.0;
+  col *= 1.0 - 0.32 * smoothstep(0.7, 1.7, length(v * vec2(0.85, 1.0)));
+  // неподвижный шум в долю ступени яркости: убирает полосы в тёмных переходах и не мерцает
+  col += (hash12(floor(px * uDpr)) - 0.5) / 255.0;
   // пока фон не проявился, он того же цвета, что страница (#070707)
-  col = mix(vec3(0.027), max(col, 0.0), uFade);
-  // в линейные яркости точно по sRGB: у самого чёрного там прямой участок, степень его бы утопила
-  gl_FragColor = vec4(mix(col / 12.92, pow((col + 0.055) / 1.055, vec3(2.4)), step(0.04045, col)), 1.0);
-  #include <colorspace_fragment>
+  return mix(vec3(0.027), col, uFade);
 }`;
 
-/** Студия для отражений: тёмный пол, светлеющий к верху свод и несколько мягких софтбоксов. Без резких рёбер,
- *  поэтому на гранях букв только плавные блики (стандартная «комната» three.js давала на лицах букв линии коробок). */
-function studio() {
-  const room = new Scene();
-  const dome = new Mesh(new SphereGeometry(40, 32, 16), new ShaderMaterial({
-    side: BackSide, depthWrite: false,
-    vertexShader: 'varying vec3 vP; void main() { vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'varying vec3 vP; void main() { float y = vP.y; vec3 c = mix(vec3(0.012), vec3(0.09), smoothstep(-0.35, 0.9, y)); gl_FragColor = vec4(c, 1.0); }',
-  }));
-  room.add(dome);
-  // софтбокс: прямоугольник света с мягкими краями
-  const box = (w: number, h: number, power: number, x: number, y: number, z: number) => {
-    const m = new Mesh(new PlaneGeometry(w, h), new ShaderMaterial({
-      side: DoubleSide, uniforms: { uP: { value: power } },
-      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform float uP; varying vec2 vUv; void main() { vec2 d = abs(vUv - 0.5) * 2.0; float e = (1.0 - smoothstep(0.55, 1.0, d.x)) * (1.0 - smoothstep(0.55, 1.0, d.y)); gl_FragColor = vec4(vec3(uP * e), 1.0); }',
-    }));
-    m.position.set(x, y, z);
-    m.lookAt(0, 0, 0);
-    room.add(m);
-  };
-  box(14, 5, 3.2, -6, 9, 6); // сверху слева спереди: главный блик на верхних гранях
-  box(3, 14, 2.2, 11, 1, 2); // справа узкая полоса: светлые кромки
-  box(3, 12, 1.4, -11, -1, -1); // слева, слабее
-  box(18, 7, 0.45, 0, 1, 16); // за камерой: лица букв чуть светятся
-  return room;
+const BG_VERT = /* glsl */ `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const BG_FRAG = /* glsl */ `${SCENE}
+varying vec2 vUv;
+void main() { gl_FragColor = vec4(scene(vec2(vUv.x, 1.0 - vUv.y) * uRes, 0.0), 1.0); }`;
+
+const GL_VERT = /* glsl */ `
+attribute vec3 aG;
+uniform float uSize; uniform vec3 uPos; uniform vec2 uDir; uniform float uK; uniform float uExt; uniform vec2 uWhip;
+uniform vec2 uBend; uniform vec2 uBC; uniform float uArch; uniform float uDeep; uniform float uTwist; uniform float uRoll;
+uniform vec2 uBlock;
+varying vec3 vW; varying vec3 vN; varying vec2 vB; varying vec2 vL;
+vec3 rotY(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z); }
+vec3 rotX(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(v.x, c * v.y - s * v.z, s * v.y + c * v.z); }
+void main() {
+  vec3 n = normal;
+  // место точки во фразе: -1…1 по ширине и высоте блока строк (для перелива и блика)
+  vB = position.xy / uBlock;
+  vec2 c = aG.yz * uSize;
+  vec3 d = position * uSize - vec3(c, 0.0);
+  // точка относительно середины своей буквы, px: буква работает как линза
+  vL = d.xy;
+  // буква поворачивается вокруг своей вертикали
+  float tw = uTwist * (0.35 + 0.65 * aG.x);
+  d = rotY(d, tw); n = rotY(n, tw);
+  // растяжение по движению: ведущий край на месте, буквы позади отстают, сама буква вытягивается
+  float behind = max(0.0, uExt - dot(c, uDir));
+  float t = behind / max(1.0, 2.0 * uExt);
+  vec2 cc = c - uDir * behind * uK + uWhip * t * t;
+  float kS = sqrt(max(0.2, 1.0 + uK)) - 1.0;
+  d.xy += uDir * dot(d.xy, uDir) * kS;
+  n.xy -= uDir * dot(n.xy, uDir) * (kS / (1.0 + kS));
+  vec3 q = vec3(cc, -uDeep * aG.x) + d;
+  // дуга в плоскости экрана: концы строк отстают при движении вверх или вниз
+  float ax = q.x;
+  q.y -= uArch * ax * ax;
+  n = vec3(n.x + 2.0 * uArch * ax * n.y, n.y, n.z);
+  float cr = cos(uRoll), sr = sin(uRoll);
+  q.xy = vec2(cr * q.x - sr * q.y, sr * q.x + cr * q.y);
+  n.xy = vec2(cr * n.x - sr * n.y, sr * n.x + cr * n.y);
+  // изгиб вокруг вертикали и горизонтали через середину растянутой фразы (uBC): выпуклый, края уходят вглубь
+  if (abs(uBend.x) > 1e-7) {
+    float R = 1.0 / uBend.x, a = (q.x - uBC.x) * uBend.x, rr = R + q.z;
+    q = vec3(uBC.x + rr * sin(a), q.y, rr * cos(a) - R);
+    n = rotY(n, a);
+  }
+  if (abs(uBend.y) > 1e-7) {
+    float R = 1.0 / uBend.y, b = (q.y - uBC.y) * uBend.y, rr = R + q.z;
+    q = vec3(q.x, uBC.y + rr * sin(b), rr * cos(b) - R);
+    n = rotX(n, -b);
+  }
+  vec4 w = modelMatrix * vec4(q + uPos, 1.0);
+  vW = w.xyz;
+  vN = mat3(modelMatrix) * n;
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+const GL_FRAG = /* glsl */ `${SCENE}
+uniform float uOn; uniform vec2 uDev; uniform float uRefr; uniform float uSheen;
+varying vec3 vW; varying vec3 vN; varying vec2 vB; varying vec2 vL;
+// студия для отражений: тёмный пол, светлеющий свод, мягкие софтбоксы без резких краёв
+float box(vec3 d, vec3 c, float s) { return 1.0 - smoothstep(s * 0.45, s, acos(clamp(dot(d, normalize(c)), -1.0, 1.0))); }
+vec3 studio(vec3 d) {
+  float v = mix(0.012, 0.11, smoothstep(-0.45, 0.85, d.y));
+  v += box(d, vec3(-0.55, 0.75, 0.45), 0.55) * 1.7;
+  v += box(d, vec3(0.95, 0.05, 0.25), 0.3) * 1.1;
+  v += box(d, vec3(-0.9, -0.15, 0.2), 0.32) * 0.45;
+  v += box(d, vec3(0.0, 0.1, 1.0), 0.75) * 0.22;
+  return vec3(v);
 }
+void main() {
+  vec3 N = normalize(vN);
+  vec3 V = normalize(cameraPosition - vW);
+  float NdV = dot(N, V);
+  if (NdV < 0.0) { N = -N; NdV = -NdV; }
+  vec2 px = vec2(gl_FragCoord.x, uDev.y - gl_FragCoord.y) / uDpr;
+  // луч, отклонённый гранью: на лице буквы почти прямо, на фасках сильно
+  vec3 T = refract(-V, N, 0.69);
+  // толща буквы как у линзы: фон за ней виден чуть увеличенным к её середине
+  vec2 off = (T.xy + V.xy) * uRefr - vL * 0.22;
+  vec3 behind = scene(px + vec2(off.x, -off.y), 1.0);
+  float F = 0.04 + 0.96 * pow(1.0 - NdV, 5.0);
+  // тело стекла молочное: фон сквозь него виден приглушённым, само стекло светлое, буквы читаются и на чёрном;
+  // сверху вниз мягкий перелив, как у стекла под софтбоксом
+  float gy = clamp(vB.y, -1.0, 1.0) * 0.5 + 0.5;
+  vec3 body = behind * 0.55 + vec3(0.3 + 0.26 * gy + 0.05 * N.y);
+  vec3 col = mix(body, studio(reflect(-V, N)), clamp(0.12 + F * 1.6, 0.0, 1.0));
+  vec3 Hh = normalize(normalize(vec3(-0.45, 0.75, 0.6)) + V);
+  col += 0.65 * pow(max(dot(N, Hh), 0.0), 36.0);
+  col += 0.32 * pow(1.0 - NdV, 3.0);
+  // блик проходит по фразе наискось
+  float sh = vB.x * 0.8 + vB.y * 0.35 - uSheen;
+  col += vec3(0.42) * exp(-sh * sh * 28.0) * (0.55 + 0.45 * (1.0 - NdV));
+  gl_FragColor = vec4(col, uOn);
+}`;
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 export async function createGlass(o: Opts): Promise<Glass> {
   const t0 = performance.now();
   const { canvas, beats, calm, coarse } = o;
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setClearColor(0x070707, 1);
-  renderer.outputColorSpace = SRGBColorSpace;
-  renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
-  // преломление считается по картинке позади стекла в половинном размере: мягче и дешевле
-  renderer.transmissionResolutionScale = 0.5;
-  let dprCap = coarse ? 1.6 : 2;
+  // своё стекло дешёвое: плотность пикселей как у экрана (до 2), на слабом железе снижается сама
+  let dprCap = 2;
   const scene = new Scene();
-  const pmrem = new PMREMGenerator(renderer);
-  const room = studio();
-  scene.environment = pmrem.fromScene(room, 0.02).texture;
-  room.traverse((m) => { if (m instanceof Mesh) { m.geometry.dispose(); (m.material as ShaderMaterial).dispose(); } });
-  pmrem.dispose();
-  scene.environmentIntensity = 1.6;
-  // свет из студии сверху слева: блики на фасках
-  const key = new DirectionalLight(0xffffff, 3);
-  key.position.set(-4, 6, 8);
-  scene.add(key);
-  const camera = new PerspectiveCamera(30, 1, 0.5, 200);
+  const camera = new PerspectiveCamera(32, 1, 10, 20000);
 
-  /* ---------- фон ---------- */
-  const bdU = {
-    uRes: { value: new Vector2(1, 1) }, uTime: { value: 0 }, uPhoto: { value: null as Texture | null }, uHas: { value: 0 },
-    uDev: { value: 0 }, uRect: { value: new Vector4(0, 0, 1, 1) }, uLight: { value: 0 }, uFade: { value: 0 }, uBand: { value: 0 },
+  /* ---------- общие параметры фона ---------- */
+  const U = {
+    uRes: { value: new Vector2(1, 1) }, uDev: { value: new Vector2(1, 1) }, uDpr: { value: 1 },
+    uRing: { value: new Vector3(0, 0, 100) }, uLight: { value: 0 }, uFade: { value: 0 },
+    uDraw: { value: 0 }, uHead: { value: 0 }, uSpark: { value: 0 }, uGlow: { value: 0 }, uPulse: { value: 0 },
   };
-  const bg = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({ vertexShader: BG_VERT, fragmentShader: BG_FRAG, uniforms: bdU, depthWrite: false, depthTest: false }));
+  const bg = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({ vertexShader: BG_VERT, fragmentShader: BG_FRAG, uniforms: U, depthWrite: false, depthTest: false }));
   bg.frustumCulled = false;
   bg.renderOrder = -1;
   scene.add(bg);
-  new TextureLoader().load(o.photo, (t) => { t.colorSpace = NoColorSpace; t.anisotropy = 4; bdU.uPhoto.value = t; bdU.uHas.value = 1; });
 
   /* ---------- фразы ---------- */
-  const q = coarse ? { curve: 5, bevel: 3 } : { curve: 7, bevel: 4 };
+  const q = coarse ? { curve: 6, bevel: 3 } : { curve: 8, bevel: 4 };
   const drum = new Group();
   scene.add(drum);
-  const beat: BeatState[] = beats.map(() => ({ rot: 1.6, push: 0, on: 0 }));
-  type Item = { mesh: Mesh; mat: MeshPhysicalMaterial; u: { uSize: { value: number }; uR: { value: number }; uOn: { value: number } }; wide: string[]; narrow: string[]; geo: { wide?: BufferGeometry; narrow?: BufferGeometry } };
+  const beat: BeatState[] = beats.map(() => ({ x: 0, y: 0, z: 0, on: 0, deep: 0, twist: 0, roll: 0, flex: 1, sheen: -3 }));
+  type Uni = { uSize: { value: number }; uPos: { value: Vector3 }; uDir: { value: Vector2 }; uK: { value: number }; uExt: { value: number };
+    uWhip: { value: Vector2 }; uBend: { value: Vector2 }; uBC: { value: Vector2 }; uArch: { value: number }; uDeep: { value: number }; uTwist: { value: number };
+    uRoll: { value: number }; uOn: { value: number }; uRefr: { value: number }; uBlock: { value: Vector2 }; uSheen: { value: number } };
+  type Geo = { geo: BufferGeometry; w: number; h: number };
+  type Item = { mesh: Mesh; mat: ShaderMaterial; u: Uni; wide: string[]; narrow: string[]; geo: { wide?: Geo; narrow?: Geo }; hw: number; hh: number;
+    // скорость и пружина растяжения
+    m: { px: number; py: number; vx: number; vy: number; dx: number; dy: number; k: number; kv: number; init: boolean } };
   const items: Item[] = beats.map((lines) => {
-    const u = { uSize: { value: 1 }, uR: { value: R }, uOn: { value: 0 } };
-    const mat = new MeshPhysicalMaterial({
-      color: 0xffffff, metalness: 0, roughness: 0.05, transmission: 1, thickness: 0.5, ior: 1.5,
-      clearcoat: 1, clearcoatRoughness: 0.04, specularIntensity: 1, envMapIntensity: 1.6,
-      attenuationColor: 0xffffff, attenuationDistance: 3, transparent: true, side: FrontSide,
-    });
-    mat.onBeforeCompile = (s) => bend(s, u);
-    mat.customProgramCacheKey = () => 'hero-bend';
+    const u: Uni = {
+      uSize: { value: 1 }, uPos: { value: new Vector3() }, uDir: { value: new Vector2(-1, 0) }, uK: { value: 0 }, uExt: { value: 1 },
+      uWhip: { value: new Vector2() }, uBend: { value: new Vector2() }, uBC: { value: new Vector2() }, uArch: { value: 0 }, uDeep: { value: 0 }, uTwist: { value: 0 },
+      uRoll: { value: 0 }, uOn: { value: 0 }, uRefr: { value: 30 }, uBlock: { value: new Vector2(1, 1) }, uSheen: { value: -3 },
+    };
+    const mat = new ShaderMaterial({ vertexShader: GL_VERT, fragmentShader: GL_FRAG, uniforms: { ...U, ...u }, transparent: true, side: FrontSide });
     const mesh = new Mesh(new BufferGeometry(), mat);
     mesh.frustumCulled = false;
     mesh.visible = false;
     drum.add(mesh);
-    return { mesh, mat, u, wide: lines.map((l) => l.replace(/\|/g, ' ')), narrow: lines.flatMap((l) => l.split('|')), geo: {} };
+    return {
+      mesh, mat, u, wide: lines.map((l) => l.replace(/\|/g, ' ')), narrow: lines.flatMap((l) => l.split('|')), geo: {}, hw: 1, hh: 1,
+      m: { px: 0, py: 0, vx: 0, vy: 0, dx: -1, dy: 0, k: 0, kv: 0, init: false },
+    };
   });
 
   /* ---------- раскладка ---------- */
-  let W = 1, H = 1, narrow = false, f = 1000;
-  const view = { cy: 0.5 };
-  let cyPx = 0;
-  // где стоит фраза k по высоте (px): все по центру экрана, третья ниже лица на фото, последняя в месте заголовка
-  const slots: number[] = beats.map(() => 0);
-  const sizes: number[] = beats.map(() => 1);
-  const spans: number[] = beats.map(() => 0.3);
-  /** проекция: полуширина дуги и высота блока строк в px при кегле s */
-  const halfW = (wEm: number, s: number) => { const a = Math.min(1.45, (wEm * s) / 2 / R); return (f * Math.sin(a)) / (K + 1 - Math.cos(a)); };
-  const fit = (lines: string[], maxW: number, maxH: number, maxCap: number) => {
-    const wEm = Math.max(...lines.map(widthEm));
-    const hEm = CAP + (lines.length - 1) * LH;
-    let lo = 0.05, hi = 40;
-    for (let i = 0; i < 32; i++) {
-      const s = (lo + hi) / 2;
-      const ok = 2 * halfW(wEm, s) <= maxW && (f * hEm * s) / (K * R) <= maxH && (f * CAP * s) / (K * R) <= maxCap;
-      if (ok) lo = s; else hi = s;
-    }
-    return lo;
-  };
-  function useGeometry(it: Item) {
+  let W = 1, H = 1, narrow = false;
+  const size = { w: 1, h: 1 };
+  const ring: RingState = { draw: 0, head: 0, spark: 0, glow: 0, pulse: 0 };
+  const bd: Backdrop = { light: 0, fade: 0 };
+  function useGeometry(it: Item): Geo {
     const key = narrow ? 'narrow' : 'wide';
-    const geo = (it.geo[key] ??= phrase(narrow ? it.narrow : it.wide, q));
-    if (it.mesh.geometry !== geo) it.mesh.geometry = geo;
-    return narrow ? it.narrow : it.wide;
+    const g = (it.geo[key] ??= phrase(narrow ? it.narrow : it.wide, q, narrow));
+    if (it.mesh.geometry !== g.geo) it.mesh.geometry = g.geo;
+    return g;
   }
   function layout(fin: { cx: number; cy: number; w: number; h: number }) {
     const r = canvas.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
-    narrow = W < H * 0.9;
+    size.w = W; size.h = H;
+    // узкая раскладка (строки фразы переносятся и выравниваются по ширине): телефон стоя или узкое место заголовка
+    // (телефон боком: кольцо с заголовком слева, строка и кнопки справа)
+    const tall = W < H * 0.9;
+    narrow = tall || fin.w < fin.h * 1.7;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
     renderer.setSize(W, H, false);
-    // фокус подбирается так, что самая широкая строка занимает дугу ±A у передней образующей и 86 % ширины
-    const A = narrow ? 0.5 : 0.56;
-    f = (0.43 * W * (K + 1 - Math.cos(A))) / Math.sin(A);
-    camera.fov = (2 * Math.atan(H / 2 / f) * 180) / Math.PI;
+    const dpr = renderer.getPixelRatio();
+    U.uRes.value.set(W, H);
+    U.uDpr.value = dpr;
+    renderer.getDrawingBufferSize(U.uDev.value);
+    // камера: на плоскости z = 0 одна единица равна css-пикселю, центр перспективы в центре кольца
+    const f = H / 2 / Math.tan((camera.fov * Math.PI) / 360);
     camera.aspect = W / H;
-    camera.position.set(0, 0, R * (1 + K));
-    camera.lookAt(0, 0, R);
-    bdU.uRes.value.set(W, H);
-    // фото: на компьютере во всю высоту по центру, на телефоне сверху во всю ширину
-    const pa = 800 / 840;
-    if (narrow) { const w = W * 1.12, h = w / pa; bdU.uRect.value.set((W - w) / 2, H * 0.06, w, h); }
-    else { const h = H * 1.04, w = h * pa; bdU.uRect.value.set((W - w) / 2, -H * 0.02, w, h); }
-    const rect = bdU.uRect.value;
+    camera.position.set(0, 0, f);
+    camera.lookAt(0, 0, 0);
+    camera.near = Math.max(10, f * 0.05);
+    camera.far = f + 8000;
+    camera.setViewOffset(W, H, W / 2 - fin.cx, H / 2 - fin.cy, W, H);
+    camera.updateProjectionMatrix();
+    // кольцо: на телефоне почти во всю ширину места заголовка, на компьютере по его высоте (как у кольца без WebGL в CSS)
+    const R = narrow ? Math.min(fin.w * 0.47, fin.h * 0.5) : Math.min(fin.h * 0.52, H * 0.3, W * 0.2);
+    U.uRing.value.set(fin.cx, fin.cy, Math.max(40, R));
     items.forEach((it, k) => {
-      const lines = useGeometry(it);
+      const g = useGeometry(it);
       const last = k === items.length - 1;
-      const photoBeat = k === items.length - 2;
-      let maxW = W * 0.86, maxH = H * (narrow ? 0.42 : 0.5), maxCap = H * (narrow ? 0.085 : 0.2);
-      let cy = H / 2;
-      if (last) { maxW = Math.min(maxW, fin.w); maxH = Math.min(maxH, fin.h); cy = fin.cy; }
-      if (photoBeat) maxCap = H * (narrow ? 0.09 : 0.16);
-      sizes[k] = fit(lines, maxW, maxH, maxCap);
-      if (photoBeat) {
-        // строки встают под подбородком (на фото он примерно на 47 % высоты), но не ниже 80 % экрана
-        const blockH = (f * (CAP + (lines.length - 1) * LH) * sizes[k]) / (K * R);
-        cy = Math.min(H * 0.8, rect.y + rect.w / pa * 0.47 + blockH / 2 + H * 0.03);
-      }
-      slots[k] = cy;
-      spans[k] = (Math.max(...lines.map(widthEm)) * sizes[k]) / 2 / R;
-      it.u.uSize.value = sizes[k];
-      it.mat.thickness = DEPTH * sizes[k] * 2.4;
-      it.mat.attenuationDistance = sizes[k] * 4;
+      let maxW = W * (narrow ? 0.94 : 0.8), maxH = H * (tall ? 0.56 : narrow ? 0.7 : 0.5);
+      const maxCap = H * (tall ? 0.1 : narrow ? 0.15 : 0.13);
+      if (last) { maxW = Math.min(maxW, fin.w); maxH = Math.min(maxH, fin.h); }
+      const em = Math.max(8, Math.min(maxW / g.w, maxH / g.h, maxCap / CAP));
+      it.u.uSize.value = em;
+      it.hw = (g.w * em) / 2; it.hh = (g.h * em) / 2;
+      it.u.uBlock.value.set(g.w / 2, g.h / 2);
+      // преломление сильнее у крупных букв
+      it.u.uRefr.value = em * 0.55;
     });
-    cyPx = view.cy * H;
   }
 
   /* ---------- кадр ---------- */
-  let running = false, time = 0, last = 0;
-  const ptr = { x: 0, y: 0, tx: 0, ty: 0 };
+  let running = false, time = 0, last = 0, idling = false;
+  const ptr = { x: 0, y: 0, tx: 0, ty: 0, on: false };
   let slow = 0, frames = 0;
-  const apply = () => {
-    // параллакс за мышью: цилиндр чуть поворачивается, лёгкое покачивание в покое
-    ptr.x += (ptr.tx - ptr.x) * 0.05; ptr.y += (ptr.ty - ptr.y) * 0.05;
-    drum.rotation.y = ptr.x * 0.07 + (calm ? 0 : Math.sin(time * 0.31) * 0.012);
-    drum.rotation.x = ptr.y * 0.045 + (calm ? 0 : Math.sin(time * 0.23) * 0.006);
+  const L = () => Math.max(W, H);
+  const apply = (dt: number) => {
+    // параллакс за мышью: фразы чуть поворачиваются, лёгкое покачивание в покое
+    const e = 1 - Math.exp(-dt * 3.5);
+    ptr.x += (ptr.tx - ptr.x) * e; ptr.y += (ptr.ty - ptr.y) * e;
+    drum.rotation.y = ptr.x * 0.1 + (calm ? 0 : Math.sin(time * 0.31) * 0.014);
+    drum.rotation.x = ptr.y * 0.07 + (calm ? 0 : Math.sin(time * 0.23) * 0.008);
     items.forEach((it, k) => {
-      const b = beat[k];
-      const vis = b.on > 0.002 && Math.abs(b.rot) - spans[k] < EDGE;
+      const b = beat[k], m = it.m, u = it.u;
+      // скорость фразы по экрану, сглаженная
+      if (m.init && dt > 0) {
+        const a = 1 - Math.exp(-dt * 28);
+        m.vx += ((b.x - m.px) / dt - m.vx) * a;
+        m.vy += ((b.y - m.py) / dt - m.vy) * a;
+      }
+      m.px = b.x; m.py = b.y; m.init = true;
+      const vis = b.on > 0.002;
       it.mesh.visible = vis;
-      if (!vis) return;
-      it.mesh.rotation.y = b.rot;
-      it.mesh.scale.setScalar(1 + b.push);
-      it.u.uOn.value = b.on;
+      if (!vis) { m.k = 0; m.kv = 0; m.vx = 0; m.vy = 0; return; }
+      const sp = Math.hypot(m.vx, m.vy);
+      if (sp > 2) { m.dx = m.vx / sp; m.dy = m.vy / sp; }
+      // растяжение от скорости (в экранах в секунду) через пружину: на торможении фраза чуть сжимается и выпрямляется
+      const tgt = calm ? 0 : 1.45 * Math.pow(clamp01((sp / L() - 0.2) / 3.2), 0.7) * b.flex;
+      m.kv += (240 * (tgt - m.k) - 19 * m.kv) * dt;
+      m.k += m.kv * dt;
+      const kk = Math.max(-0.18, Math.min(1.8, m.k));
+      const hx = Math.abs(m.dx), vy = Math.abs(m.dy);
+      u.uDir.value.set(m.dx, m.dy);
+      u.uK.value = kk;
+      u.uExt.value = hx * it.hw * 0.9 + vy * it.hh * 0.8;
+      const pos = Math.max(0, kk);
+      // хвост провисает, когда фраза летит вбок
+      u.uWhip.value.set(0, -0.55 * it.hh * pos * hx);
+      // изгиб: на месте фраза слегка выпуклая, на скорости гнётся сильно (до 0,9 рад у краёв растянутой фразы);
+      // вертикальный полёт ещё и выгибает строки дугой: концы отстают
+      const ext = u.uExt.value * kk;
+      u.uBC.value.set(-m.dx * ext, -m.dy * ext);
+      u.uBend.value.set((0.18 + 0.5 * pos * hx) / (it.hw + ext * hx), (0.45 * pos * vy) / (it.hh + ext * vy));
+      u.uArch.value = (0.3 * pos * vy * Math.sign(m.dy || 1)) / it.hw;
+      u.uPos.value.set(b.x, b.y, b.z);
+      u.uDeep.value = b.deep;
+      u.uTwist.value = b.twist;
+      u.uRoll.value = b.roll;
+      u.uOn.value = b.on;
+      u.uSheen.value = b.sheen;
     });
-    const cy = view.cy * H;
-    if (Math.abs(cy - cyPx) > 0.01 || camera.view === null) { cyPx = cy; camera.setViewOffset(W, H, 0, H / 2 - cy, W, H); camera.updateProjectionMatrix(); }
-    bdU.uTime.value = time;
-    bdU.uBand.value = cy;
-    bdU.uDev.value = o.calm ? Math.round(bdRef.photo) : bdRef.photo;
-    bdU.uLight.value = bdRef.light;
-    bdU.uFade.value = bdRef.fade;
+    // искра сама обходит кольцо; на компьютере тянется к курсору
+    if (idling && !calm) {
+      if (ptr.on) {
+        const c = U.uRing.value;
+        const tgt = Math.atan2(((ptr.tx + 1) / 2) * W - c.x, c.y - ((ptr.ty + 1) / 2) * H) / (Math.PI * 2);
+        let dh = tgt - (ring.head % 1);
+        dh -= Math.round(dh);
+        ring.head += dh * (1 - Math.exp(-dt * 2.2));
+      } else ring.head += dt / 11;
+    }
+    U.uDraw.value = ring.draw;
+    U.uHead.value = ring.head;
+    U.uSpark.value = ring.spark;
+    U.uGlow.value = ring.glow;
+    U.uPulse.value = ring.pulse;
+    U.uLight.value = bd.light;
+    U.uFade.value = bd.fade;
   };
-  const bdRef: Backdrop = { photo: 0, light: 0, fade: 0 };
   const tick = () => {
     const now = performance.now();
-    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0.016;
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
     last = now;
     time += dt;
     // качество: если кадры долгие, плотность пикселей снижается (не ниже 1)
-    if (frames < 240) {
+    if (frames < 300) {
       frames++;
-      if (frames > 20 && dt > 0.03) slow++;
-      if (slow > 18 && dprCap > 1) { dprCap = Math.max(1, dprCap - 0.4); slow = 0; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap)); renderer.setSize(W, H, false); }
+      if (frames > 20 && dt > 0.028) slow++;
+      if (slow > 16 && dprCap > 1) {
+        dprCap = Math.max(1, dprCap - 0.5); slow = 0;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap)); renderer.setSize(W, H, false);
+        U.uDpr.value = renderer.getPixelRatio(); renderer.getDrawingBufferSize(U.uDev.value);
+      }
     }
-    apply();
+    apply(dt);
     renderer.render(scene, camera);
   };
   // геометрия фраз строится по одной с паузами (главный поток не стоит), шейдеры компилируются параллельно
   const pause = () => new Promise((r) => setTimeout(r, 0));
   const portrait = canvas.clientWidth < canvas.clientHeight * 0.9;
-  for (const it of items) { it.geo[portrait ? 'narrow' : 'wide'] ??= phrase(portrait ? it.narrow : it.wide, q); await pause(); }
+  narrow = portrait;
+  for (const it of items) { useGeometry(it); await pause(); }
   const t1 = performance.now();
-  items.forEach((it) => { it.mesh.geometry = it.geo[portrait ? 'narrow' : 'wide']!; it.mesh.visible = true; });
+  items.forEach((it) => { it.mesh.visible = true; });
   if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(scene, camera);
   else renderer.compile(scene, camera);
   items.forEach((it) => { it.mesh.visible = false; });
-  if (import.meta.env.DEV) (window as unknown as { __glass: object }).__glass = { build: Math.round(t1 - t0), compile: Math.round(performance.now() - t1) };
+  if (import.meta.env.DEV) (window as unknown as { __glass: object }).__glass = { build: Math.round(t1 - t0), compile: Math.round(performance.now() - t1), beat, ring, bd };
 
   return {
-    beat, bd: bdRef, view,
+    beat, ring, bd, size,
     layout,
-    slotY: (k) => slots[k] / H,
-    span: (k) => spans[k],
+    half: (k) => ({ w: items[k].hw, h: items[k].hh }),
     start() { if (running) return; running = true; last = 0; gsap.ticker.add(tick); },
     stop() { if (!running) return; running = false; gsap.ticker.remove(tick); },
-    pointer(x, y, on) { if (calm) return; ptr.tx = on ? x : 0; ptr.ty = on ? y : 0; },
+    pointer(x, y, on) { if (calm) return; ptr.on = on; ptr.tx = on ? x : 0; ptr.ty = on ? y : 0; },
+    idle(on) { idling = on; },
     warm() {
-      // все фразы один раз видимы за кадром: шейдер и геометрия уходят в видеокарту до начала рассказа
+      // все фразы один раз видимы: шейдер и геометрия уходят в видеокарту до начала рассказа
       const keep = beat.map((b) => ({ ...b }));
-      beat.forEach((b) => { b.rot = 0; b.on = 0.003; });
-      apply();
+      beat.forEach((b) => { b.on = 0.003; });
+      apply(0);
       items.forEach((it) => { it.mesh.visible = true; });
       renderer.render(scene, camera);
       beat.forEach((b, k) => Object.assign(b, keep[k]));
-      apply();
+      apply(0);
       renderer.render(scene, camera);
     },
     dispose() {
       gsap.ticker.remove(tick);
-      items.forEach((it) => { it.mat.dispose(); it.geo.wide?.dispose(); it.geo.narrow?.dispose(); });
+      items.forEach((it) => { it.mat.dispose(); it.geo.wide?.geo.dispose(); it.geo.narrow?.geo.dispose(); });
       bg.geometry.dispose(); (bg.material as ShaderMaterial).dispose();
-      bdU.uPhoto.value?.dispose();
-      scene.environment?.dispose();
       renderer.dispose();
     },
   };

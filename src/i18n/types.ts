@@ -9,20 +9,20 @@ export interface Dict {
     langSwitch: string; langSwitchTitle: string; skipToContent: string;
   };
   /**
-   * Первый экран: чёрный экран, знак d1fast ©, потом фразы стеклянными буквами на цилиндре (beats: строки фразы,
+   * Первый экран: чёрный экран, знак d1fast ©, потом фразы стеклянными буквами (beats: строки фразы,
    * «|» внутри строки: перенос на узком экране), последняя остаётся заголовком; sub: одна строка под ним;
-   * h1: заголовок для поиска и скринридеров; photoAlt: подпись к фото, которое проявляется с третьей фразой.
+   * h1: заголовок для поиска и скринридеров; name: имя в шапке.
    */
   hero: {
     name: string; nick: string; h1: string;
     beats: string[][];
-    sub: string; ctaContact: string; ctaWorks: string; photoAlt: string;
+    sub: string; ctaContact: string; ctaWorks: string;
   };
   services: { title: string; items: { title: string; text: string }[] };
   /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера;
    *  prev/next: стрелки (кадр назад и дальше, на краях переходят к соседней работе); video: подпись точки видео;
    *  concept: пометка у придуманных проектов; project: «Работа {n} из {total}» для счётчика */
-  works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string;
+  works: { title: string; open: string; year: string; stack: string; screens: string; screen: string; carousel: string;
     prev: string; next: string; video: string; concept: string; project: string; play: string };
   process: { title: string; steps: { title: string; text: string }[] };
   contacts: {

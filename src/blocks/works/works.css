@@ -4,10 +4,10 @@
    Раскладки: компьютер (база), низкий горизонтальный экран, вертикальный экран (телефон и планшет стоя).
    Анимируются только transform и opacity. */
 .works {
-  --works-muted: #8F8E89;   /* 5,8:1 на #0E0F10 */
-  --works-ghost: #7E7D79;   /* 4,6:1 */
-  --works-line: rgb(238 236 230 / .16);
-  --works-tile-line: rgb(238 236 230 / .10);
+  /* холодный графит без цветного акцента: цвет дают сами работы */
+  --works-muted: #8C939D;   /* 6:1 на #0C0E12 */
+  --works-line: rgb(233 237 242 / .16);
+  --works-tile-line: rgb(233 237 242 / .08);
   overflow: clip;
 }
 /* стрелки «→» набраны текстом; в моноширинном шрифте сайта их нет, поэтому знак лежит отдельным файлом (JetBrains Mono 500, 800 байт) */
@@ -25,11 +25,11 @@ html.js .works:not(.is-primed) > *:not(.works__field):not(.works__veil) { visibi
 .works__tile { position: absolute; display: block; border-radius: 5px; overflow: hidden; background: #000; }
 .works__tile::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--works-tile-line); }
 .works__tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
-/* вуаль: затемняет края и середину, где стоит цилиндр, чтобы видео читались поверх плоскости */
+/* вуаль: ровно приглушает плоскость, к краям и под карточкой темнее; без светлого пятна посередине */
 .works__veil { position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(70% 62% at 64% 50%, rgb(14 15 16 / .72) 0, rgb(14 15 16 / .45) 55%, rgb(14 15 16 / .85) 85%, var(--bg) 100%),
-    radial-gradient(60% 70% at 0% 88%, rgb(14 15 16 / .94) 0, rgb(14 15 16 / 0) 70%); }
+    linear-gradient(90deg, rgb(12 14 18 / .9) 0, rgb(12 14 18 / .55) 34%, rgb(12 14 18 / .6) 70%, rgb(12 14 18 / .88) 100%),
+    linear-gradient(180deg, rgb(12 14 18 / .7) 0, rgb(12 14 18 / 0) 22%, rgb(12 14 18 / 0) 70%, rgb(12 14 18 / .85) 100%); }
 
 /* ---------- цилиндр: холст на весь блок, места для него задаёт .works__ring ---------- */
 .works__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease-out); }
@@ -72,7 +72,7 @@ html.has-cursor .works__ring { cursor: none; }
 .works__meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 400 12.5px/1.4 var(--font-mono); color: var(--works-muted); }
 .works__concept { padding: 0 8px; border: 1px solid var(--works-line); border-radius: 999px; }
 .works__count { font: 500 13px/1 var(--font-mono); letter-spacing: .06em; color: var(--works-muted); }
-.works__count b { color: var(--accent); font-weight: 600; }
+.works__count b { color: var(--fg); font-weight: 600; }
 
 /* стрелки и номера работ: номеров сколько угодно, ряд переносится */
 .works__nav { display: flex; align-items: center; gap: 10px; justify-self: stretch; padding-top: clamp(6px, 1.2vh, 12px); border-top: 1px solid var(--works-line); }
@@ -84,19 +84,19 @@ html.has-cursor .works__ring { cursor: none; }
 .works__dot { position: relative; display: grid; justify-items: center; gap: 5px; min-width: 40px; padding: 6px 4px; font: 500 12.5px/1 var(--font-mono); color: var(--works-muted); transition: color var(--dur-fast); }
 .works__dot i { display: block; width: 22px; height: 2px; background: var(--works-line); transform-origin: 50% 50%; transition: background-color var(--dur-fast), transform .35s var(--ease-out); }
 .works__dot[aria-current="true"] { color: var(--fg); }
-.works__dot[aria-current="true"] i { background: var(--dot, var(--accent)); transform: scaleX(1.45); }
+.works__dot[aria-current="true"] i { background: var(--fg); transform: scaleX(1.45); }
 
-/* «Ваш проект»: последняя строка карточки */
-.works__yours { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; justify-self: stretch;
-  font: 600 15px/1.2 var(--font-wide); font-stretch: 151%; letter-spacing: .02em; text-transform: uppercase; color: var(--works-ghost); }
-.works__write { font: 400 12.5px/1.2 var(--font-mono); letter-spacing: 0; text-transform: none; white-space: nowrap; color: var(--fg); }
+/* «Обсудить проект»: последняя строка карточки, одна ссылка */
+.works__yours { display: inline-flex; align-items: baseline; gap: 8px; padding-block: 8px; margin-block: -8px;
+  font: 500 13.5px/1.2 var(--font-mono); white-space: nowrap; color: var(--fg); text-decoration: underline; text-decoration-color: var(--works-line); text-underline-offset: 5px;
+  transition: text-decoration-color var(--dur-base) var(--ease-out); }
 .works__arrow { display: inline-block; font-family: 'Works Arrow', var(--font-mono); font-weight: 500; transition: transform var(--dur-fast) var(--ease-out); }
 
 .works__step:focus-visible, .works__dot:focus-visible, .works__yours:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) {
   .works__step:hover { background: rgb(238 236 230 / .08); box-shadow: inset 0 0 0 1px rgb(238 236 230 / .4); }
   .works__dot:hover { color: var(--fg); }
-  .works__yours:hover { color: var(--fg); }
+  .works__yours:hover { text-decoration-color: currentColor; }
   .works__yours:hover .works__arrow { transform: translateX(4px); }
 }
 
@@ -108,7 +108,7 @@ html.has-cursor .works__ring { cursor: none; }
   .works__card { gap: 8px; }
   .works__nav { padding-top: 4px; }
 }
-@media (max-width: 760px) and (orientation: landscape) { .works__inner { padding-right: var(--gutter); } }
+@media (max-width: 760px) and (orientation: landscape) { .works__inner { padding-right: var(--pad-r); } }
 
 /* ---------- вертикальный экран: телефон и планшет стоя ---------- */
 @media (max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait) {
@@ -119,16 +119,16 @@ html.has-cursor .works__ring { cursor: none; }
     radial-gradient(120% 50% at 50% 34%, rgb(14 15 16 / .7) 0, rgb(14 15 16 / .5) 55%, rgb(14 15 16 / .88) 90%),
     linear-gradient(180deg, rgb(14 15 16 / .9) 0, rgb(14 15 16 / 0) 20%, rgb(14 15 16 / 0) 55%, rgb(14 15 16 / .96) 72%); }
   .works__inner { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; column-gap: 0;
-    padding: calc(var(--header-h) + 14px) var(--gutter) clamp(14px, 2.6dvh, 26px); }
+    padding: calc(var(--header-h) + 14px) var(--pad-r) max(clamp(14px, 2.6dvh, 26px), var(--safe-b)) var(--pad-l); }
   .works__title { font-size: 12px; }
-  .works__ring { grid-column: 1; grid-row: 2; margin-inline: calc(var(--gutter) * -1); }
+  .works__ring { grid-column: 1; grid-row: 2; margin-inline: calc(var(--pad-l) * -1) calc(var(--pad-r) * -1); }
   .works__card { grid-column: 1; grid-row: 3; align-self: end; gap: clamp(8px, 1.4dvh, 14px); }
   .works__proj { gap: 6px; }
   .works__name { font-size: clamp(24px, min(8vw, 4.6dvh), 56px); font-stretch: 125%; --name-st: 125; --name-min: 22; white-space: nowrap; text-wrap: nowrap; }
   .works__sub { max-width: none; font-size: clamp(14px, 2.2vw, 18px); }
   .works__sum { max-width: none; font-size: clamp(13px, 1.9vw, 16px); }
   .works__meta { display: none; }
-  .works__yours { font-size: 13.5px; }
+  .works__yours { font-size: 14px; }
 }
 @media (max-aspect-ratio: 4/5) and (min-height: 760px) { .works__meta { display: flex; } }
 @media (max-aspect-ratio: 4/5) and (max-height: 700px) { .works__sum { display: none; } }

@@ -13,6 +13,7 @@ const PERIOD = 3; // узор плоскости повторяется кажд
 const ROWS = 6; // рядов в кадре плоскости (лишние отсекаются замером)
 const VERT = '(max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait)'; // вертикальная раскладка (works.css)
 const STUCK = 9; // видео не запустилось (режим энергосбережения): через столько секунд следующая работа
+const RATE = 1.25; // ролики идут чуть быстрее записи: автопоказ работ короче, история в ролике та же
 
 type Tile = { src: string; portrait: boolean };
 
@@ -32,7 +33,7 @@ export function init(root: HTMLElement) {
   const yours = one('[data-works-yours]');
   const vert = matchMedia(VERT);
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const info: { poster: string; accent: string }[] = JSON.parse(root.dataset.worksRing || '[]');
+  const info: { poster: string }[] = JSON.parse(root.dataset.worksRing || '[]');
   const videos = [...root.querySelectorAll<HTMLVideoElement>('[data-works-video]')];
   const dots = [...root.querySelectorAll<HTMLButtonElement>('[data-works-dot]')];
   const P = [...root.querySelectorAll<HTMLElement>('[data-works-proj]')].map((el) => ({
@@ -128,6 +129,7 @@ export function init(root: HTMLElement) {
     v.classList.add('is-on');
     if (!active) { v.pause(); return; }
     if (v.preload === 'none') v.preload = 'auto';
+    v.playbackRate = calm ? 1 : RATE;
     v.play().then(() => blocked(false)).catch(() => blocked(true));
     ring?.live(k);
     // страховка: видео застряло или не грузится
@@ -145,7 +147,6 @@ export function init(root: HTMLElement) {
     countN.textContent = nn(j + 1);
     if (countSr) countSr.textContent = countTpl.replace(/\d+/, String(j + 1));
     dots.forEach((d, i) => d.setAttribute('aria-current', String(i === j)));
-    if (info[j]?.accent) root.style.setProperty('--accent', info[j].accent);
     swap?.progress(1); swap?.kill(); swap = null;
     const a = P.find((p) => !p.el.hidden), b = P[j];
     if (a === b) { P.forEach((p) => (p.el.hidden = p !== b)); return; }
@@ -214,6 +215,8 @@ export function init(root: HTMLElement) {
       d.on = dragged = true;
       user();
       holds.add('drag');
+      // жест забрал цилиндр: сцена этим касанием блоки не листает, даже если палец потом уйдёт вверх или вниз
+      dispatchEvent(new CustomEvent('stage:claim'));
       area.classList.add('is-drag');
       try { area.setPointerCapture(e.pointerId); } catch { /* отпущен */ }
     }
@@ -299,7 +302,7 @@ export function init(root: HTMLElement) {
     fitName(k);
     clearTimeout(rt);
     rt = window.setTimeout(() => {
-      ring?.layout();
+      ring?.layout(vert.matches);
       if (vert.matches !== builtV || Math.abs(root.clientWidth - builtW) > builtW * 0.1) build();
     }, 150);
   }).observe(root);
@@ -312,7 +315,7 @@ export function init(root: HTMLElement) {
     active = true; auto = true;
     watched = 0; touched = false;
     if (!builtW) build();
-    ring?.layout();
+    ring?.layout(vert.matches);
     ring?.start();
     intro.play(0.1);
     nameOf(k).play(0.45);
@@ -349,7 +352,7 @@ export function init(root: HTMLElement) {
       ring = createRing({ canvas, area, videos, posters: info.map((i) => i.poster) });
       root.classList.add('is-gl');
       ring.set(0);
-      ring.layout();
+      ring.layout(vert.matches);
       // цилиндр пришёл, когда блок уже открыт: въезжает с поворота, как при обычном входе
       if (active) { ring.start(); ring.live(k); if (!calm) { ring.set(k - 0.6); ring.spin(k, 1.5, 'expo.out'); } }
       canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ring?.stop(); ring = null; root.classList.remove('is-gl', 'will-gl'); videos.forEach((v, i) => v.classList.toggle('is-on', i === k)); }, { once: true });

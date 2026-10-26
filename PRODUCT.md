@@ -30,7 +30,8 @@ Visitor arrives from a Telegram link, usually on a phone with a slow mobile conn
 - Images never overlap text.
 - Mobile must be as good as desktop.
 - One calm sentence about AI writing code; never in headings.
-- Open decisions: hero direction (three prototypes to choose from), photo (placeholder 4:5 until provided), server function host (Yandex Cloud Functions later).
+- No photo of the owner anywhere on the site (his decision); the name sits small in the header, top left.
+- Open decisions: server function host (Yandex Cloud Functions later).
 
 ## Brand Commitments
 - Name: Савелий Лопатин / Savely Lopatin, nickname d1fast.
@@ -41,7 +42,7 @@ Visitor arrives from a Telegram link, usually on a phone with a slow mobile conn
 
 ## Evidence on Hand
 - Aroma Forge demo: source at /home/user/aroma-forge, screenshots in /home/user/aroma-forge/screenshots (desktop 1920x1080 and phone 390x844). Video previews to be recorded from the running app.
-- No photo yet (placeholder 4:5).
+- No photo: the owner asked not to use one.
 - No testimonials, no metrics. Do not fabricate numbers.
 
 ## Product Principles

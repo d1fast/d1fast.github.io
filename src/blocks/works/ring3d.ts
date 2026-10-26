@@ -1,6 +1,6 @@
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, CylinderGeometry, ShaderMaterial, TextureLoader, Texture,
-  NoColorSpace, LinearSRGBColorSpace, LinearFilter,
+  NoColorSpace, LinearSRGBColorSpace, LinearFilter, DoubleSide,
 } from 'three';
 import { gsap } from 'gsap';
 
@@ -15,7 +15,8 @@ import { gsap } from 'gsap';
  * Safari не зовёт его у ролика, который сам на странице не виден). Кадр рисуется, только пока что-то движется.
  */
 export interface Ring {
-  layout(): void;
+  /** vertical: вертикальная раскладка блока (телефон стоя): передняя панель крупнее и строго по центру */
+  layout(vertical?: boolean): void;
   start(): void;
   stop(): void;
   readonly pos: number;
@@ -27,7 +28,8 @@ export interface Ring {
 }
 
 const VERT = /* glsl */ `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-// скруглённые углы и светлая кромка считаются по uv с поправкой на 16:9; боковые панели темнее
+// скруглённые углы считаются по uv с поправкой на 16:9; боковые панели темнее и чуть бесцветнее,
+// по краю тонкая ровная линия без свечения
 const FRAG = /* glsl */ `
 uniform sampler2D map; uniform float uDim; uniform float uHas; varying vec2 vUv;
 float rbox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
@@ -38,9 +40,23 @@ void main() {
   float fw = fwidth(d);
   float a = 1.0 - smoothstep(-fw, fw, d);
   vec3 c = uHas > 0.5 ? texture2D(map, vUv).rgb : vec3(0.02);
-  c *= mix(1.0, 0.34, uDim);
-  c += vec3(0.9) * (1.0 - smoothstep(0.0, fw * 1.5, abs(d + fw))) * mix(0.16, 0.08, uDim);
+  c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.4 * uDim);
+  c *= mix(1.0, 0.24, uDim);
+  c += vec3(0.85) * (1.0 - smoothstep(0.0, fw * 1.5, abs(d + fw))) * mix(0.07, 0.03, uDim);
   gl_FragColor = vec4(c, a);
+}`;
+// отражение панели на тёмном глянцевом полу: та же картинка вверх ногами, гаснет к низу
+const FRAG_R = /* glsl */ `
+uniform sampler2D map; uniform float uDim; uniform float uHas; varying vec2 vUv;
+float rbox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+void main() {
+  vec2 asp = vec2(16.0 / 9.0, 1.0);
+  float d = rbox((vUv - 0.5) * asp, asp * 0.5, 0.035);
+  float fw = fwidth(d);
+  float a = 1.0 - smoothstep(-fw, fw, d);
+  vec3 c = uHas > 0.5 ? texture2D(map, vUv).rgb : vec3(0.02);
+  c *= mix(1.0, 0.24, uDim);
+  gl_FragColor = vec4(c, a * (1.0 - smoothstep(0.0, 0.42, vUv.y)) * 0.17);
 }`;
 
 export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement; videos: HTMLVideoElement[]; posters: string[] }): Ring {
@@ -71,36 +87,46 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
   videos.forEach((v, k) => v.addEventListener('playing', () => { ready[k] = true; dirty = true; }));
 
   /* ---------- панели ---------- */
+  const GAP = H * 0.035; // зазор между панелью и её отражением
   const panels = Array.from({ length: S }, (_, i) => {
     const a = i * STEP;
-    const mat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, uniforms: { map: { value: posterTex[i % N] }, uDim: { value: 1 }, uHas: { value: 1 } } });
-    const mesh = new Mesh(new CylinderGeometry(R, R, H, 64, 1, true, a - PHI / 2, PHI), mat);
+    const uniforms = { map: { value: posterTex[i % N] }, uDim: { value: 1 }, uHas: { value: 1 } };
+    const mat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, uniforms });
+    const geo = new CylinderGeometry(R, R, H, 64, 1, true, a - PHI / 2, PHI);
+    const mesh = new Mesh(geo, mat);
     ring.add(mesh);
-    return { mesh, mat, k: i % N, cx: R * Math.sin(a), cz: R * Math.cos(a) };
+    // отражение: та же геометрия, отражённая вниз; у отражённой грани обход обратный, поэтому обе стороны
+    const rmat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG_R, transparent: true, depthWrite: false, side: DoubleSide, uniforms });
+    const rmesh = new Mesh(geo, rmat);
+    rmesh.renderOrder = -1;
+    ring.add(rmesh);
+    return { mesh, mat, rmesh, rmat, k: i % N, cx: R * Math.sin(a), cz: R * Math.cos(a) };
   });
   /* ---------- кадр: передняя панель вписана в место .works__ring ---------- */
-  let W = 1, Hc = 1, dist = 3, lift = 0.3;
+  let W = 1, Hc = 1, dist = 3, lift = 0.3, vert = false;
   /** камера: back — доля отъезда (0 в покое, 1 посреди поворота) */
   const place = (back: number) => {
     const d = dist * (1 + 0.16 * back);
     camera.position.set(0, lift * (1 + 0.3 * back), R + d);
     camera.lookAt(0, 0, R);
   };
-  const layout = () => {
+  const layout = (vertical = vert) => {
+    vert = vertical;
     const r = canvas.getBoundingClientRect(), a = area.getBoundingClientRect();
     W = Math.max(1, r.width); Hc = Math.max(1, r.height);
     renderer.setSize(W, Hc, false);
     camera.aspect = W / Hc;
     const chord = 2 * R * Math.sin(PHI / 2);
-    // пикселей на единицу у передней панели: на компьютере до 74 % ширины места, на телефоне 82 %; соседние видны по краям
-    const wide = a.width > a.height * 0.9;
-    const ppu = Math.min((a.width * (wide ? 0.74 : 0.82)) / chord, (a.height * (wide ? 0.72 : 0.7)) / H);
+    // пикселей на единицу у передней панели: на компьютере до 74 % ширины места, соседние видны по краям;
+    // на телефоне стоя передняя панель почти во всю ширину (92 %) и строго по центру, соседние показываются при повороте,
+    // под ней место для отражения
+    const ppu = Math.min((a.width * (vert ? 0.92 : 0.74)) / chord, (a.height * (vert ? 0.64 : 0.72)) / H);
     dist = Hc / (2 * Math.tan((camera.fov * Math.PI) / 360) * ppu);
-    lift = dist * 0.12;
+    lift = dist * (vert ? 0.06 : 0.12);
     place(0);
-    // середина передней панели встаёт в середину места, а не холста
+    // середина передней панели встаёт в середину места, а не холста;
     // на компьютере чуть правее середины: левая соседняя панель не заходит под карточку
-    const cx = a.left - r.left + a.width * (wide ? 0.53 : 0.5), cy = a.top - r.top + a.height / 2;
+    const cx = a.left - r.left + a.width * (vert ? 0.5 : 0.53), cy = a.top - r.top + a.height * (vert ? 0.42 : 0.47);
     camera.setViewOffset(W, Hc, W / 2 - cx, Hc / 2 - cy, W, Hc);
     camera.updateProjectionMatrix();
     dirty = true;
@@ -117,9 +143,11 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
       const off = Math.abs(mod(i - st.pos + S / 2, S) - S / 2);
       p.mat.uniforms.uDim.value = Math.min(1, off);
       // передняя самая крупная, соседние чуть мельче: панель сжимается к своей середине на поверхности цилиндра
-      const sc = 1 - 0.1 * Math.min(1, off);
+      const sc = 1 - (vert ? 0.04 : 0.1) * Math.min(1, off);
       p.mesh.scale.setScalar(sc);
       p.mesh.position.set(p.cx * (1 - sc), 0, p.cz * (1 - sc));
+      p.rmesh.scale.set(sc, -sc, sc);
+      p.rmesh.position.set(p.cx * (1 - sc), -(H * sc + GAP), p.cz * (1 - sc));
       const vid = i === front && liveK === p.k && ready[p.k];
       p.mat.uniforms.map.value = vid ? videoTex[p.k] : posterTex[p.k];
     });
@@ -160,7 +188,7 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
     dispose() {
       gsap.ticker.remove(render);
       spinning?.kill();
-      panels.forEach((p) => { p.mesh.geometry.dispose(); p.mat.dispose(); });
+      panels.forEach((p) => { p.mesh.geometry.dispose(); p.mat.dispose(); p.rmat.dispose(); });
       [...posterTex, ...videoTex].forEach((t) => t.dispose());
       renderer.dispose();
     },

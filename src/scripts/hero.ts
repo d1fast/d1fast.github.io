@@ -2,20 +2,22 @@ import { gsap } from 'gsap';
 import type { Glass } from './hero/glass';
 
 /**
- * Первый экран, чёрно-белый. При входе на сайт секунду чёрный экран, потом проявляется маленький знак «d1fast ©»
- * и гаснет. Дальше фразы стеклянными буквами по очереди въезжают по цилиндру справа, подлетают к зрителю,
- * стоят, пока их читают, и быстро и плавно уезжают влево (hero/glass.ts). С третьей фразой («Я Сава») за стеклом
- * проявляется фото. Последняя фраза остаётся заголовком по центру, под ней строка обо мне и кнопки.
+ * Первый экран, чёрно-белый. При входе на сайт полсекунды темноты, проявляется маленький знак «d1fast ©»
+ * и гаснет. Посреди экрана загорается искра и начинает рисовать тонкое светящееся кольцо (hero/glass.ts).
+ * Фразы стеклянными буквами прилетают к кольцу каждая со своей стороны: «Есть идея?» справа, «Но не знаете,
+ * кому её доверить?» снизу. Влетают быстро, у кольца тормозят, стоят, пока их читают, и быстро улетают;
+ * на скорости фраза тянется и гнётся. Искра идёт в том же ритме. Последняя фраза («Создаю цифровые продукты»)
+ * приходит из глубины, кольцо замыкается и вспыхивает, фраза остаётся заголовком, под ней строка и кнопки.
  * Досмотрели до конца и ничего не трогали: через несколько секунд сцена сама переходит к следующему блоку.
- * При возвращении на экран короткий вход: сразу последняя фраза. Без WebGL тот же рассказ обычным текстом не идёт:
- * знак, потом заголовок, строка и кнопки. «Уменьшить движение»: без поворотов и подлёта, только проявление.
+ * При возвращении короткий вход: сразу последняя фраза. Без WebGL: знак, потом заголовок, строка и кнопки.
+ * «Уменьшить движение»: фразы только проявляются и гаснут на месте, кольцо загорается целиком.
  */
 
-// сколько фраза стоит перед зрителем, с; вторую («кому доверить?») читают дольше
-const HOLD = [1.25, 2.3, 1.9];
-const IN = 1.15; // въезд
-const OUT = 0.72; // уезд
-const AUTO = 6.5; // столько финал стоит перед тем, как сцена сама перейдёт дальше, с
+const IN = 0.6; // влёт: быстро, с долгим торможением
+const OUT = 0.4; // улёт: разгон
+const HOLD = [1.05, 1.85]; // сколько фраза стоит у кольца; вторую читают дольше
+const MARK = 2.2; // темнота и знак до начала рассказа, с
+const AUTO = 4.5; // столько финал стоит перед тем, как сцена сама перейдёт дальше, с
 
 export function initHero() {
   const found = document.querySelector<HTMLElement>('[data-hero]');
@@ -39,6 +41,8 @@ export function initHero() {
   let failed = false;
   let played = false; // полный рассказ уже видели
   let tl: gsap.core.Timeline | null = null;
+  let breathe: gsap.core.Tween | null = null;
+  let gleam: gsap.core.Tween | null = null;
   let autoT: gsap.core.Tween | null = null;
   let touched = false;
 
@@ -58,7 +62,7 @@ export function initHero() {
       const fonts = document.fonts?.ready ?? Promise.resolve();
       await Promise.race([fonts, new Promise((r) => setTimeout(r, 1500))]);
       const { createGlass } = await import('./hero/glass');
-      const g = await createGlass({ canvas, beats, photo: hero.dataset.photo || '', calm, coarse });
+      const g = await createGlass({ canvas, beats, calm, coarse });
       g.layout(finalBox());
       g.warm();
       canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); g.stop(); glass = null; failed = true; hero.classList.remove('is-glass'); showFinal(true); }, { once: true });
@@ -70,7 +74,7 @@ export function initHero() {
 
   /* ---------- финал: строка и кнопки, шапка и точки ---------- */
   const endHide = () => { gsap.killTweensOf(ends); gsap.set(ends, { opacity: 0, y: 16, visibility: 'hidden' }); };
-  const endIn = (delay = 0) => gsap.fromTo(ends, { opacity: 0, y: 16, visibility: 'visible' }, { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out', stagger: 0.09, delay, overwrite: true });
+  const endIn = (delay = 0) => gsap.fromTo(ends, { opacity: 0, y: 16, visibility: 'visible' }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', stagger: 0.08, delay, overwrite: true });
   const chrome = (on: boolean) => html.classList.toggle('is-intro', !on);
   const settle = () => { hero.classList.add('is-final'); document.dispatchEvent(new CustomEvent('hero:settled')); };
   /** без стекла: заголовок обычным текстом */
@@ -97,9 +101,20 @@ export function initHero() {
 
   /* ---------- сценарии ---------- */
   const reset = (g: Glass) => {
-    g.beat.forEach((b, k) => Object.assign(b, { rot: g.span(k) + 1.3, push: 0, on: 0 }));
+    g.beat.forEach((b) => Object.assign(b, { x: 0, y: 0, z: 0, on: 0, deep: 0, twist: 0, roll: 0, flex: 1, sheen: -3 }));
+    Object.assign(g.ring, { draw: 0, head: 0, spark: 0, glow: 0, pulse: 0 });
+    g.idle(false);
+    breathe?.kill(); breathe = null;
+    gleam?.kill(); gleam = null;
   };
-  /** фразы по очереди; withMark: перед ними чёрный экран и знак (вход на сайт) */
+  /** финальная фраза дышит: чуть подаётся к зрителю и обратно, изредка по ней проходит блик */
+  const breatheOn = (g: Glass) => {
+    breathe?.kill(); gleam?.kill();
+    if (calm) return;
+    breathe = gsap.to(g.beat[N - 1], { z: 14, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    gleam = gsap.fromTo(g.beat[N - 1], { sheen: -1.8 }, { sheen: 1.8, duration: 1.4, ease: 'power1.inOut', repeat: -1, repeatDelay: 5, delay: 3 });
+  };
+  /** фразы по очереди; withMark: перед ними темнота и знак (вход на сайт) */
   let run = 0;
   async function story(withMark: boolean) {
     const id = ++run;
@@ -110,7 +125,7 @@ export function initHero() {
     chrome(!withMark);
     const t0 = performance.now();
     if (withMark) {
-      // секунда темноты, потом знак проявляется из размытия и гаснет. Это CSS-анимация: она идёт плавно,
+      // темнота, потом знак проявляется из размытия и гаснет. Это CSS-анимация: она идёт плавно,
       // даже если в это время главный поток собирает буквы
       hero.classList.remove('is-marking');
       void hero.offsetWidth;
@@ -120,7 +135,7 @@ export function initHero() {
     const g = await Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), withMark ? 9000 : 3000))]);
     if (id !== run) return;
     if (!g) { hero.classList.remove('is-marking'); showFinal(); return; }
-    const left = withMark ? Math.max(0, 3.05 - (performance.now() - t0) / 1000) : 0;
+    const left = withMark ? Math.max(0, MARK - (performance.now() - t0) / 1000) : 0;
     const t = gsap.timeline({ delay: left });
     tl = t;
     beatsInto(t, 0);
@@ -130,34 +145,70 @@ export function initHero() {
     const g = glass!;
     g.layout(finalBox());
     reset(g);
-    // кадры рисуются с началом рассказа, пока идёт знак видеокарта свободна
+    const { w: W, h: H } = g.size;
+    const R = g.ring;
     t.call(() => g.start(), [], at);
-    t.to(g.bd, { fade: 1, light: 1, duration: 1.4, ease: 'power2.out' }, at);
-    let s = at + 0.2;
-    for (let k = 0; k < N; k++) {
-      const b = g.beat[k], last = k === N - 1, photo = k === N - 2;
-      const from = g.span(k) + 0.55;
-      t.fromTo(b, { rot: calm ? 0 : from, push: calm ? 0 : -0.16, on: 0 }, { rot: 0, push: 0, duration: calm ? 0.01 : IN, ease: 'power3.out', immediateRender: false }, s);
-      t.to(b, { on: 1, duration: calm ? 0.8 : 0.55, ease: 'power1.out' }, s);
-      t.to(g.view, { cy: g.slotY(k), duration: k ? IN : 0.01, ease: 'power3.inOut' }, k ? s - 0.25 : s);
-      if (photo) t.fromTo(g.bd, { photo: 0 }, { photo: 1, duration: 2, ease: 'power2.out', immediateRender: false }, s + 0.05);
-      if (last) {
-        t.call(() => { endIn(); chrome(true); }, [], s + IN * 0.6);
-        t.call(() => { settle(); arm(); }, [], s + IN + 0.4);
-        break;
+    t.to(g.bd, { fade: 1, light: 1, duration: 0.9, ease: 'power2.out' }, at);
+    // искра загорается наверху кольца
+    t.to(R, { spark: 1, glow: 0.85, duration: 0.45, ease: 'power2.out' }, at);
+    if (calm) {
+      // без движения: фразы проявляются и гаснут на месте, кольцо загорается целиком
+      let s = at + 0.3;
+      t.set(R, { draw: 1, head: 0.12 }, at);
+      for (let k = 0; k < N; k++) {
+        const b = g.beat[k];
+        t.to(b, { on: 1, duration: 0.6, ease: 'power1.out' }, s);
+        if (k === N - 1) { t.call(() => { endIn(); chrome(true); }, [], s + 0.3); t.call(() => { settle(); arm(); }, [], s + 0.8); break; }
+        t.to(b, { on: 0, duration: 0.5, ease: 'power1.in' }, s + 0.6 + HOLD[k] + 0.4);
+        s += 0.6 + HOLD[k] + 0.9;
       }
-      const hold = HOLD[k] ?? 1.6;
-      // пока фразу читают, она медленно подлетает ближе
-      if (!calm) t.to(b, { push: 0.045, duration: hold + IN * 0.45, ease: 'sine.inOut' }, s + IN * 0.55);
-      const x = s + IN * 0.8 + hold;
-      // уезжает быстро и плавно: разгон без рывка, гаснет у края цилиндра
-      t.to(b, { rot: calm ? 0 : -(g.span(k) + 0.5), push: calm ? 0 : -0.08, duration: OUT, ease: 'power2.in' }, x);
-      t.to(b, { on: 0, duration: calm ? 0.5 : OUT * 0.75, ease: 'power1.in' }, x + (calm ? 0 : OUT * 0.25));
-      if (photo) t.to(g.bd, { photo: 0, duration: 0.9, ease: 'power2.in' }, x - 0.05);
-      s = x + (calm ? 0.55 : OUT * 0.5);
+      return;
     }
+    let s = at + 0.25;
+    // 1. справа: влетает издалека по дуге, тормозит у кольца, улетает влево и вниз
+    const b1 = g.beat[0], h1 = g.half(0);
+    const X1 = W / 2 + h1.w * 2.6 + 80;
+    t.fromTo(b1, { x: X1, y: H * 0.07, z: -380, roll: -0.06, on: 0 }, { x: 0, y: 0, z: 0, roll: 0, duration: IN, ease: 'expo.out', immediateRender: false }, s);
+    t.to(b1, { on: 1, duration: 0.1, ease: 'none' }, s);
+    t.to(R, { draw: 0.3, head: 0.3, duration: IN, ease: 'expo.out' }, s);
+    // стоит: медленно смещается и подаётся к зрителю, искра почти стоит
+    t.to(b1, { x: -W * 0.018, z: 34, duration: HOLD[0] + IN * 0.3, ease: 'sine.inOut' }, s + IN * 0.7);
+    t.to(R, { draw: 0.335, head: 0.335, duration: HOLD[0], ease: 'sine.inOut' }, s + IN);
+    let x = s + IN * 0.7 + HOLD[0] + IN * 0.3;
+    t.to(b1, { x: -X1, y: -H * 0.06, z: -160, roll: 0.05, duration: OUT, ease: 'power3.in' }, x);
+    t.to(b1, { on: 0, duration: 0.1, ease: 'none' }, x + OUT - 0.1);
+    t.to(R, { draw: 0.4, head: 0.4, duration: OUT, ease: 'power2.in' }, x);
+
+    // 2. снизу: поднимается волной, строки выгибаются дугой; стоит дольше, искра тускнеет (сомнение); улетает вверх
+    s = x + OUT * 0.6;
+    const b2 = g.beat[1], h2 = g.half(1);
+    const Y2 = H / 2 + h2.h * 2.4 + 80;
+    t.fromTo(b2, { x: W * 0.04, y: -Y2, z: -300, roll: 0.05, on: 0 }, { x: 0, y: 0, z: 0, roll: 0, duration: IN, ease: 'expo.out', immediateRender: false }, s);
+    t.to(b2, { on: 1, duration: 0.1, ease: 'none' }, s);
+    t.to(R, { draw: 0.62, head: 0.62, duration: IN, ease: 'expo.out' }, s);
+    t.to(b2, { y: H * 0.012, z: 30, duration: HOLD[1] + IN * 0.3, ease: 'sine.inOut' }, s + IN * 0.7);
+    t.to(R, { draw: 0.65, head: 0.65, duration: HOLD[1], ease: 'sine.inOut' }, s + IN);
+    t.to(R, { spark: 0.45, glow: 0.55, duration: 0.8, ease: 'sine.inOut' }, s + IN * 0.8);
+    x = s + IN * 0.7 + HOLD[1] + IN * 0.3;
+    t.to(b2, { y: Y2, x: -W * 0.03, z: -140, roll: -0.04, duration: OUT, ease: 'power3.in' }, x);
+    t.to(b2, { on: 0, duration: 0.1, ease: 'none' }, x + OUT - 0.1);
+    t.to(R, { draw: 0.7, head: 0.7, spark: 1, glow: 0.85, duration: OUT, ease: 'power2.in' }, x);
+
+    // 3. из глубины, из-за кольца: буквы приходят по очереди и разворачиваются к зрителю, кольцо замыкается
+    s = x + OUT * 0.55;
+    const b3 = g.beat[N - 1];
+    t.fromTo(b3, { x: 0, y: -H * 0.02, z: -2600, deep: 1400, twist: 1.25, roll: 0.05, on: 0, flex: 0 },
+      { y: 0, z: 0, deep: 0, twist: 0, roll: 0, duration: 1.15, ease: 'expo.out', immediateRender: false }, s);
+    t.to(b3, { on: 1, duration: 0.35, ease: 'power1.out' }, s);
+    t.to(R, { draw: 1, head: 1, duration: 0.95, ease: 'expo.out' }, s);
+    t.fromTo(R, { pulse: 0 }, { pulse: 1, duration: 1.2, ease: 'power2.out', immediateRender: false }, s + 0.38);
+    t.to(R, { glow: 1.3, duration: 0.22, ease: 'power2.out' }, s + 0.38);
+    t.to(R, { glow: 1, spark: 0.7, duration: 1.1, ease: 'sine.inOut' }, s + 0.62);
+    t.fromTo(b3, { sheen: -1.8 }, { sheen: 1.8, duration: 1.2, ease: 'power1.inOut', immediateRender: false }, s + 0.55);
+    t.call(() => { endIn(); chrome(true); }, [], s + 0.5);
+    t.call(() => { settle(); arm(); g.idle(true); breatheOn(g); }, [], s + 1.2);
   }
-  /** короткий вход при возвращении: сразу последняя фраза */
+  /** короткий вход при возвращении: сразу последняя фраза, кольцо уже целое */
   async function brief() {
     const id = ++run;
     tl?.kill(); tl = null;
@@ -171,15 +222,19 @@ export function initHero() {
     g.layout(finalBox());
     reset(g);
     g.start();
-    const k = N - 1, b = g.beat[k];
+    const b = g.beat[N - 1];
     const t = gsap.timeline();
     tl = t;
-    t.set(g.view, { cy: g.slotY(k) }, 0);
-    t.to(g.bd, { fade: 1, light: 1, photo: 0, duration: 0.6, ease: 'power2.out' }, 0);
-    t.fromTo(b, { rot: calm ? 0 : g.span(k) + 0.55, push: calm ? 0 : -0.16, on: 0 }, { rot: 0, push: 0, duration: calm ? 0.01 : IN, ease: 'power3.out' }, 0.15);
-    t.to(b, { on: 1, duration: 0.55, ease: 'power1.out' }, 0.15);
-    t.call(() => endIn(), [], 0.15 + IN * 0.55);
-    t.call(settle, [], 0.15 + IN);
+    t.to(g.bd, { fade: 1, light: 1, duration: 0.6, ease: 'power2.out' }, 0);
+    t.fromTo(g.ring, { draw: 1, head: 0.85, glow: 0, spark: 0 }, { glow: 1, spark: 0.7, head: 1, duration: 0.9, ease: 'power2.out' }, 0);
+    if (calm) t.to(b, { on: 1, duration: 0.6 }, 0.1);
+    else {
+      t.fromTo(b, { z: -1500, deep: 700, twist: 0.9, on: 0, flex: 0 }, { z: 0, deep: 0, twist: 0, duration: 0.95, ease: 'expo.out' }, 0.1);
+      t.to(b, { on: 1, duration: 0.3, ease: 'power1.out' }, 0.1);
+      t.fromTo(g.ring, { pulse: 0 }, { pulse: 1, duration: 1.1, ease: 'power2.out', immediateRender: false }, 0.3);
+    }
+    t.call(() => endIn(), [], 0.45);
+    t.call(() => { settle(); g.idle(true); breatheOn(g); }, [], 1.05);
   }
   /** финал сразу, без анимации: блок открыт не первым */
   function still() {
@@ -192,10 +247,10 @@ export function initHero() {
     ready.then((g) => {
       if (!g) { if (failed || !glOk) showFinal(true); return; }
       reset(g);
-      const k = N - 1;
-      Object.assign(g.beat[k], { rot: 0, push: 0, on: 1 });
-      Object.assign(g.bd, { fade: 1, light: 1, photo: 0 });
-      g.view.cy = g.slotY(k);
+      Object.assign(g.beat[N - 1], { on: 1 });
+      Object.assign(g.ring, { draw: 1, head: 1, glow: 1, spark: 0.7 });
+      Object.assign(g.bd, { fade: 1, light: 1 });
+      g.idle(true);
     });
   }
 
@@ -206,6 +261,8 @@ export function initHero() {
   hero.addEventListener('block:leave', () => {
     run++;
     tl?.kill(); tl = null;
+    breathe?.kill(); breathe = null;
+    gleam?.kill(); gleam = null;
     autoT?.kill();
     glass?.stop();
     hero.classList.remove('is-marking');
@@ -218,7 +275,7 @@ export function initHero() {
     void brief();
   };
 
-  /* ---------- мышь: цилиндр чуть поворачивается за курсором ---------- */
+  /* ---------- указатель: фразы чуть поворачиваются за ним, искра на целом кольце тянется к нему ---------- */
   hero.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse' || !glass) return;
     const r = hero.getBoundingClientRect();
@@ -229,17 +286,11 @@ export function initHero() {
   let rt = 0;
   addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = window.setTimeout(() => {
-      if (!glass) return;
-      glass.layout(finalBox());
-      // фраза, которая сейчас стоит, остаётся на своей высоте
-      const k = glass.beat.findIndex((b) => b.on > 0.5 && Math.abs(b.rot) < 0.2);
-      if (k >= 0 && !gsap.isTweening(glass.view)) glass.view.cy = glass.slotY(k);
-    }, 120);
+    rt = window.setTimeout(() => { glass?.layout(finalBox()); }, 120);
   }, { passive: true });
   document.addEventListener('visibilitychange', () => {
     if (!glass || !isOpen()) return;
-    if (document.hidden) { glass.stop(); tl?.pause(); } else { glass.start(); tl?.resume(); }
+    if (document.hidden) { glass.stop(); tl?.pause(); breathe?.pause(); gleam?.pause(); } else { glass.start(); tl?.resume(); breathe?.resume(); gleam?.resume(); }
   });
 
   // для проверки скриншотами: перемотка рассказа на нужную секунду (только в режиме разработки)
@@ -251,7 +302,7 @@ export function initHero() {
       if (!glOk) {
         chrome(false);
         hero.classList.add('is-marking');
-        gsap.delayedCall(3.05, () => { played = true; showFinal(); arm(); });
+        gsap.delayedCall(MARK, () => { played = true; showFinal(); arm(); });
       } else void story(true);
     } else {
       still();

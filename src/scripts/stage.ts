@@ -186,7 +186,14 @@ export function initStage(hooks: StageHooks = {}) {
   let pointer: { x: number; y: number } | null = null;
   addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
 
-  const canScroll = (el: Element, dir: Dir) => (dir === 1 ? el.scrollHeight - el.clientHeight - el.scrollTop > 2 : el.scrollTop > 2);
+  // блок выше экрана меньше чем на SLACK пикселей (это его нижнее поле) не прокручивается сам: жест сразу листает блоки,
+  // а не сдвигает страницу на эти пиксели туда и обратно
+  const SLACK = 24;
+  const canScroll = (el: Element, dir: Dir) => {
+    const room = el.scrollHeight - el.clientHeight;
+    if (el === current && room <= SLACK) return false;
+    return dir === 1 ? room - el.scrollTop > 2 : el.scrollTop > 2;
+  };
   const colorsOf = (b: HTMLElement): Colors => {
     const cs = getComputedStyle(b);
     return { bg: cs.getPropertyValue('--bg').trim() || '#000', fg: cs.getPropertyValue('--fg').trim() || '#fff', accent: cs.getPropertyValue('--accent').trim() || '#fff' };
@@ -198,7 +205,7 @@ export function initStage(hooks: StageHooks = {}) {
       if (prev !== b) { prev.classList.remove('is-current'); prev.dispatchEvent(new CustomEvent('block:leave')); }
     }
     current = b;
-    b.scrollTop = dir === -1 && !first ? b.scrollHeight : 0;
+    b.scrollTop = dir === -1 && !first && b.scrollHeight - b.clientHeight > SLACK ? b.scrollHeight : 0;
     window.scrollTo(0, b.offsetTop);
     html.setAttribute('data-theme', b.dataset.theme || 'hero');
     lines.forEach((l) => { const on = l.dataset.dot === b.id; l.classList.toggle('is-active', on); if (on) l.setAttribute('aria-current', 'true'); else l.removeAttribute('aria-current'); });
@@ -292,10 +299,11 @@ export function initStage(hooks: StageHooks = {}) {
     step(dir);
   }, { passive: false });
 
-  // свайпы
-  let ty = 0, tStartEdge: Record<number, boolean> = {}, tNav = false, tDy = 0, tSkip = false;
+  // свайпы. Блоки листает только вертикальный жест: направление решается по первым 10 пикселям пути.
+  // Боковой свайп (листать работы, крутить колесо) сцене не принадлежит, даже если палец по пути ушёл вверх или вниз
+  let tx = 0, ty = 0, tStartEdge: Record<number, boolean> = {}, tNav = false, tDy = 0, tSkip = false, tAxis: '' | 'x' | 'y' = '';
   addEventListener('touchstart', (e) => {
-    ty = e.touches[0].clientY; tDy = 0; tNav = false;
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY; tDy = 0; tNav = false; tAxis = '';
     // жесты на перетаскиваемых штуках и мини-играх принадлежат им
     tSkip = !!(e.target as Element).closest?.('[data-drag]');
     tStartEdge = { 1: !canScroll(current, 1), [-1]: !canScroll(current, -1) };
@@ -303,20 +311,25 @@ export function initStage(hooks: StageHooks = {}) {
   addEventListener('touchmove', (e) => {
     if (e.touches.length > 1 || tSkip) return;
     tDy = ty - e.touches[0].clientY;
+    const tDx = e.touches[0].clientX - tx;
     if (busy) { if (e.cancelable) e.preventDefault(); return; }
-    if (Math.abs(tDy) < 4) return;
+    if (Math.abs(tDy) < 4 && !tAxis) return;
     const dir: Dir = tDy > 0 ? 1 : -1;
     const t = e.target as Element;
     const inner = t.closest?.('textarea, [data-scroll-inside]');
     if (inner && canScroll(inner, dir)) return;
     if (canScroll(current, dir)) return;
-    if (e.cancelable) e.preventDefault();
-    if (tStartEdge[dir]) tNav = true;
+    // страница стоит на месте, пока жест не решил направление, и потом, если он вертикальный
+    if (tAxis !== 'x' && e.cancelable) e.preventDefault();
+    if (!tAxis && Math.hypot(tDx, tDy) >= 10) tAxis = Math.abs(tDy) > Math.abs(tDx) * 1.2 ? 'y' : 'x';
+    if (tAxis === 'y' && tStartEdge[dir]) tNav = true;
   }, { passive: false });
   addEventListener('touchend', () => {
-    if (tNav && !tSkip && !busy && Math.abs(tDy) > 46) step(tDy > 0 ? 1 : -1);
+    if (tNav && tAxis === 'y' && !tSkip && !busy && Math.abs(tDy) > 46) step(tDy > 0 ? 1 : -1);
     tNav = false;
   }, { passive: true });
+  // блок забрал жест себе (протаскивание работ): это касание блоки не листает
+  addEventListener('stage:claim', () => { tSkip = true; tNav = false; });
 
   // клавиши
   addEventListener('keydown', (e) => {

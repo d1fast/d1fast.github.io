@@ -10,8 +10,11 @@
 .btn--ghost:hover, .btn--ghost:focus-visible { color: var(--accent-fg); border-color: var(--accent); }
 
 /* Шапка: цвета следуют за текущим блоком */
-.site-header { position: fixed; inset: 0 0 auto 0; z-index: 50; display: flex; align-items: center; gap: 24px; height: var(--header-h); padding-inline: var(--gutter); font: 500 13px/1 var(--font-mono); letter-spacing: .02em; color: var(--fg); background: var(--bg); }
+.site-header { position: fixed; inset: 0 0 auto 0; z-index: 50; display: flex; align-items: center; gap: 24px; height: var(--header-h); padding-left: var(--pad-l); padding-right: var(--pad-r); font: 500 13px/1 var(--font-mono); letter-spacing: .02em; color: var(--fg); background: var(--bg); }
 .site-header a { color: inherit; }
+/* имя: на месте знака сайта, некрупно, тем же шрифтом, что и меню */
+.site-header__name { font-weight: 600; letter-spacing: .01em; white-space: nowrap; padding-block: 12px; margin-block: -12px; transition: opacity var(--dur-base) var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .site-header__name:hover { opacity: .7; } }
 .site-header__nav { display: flex; gap: 22px; margin-left: auto; }
 .site-header__nav a { position: relative; padding: 6px 0; text-transform: lowercase; }
 /* в английском меню строчные набраны в разметке, местоимение I остаётся заглавным */
@@ -23,10 +26,10 @@
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
 html.stage-on .site-header, html.js.stage:not(.stage-on) .site-header { background: transparent; }
 
-/* Первый экран, чёрно-белый (hero.ts, hero/glass.ts): холст со стеклянными фразами на весь блок, знак «d1fast ©»
-   посередине, в конце по центру заголовок (стеклянный, в месте .hero__slot), строка и кнопки.
+/* Первый экран, чёрно-белый (hero.ts, hero/glass.ts): холст со стеклянными фразами и светящимся кольцом на весь блок,
+   знак «d1fast ©» посередине, в конце заголовок в кольце (место .hero__slot), строка и кнопки.
    Шрифты: Unbounded для заголовка и знака, Onest для строки и кнопок. */
-.hero { display: grid; padding: calc(var(--header-h) + 8px) 0 clamp(24px, 6vh, 64px); overflow: hidden; background: var(--bg); }
+.hero { display: grid; padding: calc(var(--header-h) + 4px) 0 max(clamp(20px, 4.5vh, 52px), var(--safe-b)); overflow: hidden; background: var(--bg); }
 html.stage-on .hero { overflow: hidden; }
 .hero__gl { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 html:not(.js) .hero__gl { display: none; }
@@ -34,49 +37,83 @@ html:not(.js) .hero__gl { display: none; }
 /* знак при входе: маленький, по центру экрана */
 .hero__mark { position: absolute; left: 50%; top: 50%; z-index: 2; margin: 0; transform: translate(-50%, -50%); font: 500 clamp(14px, 1.1vw, 17px)/1 var(--font-hero); letter-spacing: .16em; color: var(--fg); white-space: nowrap; opacity: 0; pointer-events: none; }
 .hero__mark span { font-size: .72em; margin-left: .18em; vertical-align: .42em; letter-spacing: 0; }
-/* секунда темноты, знак проявляется из размытия, стоит и гаснет (2,05 с) */
-.hero.is-marking .hero__mark { animation: hero-mark 2.05s 1s both; }
+/* полсекунды темноты, знак проявляется из размытия, стоит и гаснет (1,8 с) */
+.hero.is-marking .hero__mark { animation: hero-mark 1.8s .4s both; }
 @keyframes hero-mark {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(1.08); filter: blur(8px); animation-timing-function: cubic-bezier(.22, .8, .3, 1); }
-  45% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
-  75% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); animation-timing-function: cubic-bezier(.5, 0, .75, 0); }
+  42% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+  72% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); animation-timing-function: cubic-bezier(.5, 0, .75, 0); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(.98); filter: blur(4px); }
 }
 
-.hero__inner { position: relative; z-index: 1; display: grid; align-content: center; justify-items: center; row-gap: clamp(16px, 2.8vh, 30px); text-align: center; min-height: 0; }
-/* место заголовка: стекло вписывается в него; без WebGL здесь тот же заголовок текстом */
-.hero__slot { width: min(100%, 1240px); height: clamp(170px, 38vh, 420px); display: grid; place-items: center; }
-.hero__title { margin: 0; display: grid; font: 700 clamp(40px, min(7.4vw, 11vh), 132px)/1.04 var(--font-hero); letter-spacing: -.02em; color: var(--fg); }
+.hero__inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(14px, 2.6vh, 28px); text-align: center; min-height: 0; }
+/* место заголовка: стекло вписывается в него, кольцо стоит вокруг его середины; без WebGL здесь тот же заголовок текстом */
+.hero__slot { position: relative; width: min(100%, 1240px); height: clamp(220px, 46vh, 520px); flex: none; display: grid; place-items: center; }
+.hero__title { position: relative; margin: 0; display: grid; font: 700 clamp(36px, min(6.4vw, 9.5vh), 116px)/1.04 var(--font-hero); letter-spacing: -.02em; color: var(--fg); }
 html.js .hero.is-glass:not(.is-flat) .hero__title { visibility: hidden; }
 html.js .hero:not(.is-flat) .hero__title { opacity: 0; }
-.hero__sub { margin: 0; max-width: 40ch; font: 400 clamp(17px, 1.45vw, 23px)/1.45 var(--font-hero-text); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: balance; }
+/* без WebGL кольцо нарисовано тенями: тонкая белая линия и мягкое свечение */
+.hero__slot::before { content: ''; position: absolute; left: 50%; top: 50%; height: min(100%, 60vh, 40vw); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / .85), 0 0 26px 3px rgb(255 255 255 / .22), inset 0 0 30px rgb(255 255 255 / .1); opacity: 0; transition: opacity 1s var(--ease-out); }
+html:not(.js) .hero__slot::before, .hero.is-flat .hero__slot::before { opacity: 1; }
+.hero__foot { display: grid; justify-items: center; gap: clamp(14px, 2.4vh, 24px); }
+.hero__sub { margin: 0; max-width: 40ch; font: 400 clamp(17px, 1.45vw, 22px)/1.45 var(--font-hero-text); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: balance; }
 .hero__cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.hero .btn { font-family: var(--font-hero-text); font-weight: 600; font-size: 17px; min-height: 56px; padding: 0 28px; }
-.hero .btn--ghost { border-color: color-mix(in oklab, var(--fg) 40%, transparent); }
+/* кнопки: одинаковое тёмное стекло с тонкой светлой кромкой; при наведении кромка и стекло светлеют */
+.hero__btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 0 28px; border-radius: var(--radius-pill);
+  font: 600 16px/1 var(--font-hero-text); letter-spacing: .01em; color: var(--fg); white-space: nowrap;
+  background: linear-gradient(180deg, rgb(255 255 255 / .1), rgb(255 255 255 / .025) 60%, rgb(255 255 255 / .05));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .2), inset 0 1px 0 rgb(255 255 255 / .2), 0 16px 34px -18px rgb(0 0 0 / .9);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  transition: box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.hero__btn:active { transform: scale(.97); }
+.hero__btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  .hero__btn:hover { background-color: rgb(255 255 255 / .08); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .55), inset 0 1px 0 rgb(255 255 255 / .3), 0 0 28px -6px rgb(255 255 255 / .25), 0 16px 34px -18px rgb(0 0 0 / .9); }
+  .hero__btn:hover .hero__arrow { transform: translateX(3px); }
+}
+/* точка «на связи»: тот же свет, что у искры на кольце, мягко расходится кругом */
+.hero__live { position: relative; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px rgb(255 255 255 / .8); }
+.hero__live::after { content: ''; position: absolute; inset: 0; border-radius: 50%; animation: hero-live 2.4s var(--ease-out) infinite; }
+@keyframes hero-live { 0% { box-shadow: 0 0 0 0 rgb(255 255 255 / .5); } 75%, 100% { box-shadow: 0 0 0 9px rgb(255 255 255 / 0); } }
+.hero:not(.is-final) .hero__live::after { animation-play-state: paused; }
+.hero__arrow { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-base) var(--ease-out); }
 /* пока скрипт не запустился, строка и кнопки не мелькают перед рассказом (без скрипта видны) */
 html.js .hero:not(.is-bound) .hero__sub, html.js .hero:not(.is-bound) .hero__cta, html.js .hero:not(.is-bound) .hero__title { opacity: 0; }
 
-/* вход на сайт: секунда темноты и знак; шапка и точки появляются вместе с финалом */
+/* вход на сайт: темнота и знак; шапка и точки появляются вместе с финалом */
 html.is-intro .site-header, html.is-intro .dots, html.js.stage:not(.stage-on):not(.deep) .site-header, html.js.stage:not(.stage-on):not(.deep) .dots { opacity: 0; pointer-events: none; }
 html.stage-on .site-header, html.stage-on .dots { transition: color .25s var(--ease-out), opacity .8s var(--ease-out); }
 
+/* телефон и планшет стоя: кольцо с заголовком занимает всё, что выше строки и кнопок; кнопки внизу, под пальцем */
 @media (orientation: portrait) {
-  .hero { padding: calc(var(--header-h) + 4px) 0 clamp(20px, 4dvh, 44px); }
-  .hero__slot { height: clamp(150px, 30dvh, 340px); }
-  .hero__title { font-size: clamp(34px, 10.5vw, 84px); }
-  .hero__sub { font-size: clamp(15px, 4vw, 19px); max-width: 30ch; }
+  .hero { padding: calc(var(--header-h) + 4px) 0 max(22px, calc(var(--safe-b) + 10px)); }
+  .hero__inner { justify-content: stretch; gap: 18px; }
+  .hero__slot { flex: 1 1 auto; height: auto; min-height: 260px; }
+  .hero__slot::before { height: auto; width: min(94%, 100cqh); }
+  .hero__slot { container-type: size; }
+  .hero__title { font-size: clamp(32px, 10vw, 84px); }
+  .hero__foot { width: 100%; gap: 18px; }
+  .hero__sub { font-size: clamp(16px, 4.3vw, 20px); max-width: 30ch; }
 }
 @media (orientation: portrait) and (max-width: 600px) {
-  .hero__cta { width: 100%; }
-  .hero__cta .btn { flex: 1 1 auto; }
+  .hero__cta { width: 100%; flex-wrap: nowrap; }
+  .hero__btn { flex: 1 1 auto; min-width: 0; padding: 0 16px; gap: 9px; min-height: 54px; font-size: 16px; }
 }
-/* телефон боком: всё плотнее */
-@media (orientation: landscape) and (max-height: 540px) {
-  .hero { padding-bottom: 12px; }
-  .hero__inner { row-gap: 10px; }
-  .hero__slot { height: 40vh; }
-  .hero__sub { font-size: 14px; }
-  .hero .btn { min-height: 42px; font-size: 14px; }
+@media (orientation: portrait) and (max-width: 360px) {
+  .hero__btn { font-size: 15px; gap: 8px; }
+}
+/* телефон боком: слева кольцо с заголовком во всю высоту, справа строка и кнопки столбиком */
+@media (orientation: landscape) and (max-height: 560px) {
+  .hero { padding: calc(var(--header-h) - 4px) 0 max(12px, var(--safe-b)); }
+  .hero__inner { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: center; column-gap: clamp(20px, 4vw, 48px); text-align: left; }
+  .hero__slot { width: 100%; height: 100%; min-height: 0; container-type: size; }
+  .hero__slot::before { height: min(100cqh, 94cqw); }
+  .hero__title { font-size: clamp(26px, 7vh, 40px); }
+  .hero__foot { justify-items: start; gap: 14px; }
+  .hero__sub { font-size: 15px; max-width: 26ch; text-wrap: pretty; }
+  .hero__cta { flex-direction: column; align-items: stretch; width: min(100%, 300px); gap: 10px; }
+  .hero__btn { min-height: 46px; font-size: 15px; }
 }
 
 /* Размерные линии (первый экран и блок процесса) */
@@ -96,7 +133,7 @@ html.js .dim:not(.is-in) b { opacity: 0; }
 .dim b { transition: opacity .3s .5s; }
 
 /* Подвал: внутри последнего блока на главной, отдельно на остальных страницах */
-.site-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 20px var(--gutter) 24px; font: 500 12px/1.5 var(--font-mono); color: var(--fg); }
+.site-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 20px var(--pad-r) max(24px, var(--safe-b)) var(--pad-l); font: 500 12px/1.5 var(--font-mono); color: var(--fg); }
 .site-footer__policy { text-decoration: underline; text-underline-offset: 3px; padding-block: 12px; margin-block: -12px; }
 
 /* Кейс */

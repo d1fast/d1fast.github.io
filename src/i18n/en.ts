@@ -6,9 +6,9 @@ export const en: Dict = {
   meta: {
     title: 'Saveliy Lopatin (d1fast): websites, apps, bots and 3D',
     description:
-      'I build digital products from idea to launch: websites, web apps, mobile and desktop apps, Telegram bots, 3D scenes and promo games.',
+      'I build digital products: websites, web services, mobile and desktop apps, Telegram bots, 3D scenes and promo games.',
     ogTitle: 'Saveliy Lopatin, d1fast',
-    ogDescription: 'Websites, apps, Telegram bots and 3D. From idea to launch.',
+    ogDescription: 'I build digital products: websites, apps, bots and 3D.',
   },
   nav: {
     services: 'What I do',
@@ -22,17 +22,15 @@ export const en: Dict = {
   hero: {
     name: 'Saveliy Lopatin',
     nick: 'd1fast',
-    h1: 'Saveliy Lopatin (d1fast): websites, apps, bots and 3D, end to end',
+    h1: 'Saveliy Lopatin (d1fast): I build websites, apps, bots and 3D',
     beats: [
       ['Got an|idea?'],
       ['But not sure', 'who to trust|with it?'],
-      ['I\u2019m|Sava'],
-      ['I turn|ideas', 'into|products'],
+      ['I build', 'digital|products'],
     ],
-    sub: 'Websites, web services, apps, bots and 3D. From the first call to launch.',
+    sub: 'Websites, web services, apps, bots and 3D.',
     ctaContact: 'Discuss a project',
     ctaWorks: 'Work',
-    photoAlt: 'Sava, the author of this site',
   },
 
   services: {
@@ -51,7 +49,6 @@ export const en: Dict = {
     open: 'View project',
     year: 'Year',
     stack: 'Stack',
-    yours: 'Your project',
     screens: 'Project screens',
     screen: 'Screen {n} of {total}',
     carousel: 'carousel',

@@ -369,6 +369,20 @@ export function init(root: HTMLElement) {
       .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.34, ease: 'power2.out', stagger: 0.04, immediateRender: true }, T.post)
       .to(letter, { keyframes: { y: [0, 2.5, 0] }, duration: 0.24, ease: 'none' }, T.post);
   }
+  // какой стороной створка смотрит на зрителя, решает угол, а не backface-visibility: Safari её иногда теряет,
+  // и на обороте проступала зеркальная копия формы. Оборот всегда чистая бумага
+  const sides = (fold: HTMLElement) => {
+    const [face, back] = [...fold.children] as HTMLElement[];
+    return () => {
+      const r = Math.abs(Number(gsap.getProperty(fold, 'rotationX')) || 0) % 360;
+      const away = r > 90 && r < 270;
+      face.style.visibility = away ? 'hidden' : '';
+      back.style.visibility = away ? '' : 'hidden';
+    };
+  };
+  const sideTop = sides(foldTop), sideBot = sides(foldBot);
+  envTl.eventCallback('onUpdate', () => { sideTop(); sideBot(); });
+  sideTop(); sideBot();
   const envelope = wrap(envTl);
   // нажали на письмо или перешли в него с клавиатуры, пока оно раскрывается: досматривать не заставляем
   const hurry = () => { if (envTl.isActive() && envTl.timeScale() === 1) envTl.timeScale(3.5); };

@@ -13,7 +13,7 @@ gsap.registerPlugin(DrawSVGPlugin);
  * переходит к следующему месту и в конце отъезжает на общий план. Общий план вписывает содержимое
  * сцены в экранчик с одним и тем же отступом от рамки (--scr-pad), поэтому все сцены стоят ровно.
  * Сила наезда зависит от того, насколько мелко сцена видна: на телефоне мелкий текст сцены
- * вырастает до 13–20 px, на большом экране камера лишь чуть подаётся к месту действия. В DOM
+ * вырастает до 16–26 px, на большом экране камера лишь чуть подаётся к месту действия. В DOM
  * камера двигает слой трансформом без 3D-слоёв (браузер заново рисует текст и пиксели в новом
  * масштабе, без мыла), в canvas меняется сама проекция при рисовании.
  */
@@ -94,19 +94,24 @@ function cursor(parent: HTMLElement, x: number, y: number) {
 
 const S = (n: number) => `steps(${n})`;
 const TAU = Math.PI * 2;
+/** сцены идут быстрее, чем записаны: человек не устаёт ждать, пока досмотрит пункт */
+const RATE = 1.4;
 
 /* ---------- камера ---------- */
 /** Масштаб общего плана, css-px на единицу сцены: прямоугольник b вписан в видимую часть экранчика
  *  (под «каналами») с отступом pad со всех сторон. */
 const fitS = (v: View, b: Box) => Math.min((v.w - 2 * v.pad) / b[2], (v.h - v.res - 2 * v.pad) / b[3]);
-/** Предел наезда. Маленький экранчик (уже 400 px, то есть телефон): до 2,9 px на единицу сцены, строка
- *  в 8 единиц вырастает до 23 px, видно только то, что сейчас происходит. Широкий (от 520 px, компьютер):
- *  камера наезжает в 2,3 раза, место действия занимает почти весь экранчик. Между ними предел меняется плавно. */
+/** 0 на телефоне (экранчик уже 400 px), 1 на компьютере (от 520 px), между ними плавно */
+const wideF = (w: number) => Math.min(1, Math.max(0, (w - 400) / 120));
+/** Предел наезда. Маленький экранчик (телефон): до 3,8 px на единицу сцены, строка в 8 единиц вырастает
+ *  до 30 px, видно только то, что сейчас происходит. Широкий (компьютер): камера наезжает в 2,3 раза,
+ *  место действия занимает почти весь экранчик. */
 const capS = (s0: number, w: number) => {
-  const near = Math.max(s0 * 2.3, Math.min(2.9, s0 * 4.2));
-  const f = Math.min(1, Math.max(0, (w - 400) / 120));
-  return near + (s0 * 2.3 - near) * f;
+  const near = Math.max(s0 * 2.3, Math.min(3.8, s0 * 5));
+  return near + (s0 * 2.3 - near) * wideF(w);
 };
+/** на телефоне кадр берёт место действия теснее: всё, на что смотрит камера, крупнее */
+const tight = (w: number) => 1 + 0.3 * (1 - wideF(w));
 
 class Cam {
   // кадр: центр и логарифм размеров прямоугольника сцены, который надо показать
@@ -133,6 +138,8 @@ class Cam {
     // кадр вписан в видимую часть с тем же отступом, что и общий план; не мельче общего плана и не крупнее предела
     const s0 = fitS(this.v, this.b);
     let s = Math.min((W - 2 * pad) / Math.exp(this.s.lw), (H - 2 * pad) / Math.exp(this.s.lh));
+    // на телефоне наезд теснее, но общий план остаётся общим: чем ближе кадр, тем сильнее поджимается
+    s *= 1 + (tight(W) - 1) * Math.min(1, Math.max(0, (s / s0 - 1) / 0.5));
     s = Math.min(capS(s0, W), Math.max(s0, s));
     // центр кадра не уводит камеру дальше содержимого с отступом
     const [bx, by, bw, bh] = this.b, m = pad / s;
@@ -163,12 +170,13 @@ function scene(cam: Cam, repeatDelay = 0.25) {
   return gsap.timeline({ paused: true, repeat: -1, repeatDelay, onUpdate: cam.apply })
     .set(cam.s, cam.at(cam.b), 0);
 }
-/** Обёртка для штук на таймлайне GSAP: таймлайн строится при первом показе. */
-function timed(dwell: number, cam: Cam, build: () => gsap.core.Timeline): Widget {
+/** Обёртка для штук на таймлайне GSAP: таймлайн строится при первом показе. rate: во сколько раз сцена идёт
+ *  быстрее, чем записана (история та же, смотреть её короче); пункт меню стоит ровно одну сцену. */
+function timed(dwell: number, cam: Cam, build: () => gsap.core.Timeline, rate = RATE): Widget {
   let tl: gsap.core.Timeline | undefined;
   return {
-    dwell,
-    play() { cam.set(); (tl ??= build()).restart(); },
+    dwell: dwell / rate,
+    play() { cam.set(); (tl ??= build().timeScale(rate)).restart(); },
     stop() { tl?.pause(0); cam.set(); },
     resize(v) { cam.view(v); },
   };
@@ -423,7 +431,7 @@ function dash(root: HTMLElement, ui: WidgetUI): Widget {
     .to(ups[0], { opacity: 1, duration: 0.2 }, 9.95)
     // общий план
     .to(cam.s, cam.home(), 9.6)
-    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 10.3));
+    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 10.3), 1.6);
 }
 
 /* ---------- 3. Приложения: на телефоне приходит пуш «Курьер выехал», по нажатию открывается приложение
@@ -769,7 +777,7 @@ function cube(root: HTMLElement): Widget {
     cx += (tx - cx) * Math.min(1, dt * 4); cy += (ty - cy) * Math.min(1, dt * 4);
     const W = pc.w, H = pc.h; if (!W) return;
     // камера: наезд и центр кадра, кадр не выходит за края мира
-    const z = 1 + st.q * (Math.min(2.2, capS(K, Wc) / K) - 1);
+    const z = 1 + st.q * (Math.min(2.2 + 0.6 * (1 - wideF(Wc)), capS(K, Wc) / K) - 1);
     const hw = W / 2 / z, hh = H / 2 / z;
     const ox = Math.min(W - hw, Math.max(hw, st.u * W)), oy = Math.min(H - hh, Math.max(hh, st.v * H));
     const X = (x: number) => (x - ox) * z + W / 2, Y = (y: number) => (y - oy) * z + H / 2;
@@ -892,10 +900,10 @@ function cube(root: HTMLElement): Widget {
       .call(() => { shape = shapeTo; st.morph = 0; }, [], 5.76)
       // общий план
       .to(st, shot(0.5, 0.5, 0, 0.9), 6.0);
-    return t;
+    return t.timeScale(RATE);
   };
   return {
-    dwell: 7.4,
+    dwell: 7.4 / RATE,
     play() {
       pc.fit(); time = 0; spin = 1.6;
       mat = 0; next = 1; shape = 0; shapeTo = 1; Object.assign(st, { sel: 0, ui: 0 });
@@ -1043,14 +1051,15 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
     .to(cur, { x: cpx + 40, y: cpy + 60, opacity: 0, duration: 0.5, ease: 'power2.in' }, 7.65)
     // общий план
     .to(cam.s, cam.home(), 7.75)
-    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 8.7);
+    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 8.7)
+    .timeScale(RATE);
   const reset = () => {
     user?.kill(); user = undefined; spinning = false;
     setPrize(4);
     gsap.set(cur, { opacity: 0, scale: 1 });
   };
   return {
-    dwell: 9.1,
+    dwell: 9.1 / RATE,
     play() { reset(); cam.set(); (auto ??= buildAuto()).restart(); },
     stop() { reset(); auto?.pause(0); wh.a = 0; cam.set(); },
     resize(v) {

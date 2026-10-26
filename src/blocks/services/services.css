@@ -240,12 +240,12 @@
   .services__text { padding-right: 36px; }
   .services__shade { transform: translate(4px, 4px); }
 }
-/* телефон с панелями браузера: всё плотнее, чтобы блок влез целиком */
+/* телефон с панелями браузера: всё плотнее, чтобы блок влез целиком вместе с землёй */
 @media (max-width: 600px) and (max-height: 860px) {
-  .services { --rowh: 36px; --fs-title: 40px; --fs-row: 19px; --fs-name: 19px; --fs-text: 14.5px; }
+  .services { --rowh: 34px; --fs-title: 40px; --fs-row: 18px; --fs-name: 19px; --fs-text: 14.5px; }
   .services__grid { row-gap: 12px; }
-  /* экранчик берёт себе всё, что осталось: чем он крупнее, тем меньше камере приходится наезжать */
-  .services__screen { height: clamp(120px, min(50vw, 25vh), 200px); }
+  /* экранчик берёт себе всё, что осталось над меню и землёй: чем он крупнее, тем лучше видно сцену */
+  .services__screen { height: clamp(140px, calc(100dvh - 488px), 62vw); }
   .services__say { gap: 2px; }
 }
 /* телефон: содержимое прижато к верху. Когда Safari прячет или показывает панель, меняется только низ,
@@ -253,13 +253,21 @@
 @media (max-width: 600px) and (orientation: portrait) {
   .services > .block__inner { align-content: start; }
 }
-/* низкий телефон: земли и холмов нет, содержимое опускается к самому низу */
-@media (max-width: 600px) and (max-height: 720px) {
-  .services > .block__inner { padding-bottom: 14px; }
-  .services__hills, .services__ground { display: none; }
+/* телефон: земля и холмы чуть мельче и видны всегда, содержимое стоит над землёй */
+@media (max-width: 600px) {
+  .services__ground { height: 36px; width: calc(100% + 24px); background-size: 24px 36px; animation-name: services-scroll-g-sm; }
+  .services__hills { bottom: 36px; height: 96px; width: calc(100% + 480px); background-size: 480px 96px; animation-name: services-scroll-h-sm; }
+  .services > .block__inner { padding-bottom: 46px; }
 }
+@keyframes services-scroll-g-sm { to { transform: translate3d(-24px, 0, 0); } }
+@keyframes services-scroll-h-sm { to { transform: translate3d(-480px, 0, 0); } }
 @media (max-width: 380px) {
   .services { --rowh: 34px; --fs-row: 18px; }
+}
+/* совсем низкий телефон (SE и панели браузера): меню и заголовок плотнее, экранчик не меньше 120 px */
+@media (max-width: 600px) and (max-height: 600px) {
+  .services { --rowh: 30px; --fs-title: 32px; --fs-row: 17px; }
+  .services__screen { height: clamp(120px, calc(100dvh - 456px), 62vw); }
 }
 
 /* ноутбук совсем низкий: строки меню чуть ниже, чтобы окно и меню влезли */
@@ -274,12 +282,14 @@
   .services__dialog { height: calc(var(--rowh) * var(--rows) + var(--hint-h)); grid-template-rows: minmax(0, 1fr) auto; }
   .services__screen { height: auto; }
 }
-/* телефон боком: меню и окно рядом, всё по высоте экрана */
+/* телефон боком: слева заголовок и меню, справа окно во всю высоту: экранчик крупный */
 @media (orientation: landscape) and (max-height: 540px) {
-  .services { --rowh: calc((100dvh - 150px) / var(--rows)); --fs-title: 32px; --fs-row: 17px; --fs-name: 17px; --fs-text: 13.5px; --gap: 8px; --scr-pad: 8px; }
-  .services > .block__inner { padding-bottom: 10px; }
-  .services__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "title title" "menu dialog"; row-gap: 8px; column-gap: 24px; }
-  .services__dialog { height: calc(var(--rowh) * var(--rows)); }
+  .services { --rowh: calc((100dvh - var(--header-h) - 64px) / var(--rows)); --fs-title: 26px; --fs-row: 16px; --fs-num: 8px; --fs-name: 16px; --fs-text: 13px; --gap: 8px; --scr-pad: 8px; }
+  .services > .block__inner { padding-top: calc(var(--header-h) + 2px); padding-bottom: max(12px, var(--safe-b)); align-content: stretch; }
+  .services__grid { grid-template-columns: minmax(0, 9fr) minmax(0, 11fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "title dialog" "menu dialog"; row-gap: 8px; column-gap: 24px; }
+  .services__row { grid-template-columns: 32px minmax(0, 1fr); }
+  .services__dialog { height: 100%; min-height: 0; }
   .services__screen { height: auto; }
+  .services__text { padding-right: 32px; }
   .services__hills, .services__ground { display: none; }
 }

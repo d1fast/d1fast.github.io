@@ -23,6 +23,12 @@
 
   --container: 1480px;
   --gutter: clamp(16px, 3vw, 40px);
+  /* вырезы экрана (островок, скругления, полоска «домой»): когда телефон лежит боком, поля не уходят под них */
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --pad-l: max(var(--gutter), var(--safe-l));
+  --pad-r: max(var(--gutter), var(--safe-r));
   --header-h: 56px;
   --radius: 6px;
   --radius-sm: 4px;
@@ -42,7 +48,7 @@
   --cherry: #5C0E2B;    --matcha: #C9DDA6;
   --ink: #121211;       --paper: #F3F0E8;    --flame: #FF6A3D;
   --charcoal: #21262B;  --slate: #5F7389;
-  --night: #0E0F10;     --frost: #EEECE6;  --amber: #F2B44C;
+  --night: #0C0E12;     --frost: #E9EDF2;
   --concrete: #EEF0F2;
   /* первый экран: чёрно-белый; страница 404: подсолнух */
   --coal: #070707;      --chalk: #EDEDEA;
@@ -64,7 +70,7 @@
 [data-theme="hero"]     { --bg: var(--coal);     --fg: var(--chalk);    --accent: var(--chalk);     --accent-fg: var(--coal);     --focus: var(--chalk);   --error: #FF8A80; }
 [data-theme="sun"]      { --bg: var(--sun);      --fg: var(--sun-ink);  --accent: var(--sun-ink);   --accent-fg: var(--sun);      --focus: var(--sun-ink); --error: #A3140C; }
 [data-theme="services"] { --bg: var(--matcha);   --fg: var(--cherry);   --accent: #C8174F;        --accent-fg: var(--matcha);   --focus: var(--cherry);  --error: #8A1400; }
-[data-theme="works"]    { --bg: var(--night);    --fg: var(--frost);    --accent: var(--amber);   --accent-fg: #1A1407;         --focus: var(--frost);   --error: #FFB4A8; }
+[data-theme="works"]    { --bg: var(--night);    --fg: var(--frost);    --accent: var(--frost);   --accent-fg: var(--night);    --focus: var(--frost);   --error: #FFB4A8; }
 [data-theme="process"]  { --bg: var(--concrete); --fg: var(--charcoal); --accent: var(--slate);   --accent-fg: var(--concrete); --focus: var(--charcoal);--error: #B3230D; }
 [data-theme="contacts"] { --bg: var(--powder);   --fg: var(--wine);     --accent: var(--wine);    --accent-fg: var(--powder);   --focus: var(--wine);    --error: #8A1400; }
 [data-theme] { --muted: color-mix(in oklab, var(--fg) 70%, var(--bg)); --line: color-mix(in oklab, var(--fg) 22%, transparent); --line-strong: color-mix(in oklab, var(--fg) 55%, transparent); }

@@ -11,9 +11,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const all = await getCollection('work', (e) => e.id.endsWith(`/${lang}`) && !e.data.draft);
 const works = all.sort((a, b) => a.data.order - b.data.order || b.data.year - a.data.year);
 
-// Акцент по проекту: номер в счётчике и подсветка точки. Нет записи: остаётся тема.
-const ACCENT: Record<string, string> = { perfume: '#F2B44C', 'ugli-bot': '#F0763E', pena: '#A9CF8E' };
-
 // Работы стоят на цилиндре: у каждой короткое видео (works.ts крутит цилиндр, переднее видео играет).
 // Фон блока = неподвижная наклонная плоскость из скриншотов всех работ (уменьшенные варианты -800).
 const has = (p: string) => fs.existsSync(path.join(process.cwd(), 'public', p));
@@ -24,20 +21,18 @@ const items = works.filter((w) => w.data.video).map((w) => {
   const desk = w.data.media.filter((m) => !m.portrait && m.kind === 'image').map((m) => base + (small(m.src) ?? m.src));
   const phones = w.data.media.filter((m) => m.portrait && m.kind === 'image').map((m) => base + m.src);
   // на цилиндре без видео стоит обложка работы (кадр, где сцена собрана), а не первый, часто пустой кадр ролика
-  return { w: w.data, slug, desk, phones, cover: base + w.data.cover, video: { mp4: base + v.mp4, webm: base + v.webm, poster: base + v.poster }, accent: ACCENT[slug] ?? '' };
+  return { w: w.data, slug, desk, phones, cover: base + w.data.cover, video: { mp4: base + v.mp4, webm: base + v.webm, poster: base + v.poster } };
 });
 const tiles = JSON.stringify([
   ...items.flatMap((it) => it.desk.map((src) => ({ src, portrait: false }))),
   ...items.flatMap((it) => it.phones.map((src) => ({ src, portrait: true }))),
 ]);
-const ring = JSON.stringify(items.map((it) => ({ poster: it.cover, accent: it.accent })));
+const ring = JSON.stringify(items.map((it) => ({ poster: it.cover })));
 const pad = (n: number) => String(n).padStart(2, '0');
 const label = (s: string, n: number, total: number) => s.replace('{n}', String(n)).replace('{total}', String(total));
 const arrow = (dir: 'l' | 'r') => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${dir === 'l' ? 'M14.5 6 8.5 12l6 6' : 'M9.5 6l6 6-6 6'}" /></svg>`;
-const first = items[0];
 ---
-<section class="block block--works works" id="works" data-theme="works" data-block="works" style={first?.accent ? `--accent:${first.accent}` : undefined}
-  data-works-ring={ring}>
+<section class="block block--works works" id="works" data-theme="works" data-block="works" data-works-ring={ring}>
   <div class="works__field" aria-hidden="true">
     <div class="works__plane" data-works-plane data-works-tiles={tiles}>
       <div class="works__spin" data-works-spin>
@@ -84,14 +79,12 @@ const first = items[0];
         <div class="works__idx" role="group" aria-label={d.works.title}>
           {items.map((it, k) => (
             <button type="button" class="works__dot" aria-label={`${label(d.works.project, k + 1, items.length)}: ${it.w.title}`} aria-current={k === 0 ? 'true' : 'false'}
-              style={it.accent ? `--dot:${it.accent}` : undefined} data-works-dot={k}><span>{pad(k + 1)}</span><i></i></button>
+              data-works-dot={k}><span>{pad(k + 1)}</span><i></i></button>
           ))}
         </div>
         <button type="button" class="works__step" aria-label={d.works.next} data-works-step="1" set:html={arrow('r')} />
       </div>
-      <a class="works__yours" href="#contacts" data-works-yours>
-        <span class="works__yours-q">{d.works.yours}</span><span class="works__write">{d.hero.ctaContact} <span class="works__arrow" aria-hidden="true">→</span></span>
-      </a>
+      <a class="works__yours" href="#contacts" data-works-yours>{d.hero.ctaContact} <span class="works__arrow" aria-hidden="true">→</span></a>
     </div>
   </div>
 </section>

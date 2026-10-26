@@ -41,13 +41,13 @@ ul, ol { padding: 0; list-style: none; }
 ::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--fg) 35%, transparent); border-radius: 999px; border: 2px solid var(--bg); }
 @supports (scrollbar-color: red blue) { html { scrollbar-color: color-mix(in oklab, var(--fg) 35%, transparent) transparent; } }
 
-.skip-link { position: fixed; left: 16px; top: -60px; z-index: 100; padding: 10px 14px; background: var(--fg); color: var(--bg); border-radius: 8px; font-weight: 600; }
+.skip-link { position: fixed; left: max(16px, var(--safe-l)); top: -60px; z-index: 100; padding: 10px 14px; background: var(--fg); color: var(--bg); border-radius: 8px; font-weight: 600; }
 .skip-link:focus { top: 16px; }
 /* заголовок блока получает фокус программно при переходе: рамка ему не нужна */
 [tabindex="-1"]:focus { outline: none; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-.container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+.container { width: 100%; max-width: var(--container); margin-inline: auto; padding-left: var(--pad-l); padding-right: var(--pad-r); }
 
 /* Блок: один экран, своя тема и свой фон. */
 .block { position: relative; min-height: 100dvh; background: var(--bg); color: var(--fg); overflow: clip; isolation: isolate; }
@@ -55,7 +55,7 @@ ul, ol { padding: 0; list-style: none; }
 .block__title { font: 800 clamp(32px, 5.4vw, 88px)/.95 var(--font-display); letter-spacing: -.03em; text-transform: uppercase; text-wrap: balance; }
 @media (max-width: 760px) { .block__inner { padding-top: calc(var(--header-h) + 16px); } }
 /* справа место под точки навигации */
-@media (min-width: 761px) { .block > .container { padding-right: max(var(--gutter), 64px); } }
+@media (min-width: 761px) { .block > .container { padding-right: max(var(--pad-r), 64px); } }
 
 /* Появление при входе блока на экран. До срабатывания элемент видим без JS. */
 html.js [data-reveal] { opacity: 0; }
@@ -65,7 +65,7 @@ html.js .split-line > .split-inner { display: block; will-change: transform; }
 /* до запуска скрипта первого экрана финальные элементы скрыты, чтобы не было вспышки перед вступлением */
 
 /* Навигация по блокам: штрихи справа, активный длиннее и с подписью */
-.dots { position: fixed; right: clamp(10px, 1.6vw, 24px); top: 50%; z-index: 40; transform: translateY(-50%); display: grid; gap: 4px; color: var(--fg); }
+.dots { position: fixed; right: calc(clamp(10px, 1.6vw, 24px) + var(--safe-r)); top: 50%; z-index: 40; transform: translateY(-50%); display: grid; gap: 4px; color: var(--fg); }
 .dots a { position: relative; display: grid; place-items: center end; width: 36px; height: 22px; }
 .dots a::before { content: ''; width: 12px; height: 2px; background: currentColor; opacity: .4; transition: width .45s var(--ease-out), opacity .2s; }
 .dots a.is-active::before { width: 30px; opacity: 1; }
@@ -73,7 +73,8 @@ html.js .split-line > .split-inner { display: block; will-change: transform; }
 .dots a.is-active:hover::before { width: 30px; }
 .dots__label { position: absolute; right: 44px; top: 50%; transform: translateY(-50%) translateX(6px); padding: 4px 7px; border-radius: 3px; background: var(--bg); font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .3s var(--ease-out); }
 .dots a:hover .dots__label, .dots a:focus-visible .dots__label { opacity: 1; transform: translateY(-50%) translateX(0); }
-@media (max-width: 760px) { .dots { display: none; } }
+/* на телефоне (и стоя, и боком) точек нет: блоки листаются свайпом, а справа точки наезжали бы на содержимое */
+@media (max-width: 760px), (orientation: landscape) and (max-height: 540px) { .dots { display: none; } }
 
 /* Свой курсор только для мыши: точка и догоняющее её кольцо; цвет инвертирует фон под ним */
 .cursor { display: none; }

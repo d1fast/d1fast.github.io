@@ -12,6 +12,8 @@ const items = [
 ];
 ---
 <header class="site-header" data-header>
+  <!-- имя слева, на месте знака сайта: видно на каждом блоке и ведёт на первый экран -->
+  <a class="site-header__name" href={home}>{d.hero.name}</a>
   <nav class="site-header__nav" aria-label={lang === 'ru' ? 'Разделы' : 'Sections'}>
     {items.map(([id, label]) => <a href={`${home}#${id}`} data-scramble>{lang === 'en' ? label.toLowerCase().replace(/\bi\b/g, 'I') : label}</a>)}
   </nav>

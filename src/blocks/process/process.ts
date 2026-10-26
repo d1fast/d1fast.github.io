@@ -3,7 +3,7 @@ import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { watchBlock, pointerArm } from '../../scripts/block';
-import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, MAN_STOP, MAN_VIEW, THINK_DOTS, type P } from './lamp';
+import { J1, J2, BENCH, PLATE, MARKS, LENS, LENS_STOPS, MAN, MAN_STOP, MAN_VIEW, THINK_DOTS, VB_X, VB_Y, VB_W, VB_H, type P } from './lamp';
 
 gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
 
@@ -18,7 +18,7 @@ gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
  */
 // на четвёртом шаге лампа включается, ему нужно больше времени. Первый шаг стоит не меньше, чем лупа идёт
 // первый круг до последнего вопроса (см. lensShow)
-const DWELL = [4, 2.8, 2.8, 4];
+const DWELL = [3.4, 2.3, 2.3, 3.4];
 const MOVE = 0.8;
 const N = 4;
 const ZOOM = 1.3; // увеличение в лупе
@@ -584,6 +584,27 @@ export function init(root: HTMLElement) {
     if (dur) hereCall = gsap.delayedCall(dur * 0.78, arrive); else arrive();
   }
 
+  /* ---------- камера на телефоне: рисунок крупнее, кадр переезжает к тому, что происходит на шаге ----------
+   * Кадры по ширине в единицах рисунка (середина и ширина), низ кадра у стола; высота по пропорциям места.
+   * 1 набросок, лупа и человечек; 2 чертёж с размерами; 3 сборка лампы; 4 лампа светит, галочка в пятне света */
+  const SHOTS: [number, number][] = [[344, 432], [346, 420], [292, 417], [392, 527]];
+  const phone = matchMedia('(max-width: 759px) and (orientation: portrait)');
+  const cam = { x: (VB_X + VB_W) / 2, w: VB_W - VB_X };
+  const camSet = () => {
+    const box = svg.parentElement!;
+    const ar = (box.clientWidth || 1) / (box.clientHeight || 1);
+    const h = cam.w / ar;
+    svg.setAttribute('viewBox', `${(cam.x - cam.w / 2).toFixed(1)} ${(BENCH + 6 - h).toFixed(1)} ${cam.w.toFixed(1)} ${h.toFixed(1)}`);
+  };
+  const camHome = () => { gsap.killTweensOf(cam); svg.setAttribute('viewBox', `${VB_X} ${VB_Y} ${VB_W - VB_X} ${VB_H - VB_Y}`); };
+  function shoot(i: number, dur: number) {
+    if (!phone.matches) { camHome(); return; }
+    const [x, w] = SHOTS[i];
+    if (!dur) { gsap.killTweensOf(cam); Object.assign(cam, { x, w }); camSet(); return; }
+    gsap.to(cam, { x, w, duration: dur, ease: 'power2.inOut', overwrite: true, onUpdate: camSet });
+  }
+  phone.addEventListener('change', () => { if (cur >= 0) shoot(cur, 0); else camHome(); });
+
   let cur = -1;
   function go(next: number, byUser = false) {
     const i = ((next % N) + N) % N;
@@ -601,6 +622,7 @@ export function init(root: HTMLElement) {
       onComplete: () => { if (loop) gsap.set(roll, { yPercent: 0 }); } });
     swapSay(from, i);
     moveCart(i, dur);
+    shoot(i, from < 0 ? 0 : 1.1);
     if (from >= 0) ride(loop ? 240 : 180 * Math.abs(i - from), loop || i > from ? 1 : -1);
     scene(from, i);
     const wait = byUser ? 0.25 : from < 0 ? 1.1 : MOVE;
@@ -673,6 +695,7 @@ export function init(root: HTMLElement) {
 
   addEventListener('resize', () => {
     if (cur < 0) return;
+    if (phone.matches && !gsap.isTweening(cam)) camSet();
     const c = center(cur), tb = trackBox();
     cartX = c.x;
     gsap.set(cart, { x: c.x, y: c.y });
@@ -739,10 +762,16 @@ export function init(root: HTMLElement) {
   const CH = lang === 'en' ? 'ABCDEFGHKMNPRSTUVWXYZ0123456789' : 'АБВГДЕЖЗИКЛМНПРСТУФХЦЧШЭЮЯ0123456789';
   const titles = words.map((w) => w.textContent || '');
   const randomOf = (s: string) => Array.from(s, () => CH[Math.floor(Math.random() * CH.length)]).join('');
+  // пока буквы перебираются, у каждого слова ширина готового слова: случайные буквы шире или уже, но строки
+  // не переносятся по-другому и блок не прыгает
   const titleIn = () => words.forEach((w, i) => {
     gsap.killTweensOf(w, 'scrambleText');
+    w.style.width = '';
+    w.textContent = titles[i];
+    w.style.width = `${w.getBoundingClientRect().width}px`;
     w.textContent = randomOf(titles[i]);
-    gsap.to(w, { duration: 0.9 + i * 0.15, delay: 0.05 + i * 0.12, ease: 'none', scrambleText: { text: titles[i], chars: CH, speed: 0.7, revealDelay: 0.25 } });
+    gsap.to(w, { duration: 0.9 + i * 0.15, delay: 0.05 + i * 0.12, ease: 'none', scrambleText: { text: titles[i], chars: CH, speed: 0.7, revealDelay: 0.25 },
+      onComplete: () => { w.style.width = ''; } });
   });
 
   const intro = gsap.timeline({ paused: true })
@@ -773,7 +802,7 @@ export function init(root: HTMLElement) {
     first?.kill();
     intro.pause(0);
     bgIn.pause(0);
-    words.forEach((w, i) => { gsap.killTweensOf(w, 'scrambleText'); w.textContent = titles[i]; });
+    words.forEach((w, i) => { gsap.killTweensOf(w, 'scrambleText'); w.textContent = titles[i]; w.style.width = ''; });
     reset();
   });
 
