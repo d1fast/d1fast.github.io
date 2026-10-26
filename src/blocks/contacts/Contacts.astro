@@ -40,6 +40,16 @@ const kinds = {
   phone: { type: 'tel', mode: 'tel', auto: 'tel' },
 } as const;
 const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C78 28 98 30 100 44 C110 43 116 52 113 58 Z';
+// сургучная печать: неровная капля воска, ободок оттиска и самолётик на нём
+const wax = (() => {
+  const n = 48;
+  const pts = Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    const r = 18 + 1.3 * Math.sin(a * 7 + 0.6) + 0.7 * Math.sin(a * 13 + 2.1);
+    return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`;
+  });
+  return `M${pts.join(' L')} Z`;
+})();
 ---
 <section class="block block--contacts contacts" id="contacts" data-theme="contacts" data-block="contacts">
   <!-- фон: облака, вырезанные из бумаги, плывут на разной высоте; ближние крупнее и быстрее -->
@@ -136,12 +146,42 @@ const cloudB = 'M6 58 C5 50 13 45 21 48 C24 37 38 33 46 40 C52 30 66 30 70 40 C7
         </div>
         <p class="contact-form__status" id="cf-status" data-form-status role="status" aria-live="polite"></p>
       </form>
-      <!-- клапан конверта и нижний клапан: верхний заходит на нижний, печать стоит на нахлёсте и держит оба -->
-      <div class="contacts__flap" aria-hidden="true" data-flap>
-        <svg viewBox="0 0 100 40" preserveAspectRatio="none"><path class="contacts__flap-back" d="M0 0 H100 L50 40 Z" /><path class="contacts__flap-edge" d="M0 0 L50 40 L100 0" /></svg>
-        <span class="contacts__seal"></span>
+      <!-- конверт, в нём письмо, сложенное втрое. Слои по глубине: задняя стенка, письмо, карман, клапан, печать.
+           Размеры и контуры конверта считает contacts.ts по ширине письма -->
+      <div class="contacts__env-back" aria-hidden="true" data-env-back></div>
+      <i class="contacts__crease contacts__crease--1" aria-hidden="true" data-crease></i>
+      <i class="contacts__crease contacts__crease--2" aria-hidden="true" data-crease></i>
+      <!-- створки письма: лицо (копия формы) и оборот (чистая бумага) -->
+      <div class="contacts__fold contacts__fold--top" aria-hidden="true" inert data-fold><div class="contacts__fold-face" data-fold-face></div><div class="contacts__fold-back"></div></div>
+      <div class="contacts__fold contacts__fold--bottom" aria-hidden="true" inert data-fold><div class="contacts__fold-face" data-fold-face></div><div class="contacts__fold-back"></div></div>
+      <svg class="contacts__env-pocket" aria-hidden="true" data-env-pocket>
+        <path class="contacts__env-paper" data-env-paper />
+        <path class="contacts__env-under" data-env-under />
+        <path class="contacts__env-air contacts__env-air--a" data-env-air />
+        <path class="contacts__env-air contacts__env-air--b" data-env-air />
+        <path class="contacts__env-edge" data-env-edge />
+      </svg>
+      <div class="contacts__env-flap" aria-hidden="true" data-env-flap>
+        <div class="contacts__env-flap-out">
+          <svg data-env-flap-svg>
+            <path class="contacts__env-air contacts__env-air--a" data-env-flap-air />
+            <path class="contacts__env-air contacts__env-air--b" data-env-flap-air />
+            <path class="contacts__env-edge" data-env-flap-edge />
+          </svg>
+        </div>
+        <div class="contacts__env-flap-in"></div>
       </div>
-      <svg class="contacts__folds" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-folds><path d="M0 100 L50 42 L100 100" /></svg>
+      <div class="contacts__wax" aria-hidden="true" data-wax>
+        {[0, 1].map(() => (
+          <i class="contacts__wax-half" data-wax-half>
+            <svg viewBox="-21 -21 42 42">
+              <path class="contacts__wax-drop" d={wax} />
+              <circle class="contacts__wax-ring" r="12" />
+              <g class="contacts__wax-plane" transform="rotate(-24) scale(.46)"><path d={planeTop} /><path d={planeLow} /></g>
+            </svg>
+          </i>
+        ))}
+      </div>
       <!-- письмо при отправке складывается в самолётик и улетает -->
       <svg class="contacts__send" aria-hidden="true" data-send>
         <defs>

@@ -29,9 +29,11 @@ const rectD = (x: number, y: number, w: number, h: number) => `M${x} ${y} L${x +
 /**
  * Контакты, письмо авиапочтой.
  * Вход: бумажный самолётик пролетает по строкам заголовка, и надпись проявляется за его хвостом,
- * потом под ней дорисовывается росчерк. Справа приезжает конверт: клапан открывается, поля письма
- * проявляются, на марку падает штемпель. Дальше самолётик кружит по экрану с тонким следом,
- * ныряет за письмо и уворачивается от курсора. После отправки письмо складывается в самолётик и улетает.
+ * потом под ней дорисовывается росчерк. Справа ложится конверт: сургучная печать трескается, клапан
+ * откидывается и показывает подкладку, конверт стягивается вниз, а письмо, сложенное втрое, раскрывается:
+ * сначала верхняя треть, потом нижняя, на бумаге остаются и расходятся сгибы, наклеивается марка, ставится штемпель.
+ * Дальше самолётик кружит по экрану с тонким следом, ныряет за письмо и уворачивается от курсора.
+ * После отправки письмо складывается в самолётик и улетает.
  */
 export function init(root: HTMLElement) {
   const q = <T extends Element = HTMLElement>(s: string) => root.querySelector(s) as T;
@@ -43,12 +45,19 @@ export function init(root: HTMLElement) {
   const leadEl = q('[data-lead]');
   const letter = q('[data-letter]');
   const form = q<HTMLFormElement>('[data-form]');
-  const flap = q('[data-flap]');
-  const folds = q('[data-folds]');
   const postmark = q('[data-postmark]');
   const postInk = [...postmark.querySelectorAll<SVGGeometryElement>('circle, path')];
-  const seal = q('.contacts__seal');
   const stampEl = q('.contacts__stamp');
+  // конверт и сложенное письмо
+  const envBack = q('[data-env-back]');
+  const pocket = q<SVGSVGElement>('[data-env-pocket]');
+  const flap = q('[data-env-flap]');
+  const flapSvg = q<SVGSVGElement>('[data-env-flap-svg]');
+  const wax = q('[data-wax]');
+  const halves = [...root.querySelectorAll<HTMLElement>('[data-wax-half]')];
+  const [foldTop, foldBot] = [...root.querySelectorAll<HTMLElement>('[data-fold]')];
+  const faces = [...root.querySelectorAll<HTMLElement>('[data-fold-face]')];
+  const creases = [...root.querySelectorAll<HTMLElement>('[data-crease]')];
   const status = q('[data-form-status]');
   const send = q<SVGSVGElement>('[data-send]');
   const sendG = q<SVGGElement>('[data-send-g]');
@@ -252,18 +261,120 @@ export function init(root: HTMLElement) {
   const lead = splitLines(q('[data-lead]'), { duration: 1.4, stagger: 0.2 });
   // явные конечные значения: у .btn есть CSS-переход transform, from() с ним путается
   const foot = rise(footer, { y: 0, duration: 0.8 });
-  // конверт: ложится на стол, печать лопается, клапан на петле откидывается назад, письмо проявляется по строкам,
-  // марка приклеивается, а штемпель отпечатывается ровно на своём месте (рисуется, а не прилетает)
-  const envelope = wrap(gsap.timeline({ paused: true })
-    .fromTo(letter, { y: 56, rotation: -5, scale: 0.97, opacity: 0 }, { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.95, ease: 'expo.out', immediateRender: true }, 0)
-    .fromTo(seal, { scale: 1, opacity: 1 }, { keyframes: { scale: [1, 1.22, 0], opacity: [1, 1, 0] }, duration: 0.3, ease: 'power2.in', immediateRender: true }, 0.5)
-    .fromTo(flap, { opacity: 1, rotationX: 0, transformPerspective: 900 }, { rotationX: -176, duration: 0.7, ease: 'power2.inOut', immediateRender: true }, 0.68)
-    .to(flap, { opacity: 0, duration: 0.18, ease: 'power1.in' }, 1.22)
-    .fromTo(folds, { opacity: 1 }, { opacity: 0, duration: 0.4, immediateRender: true }, 0.8)
-    .fromTo(items, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out', stagger: 0.05, immediateRender: true }, 0.95)
-    .fromTo(stampEl, { scale: 1.35, rotation: 16, opacity: 0 }, { scale: 1, rotation: 4, opacity: 1, duration: 0.45, ease: 'back.out(2)', immediateRender: true }, 1.3)
-    .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.32, ease: 'power2.out', stagger: 0.04, immediateRender: true }, 1.72)
-    .to(letter, { keyframes: { y: [0, 2, 0] }, duration: 0.2, ease: 'none' }, 1.72));
+
+  // ---------- конверт ----------
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const envPaper = q<SVGPathElement>('[data-env-paper]'), envUnder = q<SVGPathElement>('[data-env-under]'), envEdge = q<SVGPathElement>('[data-env-edge]');
+  const envAir = [...root.querySelectorAll<SVGPathElement>('[data-env-air]')];
+  const flapAir = [...root.querySelectorAll<SVGPathElement>('[data-env-flap-air]')], flapEdge = q<SVGPathElement>('[data-env-flap-edge]');
+  // копия формы для створок: те же значения полей, без id, имён и data-атрибутов, по которым её искали бы скрипты
+  const cloneForm = () => {
+    const c = form.cloneNode(true) as HTMLElement;
+    c.removeAttribute('style'); // у самой формы на время раскрытия срезка по средней трети и сдвиг
+    const src = form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+    const dst = c.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+    src.forEach((el, i) => {
+      const to = dst[i]; if (!to) return;
+      if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) (to as HTMLInputElement).checked = el.checked;
+      else to.value = el.value;
+    });
+    [c, ...c.querySelectorAll('*')].forEach((el) => [...el.attributes].forEach(({ name }) => {
+      if (name === 'id' || name === 'name' || name === 'for' || (name.startsWith('aria-') && name !== 'aria-invalid')
+        || (name.startsWith('data-') && name !== 'data-via' && name !== 'data-kind')) el.removeAttribute(name);
+    }));
+    return c;
+  };
+  /** перед раскрытием: размеры конверта по письму, контуры кармана и клапана в пикселях (штрихи канта не тянутся),
+   *  в створки ложится копия формы */
+  const pack = () => {
+    const w = form.offsetWidth, h = form.offsetHeight;
+    if (!w || !h) return;
+    // конверт чуть шире письма; по высоте в нём лежит средняя треть письма с запасом, пропорции как у настоящего
+    const ew = w * 1.04, inner = h / 3;
+    const eh = Math.max(inner + 20, Math.min(inner + 2 * Math.max(16, inner * 0.24), ew / 1.55));
+    const fh = eh * 0.56; // клапан закрывает карман чуть ниже середины
+    letter.style.setProperty('--env-top', `${(h / 2 - eh / 2).toFixed(1)}px`);
+    letter.style.setProperty('--env-h', `${eh.toFixed(1)}px`);
+    letter.style.setProperty('--flap-h', `${fh.toFixed(1)}px`);
+    const f = (n: number) => n.toFixed(1);
+    const mouth = eh * 0.5, under = eh * 0.6, cx = ew / 2;
+    pocket.setAttribute('viewBox', `0 0 ${f(ew)} ${f(eh)}`);
+    envPaper.setAttribute('d', `M0 0 L${f(cx)} ${f(mouth)} L${f(ew)} 0 V${f(eh)} H0 Z`);
+    envUnder.setAttribute('d', `M0 ${f(eh)} L${f(cx)} ${f(under)} L${f(ew)} ${f(eh)} Z`);
+    envAir.forEach((p) => p.setAttribute('d', `M4.5 0 V${f(eh - 4.5)} H${f(ew - 4.5)} V0`));
+    envEdge.setAttribute('d', `M0 0 L${f(cx)} ${f(mouth)} L${f(ew)} 0 M0 ${f(eh)} L${f(cx)} ${f(under)} L${f(ew)} ${f(eh)} M0 0 V${f(eh)} H${f(ew)} V0`);
+    flapSvg.setAttribute('viewBox', `0 0 ${f(ew)} ${f(fh)}`);
+    [...flapAir, flapEdge].forEach((p) => p.setAttribute('d', `M0 0 L${f(cx)} ${f(fh)} L${f(ew)} 0`));
+    faces.forEach((face) => face.replaceChildren(cloneForm()));
+  };
+
+  /* Раскрытие, секунды:
+     0      конверт ложится на стол
+     0.7    печать прижимается и трескается, половинки падают
+     0.95   клапан откидывается на петле, изнутри голубая подкладка; открытый уходит за письмо
+     1.85   конверт стягивается вниз и гаснет, письмо чуть приподнимается и опускается
+     2.45   верхняя треть письма раскрывается к себе, 3.05 нижняя
+     3.75   марка, 4.2 штемпель, бумага вздрагивает; сгибы расходятся до 5.5 */
+  const T = { wax: 0.7, flap: 0.95, pull: 1.85, top: 2.45, bot: 3.05, stamp: 3.75, post: 4.2 };
+  const UNFOLD = 0.7;
+  const FULL = 'inset(0% -10% 0% -10%)';
+  const envTl = gsap.timeline({ paused: true });
+  if (calm) {
+    // без движения: конверта нет, письмо просто проявляется
+    envTl.fromTo(letter, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power1.out', immediateRender: true }, 0)
+      .fromTo(stampEl, { opacity: 0 }, { opacity: 1, duration: 0.4, immediateRender: true }, 0.3)
+      .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.01, immediateRender: true }, 0.3);
+  } else {
+    const packet = [form, foldTop, foldBot];
+    envTl
+      // конверт ложится: подлетает снизу с лёгким поворотом и выравнивается
+      .fromTo(letter, { y: 46, rotation: -5, scale: 0.96, opacity: 0 }, { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 1, ease: 'power3.out', immediateRender: true }, 0)
+      // печать: прижали, по ней пошла трещина, половинки расходятся и падают
+      .fromTo(wax, { opacity: 1, scale: 1 }, { scale: 0.9, duration: 0.14, ease: 'power2.out', immediateRender: true }, T.wax)
+      .to(wax, { scale: 1, duration: 0.2, ease: 'power2.out' }, T.wax + 0.14)
+      .fromTo(halves, { x: 0, y: 0, rotation: 0, opacity: 1 }, { x: (i) => (i ? 4 : -4), rotation: (i) => (i ? 9 : -9), duration: 0.18, ease: 'power2.out', immediateRender: true, transformOrigin: '50% 100%' }, T.wax + 0.14)
+      .to(halves, { y: 64, x: (i) => (i ? 16 : -16), rotation: (i) => (i ? 48 : -40), opacity: 0, duration: 0.55, ease: 'power2.in', stagger: 0.05 }, T.wax + 0.3)
+      // клапан откидывается к себе и назад; когда лёг плашмя над конвертом, уходит за письмо
+      .fromTo(flap, { rotationX: 0, opacity: 1, zIndex: 8 }, { rotationX: -180, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.flap)
+      .set(flap, { zIndex: 0 }, T.pull)
+      // конверт стягивают вниз на свою высоту (клапан ниже конверта в 0,56 раза, ему путь в процентах больше),
+      // письмо в руке чуть поднимается и ложится обратно
+      .fromTo([envBack, pocket], { yPercent: 0, opacity: 1 }, { yPercent: 105, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.pull)
+      .fromTo(flap, { yPercent: 0 }, { yPercent: 105 / 0.56, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.pull)
+      // клапан гаснет раньше: иначе его кончик торчит из-за письма «крышей»
+      // гасим стороны клапана, а не сам клапан: прозрачность на нём сплющила бы 3D, и вместо подкладки мелькнула бы изнанка
+      .to(flap.children, { opacity: 0, duration: 0.35, ease: 'power1.in' }, T.pull + 0.1)
+      .to([envBack, pocket], { opacity: 0, duration: 0.5, ease: 'power1.in' }, T.pull + 0.4)
+      // погасший конверт возвращается на место: сдвинутый вниз, он растягивал бы прокрутку блока
+      .set([envBack, pocket, flap], { yPercent: 0, visibility: 'hidden' }, T.pull + 0.95)
+      .to(packet, { keyframes: [{ y: -12, duration: 0.45, ease: 'power2.out' }, { y: 0, duration: 0.55, ease: 'power2.inOut' }] }, T.pull)
+      // письмо раскрывается: верхняя треть к себе и вверх, потом нижняя к себе и вниз
+      .fromTo(form, { clipPath: 'inset(33.333% -10% 33.333% -10%)' }, { clipPath: 'inset(0% -10% 33.333% -10%)', duration: 0.01, immediateRender: true }, T.top + UNFOLD)
+      .fromTo(foldTop, { rotationX: -180, visibility: 'visible' }, { rotationX: 0, duration: UNFOLD, ease: 'power2.inOut', immediateRender: true }, T.top)
+      .set(foldTop, { visibility: 'hidden' }, T.top + UNFOLD)
+      // нижняя створка лежит под верхней; показываем её, когда верхняя пошла вверх (иначе по краю пачки мелькал бы её кант)
+      .fromTo(foldBot, { rotationX: 180, visibility: 'hidden', zIndex: 4 }, { visibility: 'visible', duration: 0.01, immediateRender: true }, T.top)
+      .to(foldBot, { rotationX: 0, duration: UNFOLD, ease: 'power2.inOut' }, T.bot)
+      // нижняя створка идёт к зрителю: она поверх уже раскрытой верхней
+      .set(foldBot, { zIndex: 6 }, T.bot)
+      .to(form, { clipPath: FULL, duration: 0.01 }, T.bot + UNFOLD)
+      .set(form, { clipPath: 'none' }, T.bot + UNFOLD + 0.02)
+      .set(foldBot, { visibility: 'hidden' }, T.bot + UNFOLD)
+      // сгибы видны сразу после раскрытия и медленно расходятся
+      .fromTo(creases[0], { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: true }, T.top + UNFOLD - 0.06)
+      .fromTo(creases[1], { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: true }, T.bot + UNFOLD - 0.06)
+      .to(creases, { opacity: 0, duration: 1.6, ease: 'sine.inOut' }, T.bot + UNFOLD + 0.5)
+      // марку прижимают к углу, штемпель отпечатывается на своём месте, бумага вздрагивает
+      .fromTo(stampEl, { scale: 1.45, rotation: 18, y: -14, opacity: 0 }, { scale: 1, rotation: 4, y: 0, opacity: 1, duration: 0.55, ease: 'power3.out', immediateRender: true }, T.stamp)
+      .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.34, ease: 'power2.out', stagger: 0.04, immediateRender: true }, T.post)
+      .to(letter, { keyframes: { y: [0, 2.5, 0] }, duration: 0.24, ease: 'none' }, T.post);
+  }
+  const envelope = wrap(envTl);
+  // нажали на письмо или перешли в него с клавиатуры, пока оно раскрывается: досматривать не заставляем
+  const hurry = () => { if (envTl.isActive() && envTl.timeScale() === 1) envTl.timeScale(3.5); };
+  letter.addEventListener('pointerdown', hurry);
+  letter.addEventListener('focusin', hurry);
+  if (import.meta.env.DEV) (window as unknown as { __contacts: object }).__contacts = { env: envTl, pack };
 
   // ---------- отправка: письмо складывается в самолётик и улетает ----------
   let sending: gsap.core.Timeline | null = null;
@@ -400,7 +511,7 @@ export function init(root: HTMLElement) {
     // при переходе между блоками экран ещё открывается: самолётик стартует, когда шторка ушла
     const veiled = !!document.querySelector('.stage-fx.is-on');
     // письмо открывается, когда заголовок дописан, а росчерк пошёл
-    later = gsap.delayedCall(veiled ? 0.62 : 0.15, () => write(() => { envelope.play(0.25); foot.play(1.2); }));
+    later = gsap.delayedCall(veiled ? 0.62 : 0.15, () => write(() => { if (!calm) pack(); envTl.timeScale(1); envelope.play(0.25); foot.play(1.2); }));
   }, () => {
     stopFlight();
     opened = null; openCall?.kill(); openCall = null;
