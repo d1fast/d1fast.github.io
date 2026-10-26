@@ -12,11 +12,13 @@ const ui18n = {
     menu: 'Меню услуг', hint: 'наведите курсор или', next: 'Следующий пункт',
     game: 'Колесо скидок: нажмите, чтобы крутить',
     w: {
+      brand: 'КОФЕ', links: ['Меню', 'Доставка'], siteTitle: ['Свежий кофе', 'каждый день'], siteSub: 'Привезём за 30 минут', order: 'Заказать',
+      sent: 'Заявка отправлена', popular: 'Популярное', goods: ['Латте', 'Раф', 'Флэт'], prices: ['250', '290', '270'],
       bot: 'Запись', online: 'в сети', typing: 'печатает…', msg: 'Сообщение',
       ask: 'Хочу записаться', pick: 'Выберите время:', slots: ['12:00', '15:30', '18:30'], done: 'Готово! Жду вас в 18:30',
       nav: ['Обзор', 'Заказы', 'Клиенты', 'Отчёты'], kpi: ['Выручка', 'Заказы', 'Конверсия'], dec: ',',
-      sales: 'Продажи', week: 'Неделя', toast: 'Новый заказ', st: ['новый', 'оплачен', 'в пути'], names: ['Анна', 'Илья', 'Мария', 'Олег'],
-      tasks: 'Задачи', todo: ['Созвон', 'Счёт', 'Макет'], add: 'Релиз',
+      sales: 'Продажи', week: 'Неделя', toast: 'Новый заказ', payIn: 'Оплата получена', st: ['новый', 'оплачен', 'в пути'], names: ['Анна', 'Илья', 'Мария', 'Олег'],
+      pushT: 'Курьер выехал', pushL: 'Заказ #18 · 8 мин', min: 'мин', courier: 'Илья', call: 'Позвонить', delivered: 'Доставлено', rate: 'Оцените заказ', orders: 'Заказы', way: 'в пути', done2: 'доставлен',
       promo: 'Скидка до 30%', spin: 'Крутить', code: 'Ваш промокод', copy: 'Скопировать', copied: 'Скопировано',
     },
   },
@@ -24,11 +26,13 @@ const ui18n = {
     menu: 'Services menu', hint: 'hover or', next: 'Next item',
     game: 'Discount wheel: press to spin',
     w: {
+      brand: 'COFFEE', links: ['Menu', 'Delivery'], siteTitle: ['Fresh coffee', 'every day'], siteSub: 'Delivered in 30 minutes', order: 'Order',
+      sent: 'Request sent', popular: 'Popular', goods: ['Latte', 'Raf', 'Flat'], prices: ['2.5', '2.9', '2.7'],
       bot: 'Booking', online: 'online', typing: 'typing…', msg: 'Message',
       ask: 'I want to book', pick: 'Pick a time:', slots: ['12:00', '15:30', '18:30'], done: 'Done! See you at 18:30',
       nav: ['Overview', 'Orders', 'Clients', 'Reports'], kpi: ['Revenue', 'Orders', 'Conversion'], dec: '.',
-      sales: 'Sales', week: 'Week', toast: 'New order', st: ['new', 'paid', 'shipped'], names: ['Anna', 'Ilya', 'Maria', 'Oleg'],
-      tasks: 'Tasks', todo: ['Call', 'Invoice', 'Mockup'], add: 'Release',
+      sales: 'Sales', week: 'Week', toast: 'New order', payIn: 'Payment received', st: ['new', 'paid', 'shipped'], names: ['Anna', 'Ilya', 'Maria', 'Oleg'],
+      pushT: 'Courier is out', pushL: 'Order #18 · 8 min', min: 'min', courier: 'Ilya', call: 'Call', delivered: 'Delivered', rate: 'Rate the order', orders: 'Orders', way: 'on the way', done2: 'delivered',
       promo: 'Up to 30% off', spin: 'Spin', code: 'Your promo code', copy: 'Copy', copied: 'Copied',
     },
   },
@@ -123,9 +127,8 @@ const world = `--w-clouds: ${clouds}; --w-hills: ${hills}; --w-ground: ${ground}
         <span class="services__pips" aria-hidden="true" data-services-pips>
           {items.map((_, i) => <i class:list={[{ 'is-on': i === 0 }]}><b></b></i>)}
         </span>
-        <!-- рамка видоискателя: проявляется, когда камера наезжает на место действия -->
+        <!-- при наезде камеры углы экранчика мягко темнеют -->
         <span class="services__focus" aria-hidden="true"></span>
-        <span class="services__corners" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         <span class="services__scan" aria-hidden="true"></span>
         <span class="services__flash" aria-hidden="true" data-services-flash></span>
       </div>

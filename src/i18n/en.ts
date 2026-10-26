@@ -41,7 +41,7 @@ export const en: Dict = {
       { title: 'Websites', text: 'Landing pages, promo sites and portfolios.' },
       { title: 'Web services', text: 'Client accounts, CRMs, admin panels, APIs and integrations.' },
       { title: 'Mobile apps', text: 'iOS, Android and desktop from one codebase.' },
-      { title: 'Telegram bots', text: 'Shops, bookings and Mini Apps right in the chat.' },
+      { title: 'Bots', text: 'Telegram, WhatsApp and the web: bookings, orders, support.' },
       { title: '3D and WebGL', text: 'Three.js scenes, 3D showcases and configurators.' },
       { title: 'Gamification', text: 'Promo games: prize wheels, quests, mini arcades.' },
     ],

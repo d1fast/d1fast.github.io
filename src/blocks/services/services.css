@@ -90,16 +90,9 @@
 .services__scan { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(18 2 8 / .2) 2px 3px), radial-gradient(120% 140% at 50% 50%, transparent 60%, rgb(18 2 8 / .45) 100%); }
 .services__scan::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 28%; background: linear-gradient(to bottom, transparent, rgb(234 245 214 / .05), transparent); transform: translateY(-100%); animation: services-roll 7s linear infinite; }
 @keyframes services-roll { to { transform: translateY(460%); } }
-/* фокус камеры: края темнеют по --focus от 0 до 1 */
-.services__focus { position: absolute; inset: calc(var(--res, 0px) + 6px) 6px 6px; z-index: 2; pointer-events: none; opacity: var(--focus, 0);
-  background: radial-gradient(closest-side at 50% 50%, transparent 72%, rgb(18 2 8 / .55) 100%); }
-/* уголки видоискателя: их ставит камера (widgets.ts, Cam.apply) вокруг кадра, на который наехала, в координатах экранчика */
-.services__corners { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: var(--focus, 0); }
-.services__corners i { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border: 0 solid var(--scr-ac, #EAF5D6); }
-.services__corners i:nth-child(1) { border-width: 2px 0 0 2px; transform-origin: 0 0; }
-.services__corners i:nth-child(2) { border-width: 2px 2px 0 0; transform-origin: 100% 0; }
-.services__corners i:nth-child(3) { border-width: 0 0 2px 2px; transform-origin: 0 100%; }
-.services__corners i:nth-child(4) { border-width: 0 2px 2px 0; transform-origin: 100% 100%; }
+/* фокус камеры: при наезде (--focus от 0 до 1) углы экранчика мягко темнеют, середина остаётся чистой */
+.services__focus { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: var(--focus, 0); transition: opacity .2s linear;
+  background: radial-gradient(140% 120% at 50% 55%, transparent 52%, rgb(18 2 8 / .5) 82%, rgb(18 2 8 / .78) 100%); }
 .services__flash { position: absolute; left: 0; right: 0; top: 50%; z-index: 4; height: 4px; margin-top: -2px; background: var(--accent); opacity: 0; pointer-events: none; }
 
 /* имя на всю ширину окна; описание оставляет справа место под кнопку ▼ */
@@ -173,8 +166,12 @@
 .svc-ring { border: 2px solid var(--accent); opacity: 0; }
 .svc-cur { opacity: 0; }
 
-/* сайт */
+/* сайт: подписанные кнопки, значок корзины */
 .svc-view { overflow: hidden; }
+.svc-cta { display: grid; place-items: center; background: var(--accent); color: var(--s0); font: 400 8px/1 var(--font-pixel); clip-path: var(--px2); box-shadow: inset 0 -2px 0 color-mix(in oklab, var(--accent) 55%, var(--s2)); }
+.svc-cta--sm { font-size: 12px; }
+.svc-badge { display: grid; place-items: center; border-radius: 50%; background: var(--pk); color: var(--s0); font: 400 8px/1 var(--font-pixel); }
+.svc-st .svc-dot2 { border-radius: 50%; z-index: 4; }
 .svc-pic { background: var(--s0); overflow: hidden; }
 .svc-card { background: var(--s0); }
 
@@ -200,9 +197,11 @@
 .svc-pill { display: grid; place-items: center; font: 400 8px/1 var(--font-pixel); color: var(--s0); clip-path: var(--px2); }
 .svc-toast { background: var(--s0); border: 2px solid var(--accent); clip-path: var(--px2); }
 
-/* приложения на устройствах */
-.svc-box { border: 2px solid var(--fg); }
+/* приложение на телефоне и компьютере */
 .svc-phone { background: var(--s1); border: 3px solid var(--fg); clip-path: var(--px4); overflow: hidden; }
+.svc-courier { background: var(--pk); box-shadow: 0 0 0 2px var(--s0), 0 0 0 3px var(--accent); }
+.svc-eta { display: block; background: var(--accent); clip-path: var(--px2); }
+.svc-sheet { background: var(--s0); border-top: 2px solid var(--fg); }
 
 /* колесо скидок */
 .svc-btn { display: grid; place-items: center; background: var(--accent); color: var(--s0); font: 400 14px/1 var(--font-pixel); clip-path: var(--px2); box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--accent) 55%, var(--s2)); }
