@@ -75,21 +75,20 @@ html.js .split-line > .split-inner { display: block; will-change: transform; }
 .dots a:hover .dots__label, .dots a:focus-visible .dots__label { opacity: 1; transform: translateY(-50%) translateX(0); }
 @media (max-width: 760px) { .dots { display: none; } }
 
-/* Свой курсор только для мыши: перекрестие с координатами */
+/* Свой курсор только для мыши: точка и догоняющее её кольцо; цвет инвертирует фон под ним */
 .cursor { display: none; }
 @media (hover: hover) and (pointer: fine) {
   html.has-cursor, html.has-cursor a, html.has-cursor button, html.has-cursor label, html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor: none; }
-  .cursor { display: block; position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; will-change: transform; color: var(--fg); transition: color var(--dur-theme) var(--ease-out); }
-  .cursor__h, .cursor__v { position: absolute; background: currentColor; transition: transform .25s var(--ease-out), opacity .2s; }
-  .cursor__h { left: -14px; top: 0; width: 28px; height: 1px; }
-  .cursor__v { left: 0; top: -14px; width: 1px; height: 28px; }
-  .cursor__ring { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid currentColor; opacity: 0; transform: scale(.4); transition: transform .3s var(--ease-out), opacity .2s; }
-  .cursor__xy { position: absolute; left: 12px; top: 10px; font: 500 10px/1 var(--font-mono); letter-spacing: .04em; white-space: nowrap; opacity: .9; transition: opacity .2s; }
-  .cursor.is-link .cursor__h, .cursor.is-link .cursor__v { transform: scale(0); }
-  .cursor.is-link .cursor__ring { opacity: 1; transform: scale(1); }
-  .cursor.is-link .cursor__xy { opacity: 0; }
-  .cursor.is-text .cursor__ring { transform: scale(.5); }
-  .cursor.is-down .cursor__ring { transform: scale(.8); }
+  .cursor { display: block; position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; mix-blend-mode: difference; transition: opacity .25s var(--ease-out); }
+  .cursor__dot, .cursor__ring { position: absolute; left: 0; top: 0; will-change: transform; }
+  .cursor__dot::before, .cursor__ring::before { content: ''; position: absolute; border-radius: 50%; transition: transform .35s var(--ease-out), background-color .25s var(--ease-out), opacity .2s; }
+  .cursor__dot::before { left: -4px; top: -4px; width: 8px; height: 8px; background: #fff; }
+  .cursor__ring::before { left: -18px; top: -18px; width: 36px; height: 36px; border: 1.5px solid #fff; background: rgb(255 255 255 / 0); }
+  .cursor.is-link .cursor__ring::before { transform: scale(1.55); background: rgb(255 255 255 / .14); }
+  .cursor.is-link .cursor__dot::before { transform: scale(0); }
+  .cursor.is-text .cursor__ring::before { transform: scale(.45); }
+  .cursor.is-down .cursor__ring::before { transform: scale(.8); }
+  .cursor.is-link.is-down .cursor__ring::before { transform: scale(1.35); }
   .cursor.is-hidden { opacity: 0; }
 }
 

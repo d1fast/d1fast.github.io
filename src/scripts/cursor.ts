@@ -1,6 +1,7 @@
 /**
- * Свой курсор, только для мыши: перекрестие с координатами, как в САПР.
- * Над ссылками становится кольцом.
+ * Свой курсор, только для мыши: точка и кольцо, которое догоняет её с мягкой задержкой. Цвет инвертирует то,
+ * что под ним (mix-blend-mode: difference), поэтому курсор виден на любом блоке. Над ссылками и кнопками кольцо
+ * растёт и чуть заливается, точка прячется; над полями ввода кольцо сжимается; при нажатии кольцо поджимается.
  */
 export function initCursor() {
   if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
@@ -10,23 +11,28 @@ export function initCursor() {
     el = document.createElement('div');
     el.className = 'cursor is-hidden';
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = '<i class="cursor__h"></i><i class="cursor__v"></i><i class="cursor__ring"></i><b class="cursor__xy"><span data-cx>0</span>, <span data-cy>0</span></b>';
+    el.innerHTML = '<i class="cursor__ring"></i><i class="cursor__dot"></i>';
     document.body.append(el);
   }
   html.classList.add('has-cursor');
-  const cx = el.querySelector<HTMLElement>('[data-cx]')!, cy = el.querySelector<HTMLElement>('[data-cy]')!;
-  let x = innerWidth / 2, y = innerHeight / 2, tx = x, ty = y, raf = 0, shown = false, frame = 0;
+  const ring = el.querySelector<HTMLElement>('.cursor__ring')!, dot = el.querySelector<HTMLElement>('.cursor__dot')!;
+  let x = innerWidth / 2, y = innerHeight / 2, rx = x, ry = y, raf = 0, shown = false;
 
-  const loop = () => {
-    x += (tx - x) * 0.4; y += (ty - y) * 0.4;
-    el!.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    if ((frame++ & 3) === 0) { cx.textContent = String(Math.round(tx)); cy.textContent = String(Math.round(ty)); }
-    if (Math.abs(tx - x) > 0.2 || Math.abs(ty - y) > 0.2) raf = requestAnimationFrame(loop); else raf = 0;
+  // точка стоит там, где мышь; кольцо догоняет её (экспоненциальное сглаживание, не зависит от частоты кадров)
+  let last = 0;
+  const loop = (t: number) => {
+    const dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016;
+    last = t;
+    const k = 1 - Math.exp(-dt * 16);
+    rx += (x - rx) * k; ry += (y - ry) * k;
+    dot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    ring.style.transform = `translate3d(${rx.toFixed(2)}px, ${ry.toFixed(2)}px, 0)`;
+    if (Math.abs(x - rx) > 0.1 || Math.abs(y - ry) > 0.1) raf = requestAnimationFrame(loop); else { raf = 0; last = 0; }
   };
   addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
-    tx = e.clientX; ty = e.clientY;
-    if (!shown) { shown = true; x = tx; y = ty; el!.classList.remove('is-hidden'); }
+    x = e.clientX; y = e.clientY;
+    if (!shown) { shown = true; rx = x; ry = y; el!.classList.remove('is-hidden'); }
     if (!raf) raf = requestAnimationFrame(loop);
   }, { passive: true });
   document.addEventListener('mouseleave', () => el!.classList.add('is-hidden'));
@@ -37,7 +43,8 @@ export function initCursor() {
   const isLink = (t: Element | null) => t?.closest('a, button, label, [role="button"], input, textarea, select, [data-active-list] > *');
   document.addEventListener('pointerover', (e) => {
     const t = e.target as Element;
-    el!.classList.toggle('is-link', !!isLink(t));
-    el!.classList.toggle('is-text', !!t.closest('input, textarea'));
+    const text = !!t.closest('input:not([type="checkbox"]):not([type="radio"]), textarea');
+    el!.classList.toggle('is-link', !!isLink(t) && !text);
+    el!.classList.toggle('is-text', text);
   });
 }
