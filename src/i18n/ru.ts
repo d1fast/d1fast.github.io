@@ -60,6 +60,7 @@ export const ru: Dict = {
     next: 'Дальше',
     video: 'Видео',
     concept: 'концепт',
+    play: 'Включить видео',
     project: 'Работа {n} из\u00a0{total}',
   },
   process: {

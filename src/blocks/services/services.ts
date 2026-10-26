@@ -14,7 +14,8 @@ const blink = (n: number) => (p: number) => (p >= 1 ? 1 : Math.floor(p * n) % 2)
  * на живую штуку пункта, имя перемешивается, описание печатается. Если ничего не трогать,
  * меню само перебирает пункты; полоска в квадратике пункта показывает, сколько осталось.
  * Перебор стоит на паузе, пока мышь над меню или окном, пока фокус с клавиатуры внутри
- * и ещё 9 секунд после любого действия человека.
+ * и ещё 9 секунд после любого действия человека. Дошёл до последнего пункта, а человек ничего не выбирал сам:
+ * блок шлёт block:done, и сцена переходит к следующему.
  */
 export function init(root: HTMLElement) {
   const q = gsap.utils.selector(root);
@@ -57,6 +58,9 @@ export function init(root: HTMLElement) {
   let current = 0;
   let shown = -1;
   let on = false;
+  // человек в этот заход что-то выбирал сам: когда меню дойдёт до конца, сцена сама дальше не листает
+  let touched = false;
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let ready = false; // вход отыграл, можно листать самому
   let lastSel = 0;
   let intent: ReturnType<typeof setTimeout> | undefined;
@@ -142,7 +146,11 @@ export function init(root: HTMLElement) {
   const arm = () => {
     prog?.kill();
     pipFill.forEach((b) => gsap.set(b, { scaleX: 0 }));
-    prog = gsap.fromTo(pipFill[current], { scaleX: 0 }, { scaleX: 1, duration: widgets[current].dwell, ease: 'none', paused: true, onComplete: () => select(current + 1) });
+    // последний пункт досмотрели и ничего не трогали: сцена переходит к следующему блоку
+    prog = gsap.fromTo(pipFill[current], { scaleX: 0 }, { scaleX: 1, duration: widgets[current].dwell, ease: 'none', paused: true, onComplete: () => {
+      if (current === total - 1 && !touched && !calm) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+      select(current + 1);
+    } });
     sync();
   };
   const hold = (ms = 9000) => {
@@ -160,7 +168,7 @@ export function init(root: HTMLElement) {
 
   function select(i: number, user = false) {
     i = (i + total) % total;
-    if (user) hold();
+    if (user) { hold(); touched = true; }
     if (i === current) { if (user && on) confirm(); return; }
     current = i;
     lastSel = performance.now();
@@ -244,12 +252,12 @@ export function init(root: HTMLElement) {
 
   // колесо скидок: тап, клик, пробел или Enter на фокусе крутят колесо. click, а не pointerdown:
   // свайп по экранчику листает блоки и колесо не трогает
-  if (hit && PROMO >= 0) hit.addEventListener('click', () => { widgets[PROMO].spin?.(); hold(12000); });
+  if (hit && PROMO >= 0) hit.addEventListener('click', () => { widgets[PROMO].spin?.(); hold(12000); touched = true; });
   // 3D смотрит на указатель; на тачскрине тап толкает куб
   if (CUBE >= 0) {
     const pt = (e: PointerEvent) => { const r = screen.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
     screen.addEventListener('pointermove', (e) => { if (shown === CUBE && e.pointerType === 'mouse') { const [x, y] = pt(e); widgets[CUBE].point?.(x, y); } });
-    screen.addEventListener('pointerdown', (e) => { if (shown === CUBE && e.pointerType !== 'mouse') { const [x, y] = pt(e); widgets[CUBE].point?.(x, y, true); hold(); } });
+    screen.addEventListener('pointerdown', (e) => { if (shown === CUBE && e.pointerType !== 'mouse') { const [x, y] = pt(e); widgets[CUBE].point?.(x, y, true); hold(); touched = true; } });
   }
 
   const reflow = () => { measure(); place(current, true); };
@@ -286,7 +294,7 @@ export function init(root: HTMLElement) {
     .call(() => { ready = true; arm(); }, [], 1.5);
 
   const enter = () => {
-    on = true; ready = false;
+    on = true; ready = false; touched = false;
     // курсор, оставшийся над меню после перелистывания, перебор не останавливает
     mouseArm.reset();
     hoverMenu = false; hoverDialog = false;

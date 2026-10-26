@@ -34,6 +34,8 @@ html.js .works:not(.is-primed) > *:not(.works__field):not(.works__veil) { visibi
 /* ---------- цилиндр: холст на весь блок, места для него задаёт .works__ring ---------- */
 .works__gl { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease-out); }
 .works.is-gl .works__gl { opacity: 1; }
+/* на компьютере цилиндр широкий: левая соседняя панель гаснет под карточкой с текстом, а не стоит под ним */
+.works__gl { -webkit-mask-image: linear-gradient(90deg, transparent 0, transparent 16%, #000 40%); mask-image: linear-gradient(90deg, transparent 0, transparent 16%, #000 40%); }
 
 /* ---------- компьютер ---------- */
 .works__inner { position: relative; z-index: 2; height: 100dvh; min-height: 0; align-content: stretch;
@@ -52,6 +54,12 @@ html.has-cursor .works__ring { cursor: none; }
 .works__vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s var(--ease-out); }
 .works__vid.is-on { opacity: 1; }
 .works.is-gl .works__flat, .works.will-gl .works__flat { opacity: 0; pointer-events: none; box-shadow: none; }
+/* запуск видео вручную: круглая кнопка посреди передней панели */
+.works__play { position: absolute; left: 50%; top: 50%; z-index: 3; display: grid; place-items: center; width: 76px; height: 76px; margin: -38px 0 0 -38px; border-radius: 50%;
+  color: var(--bg); background: var(--fg); box-shadow: 0 10px 40px -10px rgb(0 0 0 / .8); transition: transform var(--dur-fast) var(--ease-out); }
+.works__play svg { width: 30px; height: 30px; margin-left: 4px; fill: currentColor; }
+.works__play:active { transform: scale(.94); }
+.works__play:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 
 /* карточка текущей работы */
 .works__card { grid-column: 1; grid-row: 2; align-self: end; min-width: 0; display: grid; gap: clamp(12px, 2vh, 20px); justify-items: start; }
@@ -105,6 +113,7 @@ html.has-cursor .works__ring { cursor: none; }
 /* ---------- вертикальный экран: телефон и планшет стоя ---------- */
 @media (max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait) {
   .works__field { perspective: 700px; perspective-origin: 50% 40%; }
+  .works__gl { -webkit-mask-image: none; mask-image: none; }
   .works__plane { left: 50%; opacity: .32; }
   .works__veil { background:
     radial-gradient(120% 50% at 50% 34%, rgb(14 15 16 / .7) 0, rgb(14 15 16 / .5) 55%, rgb(14 15 16 / .88) 90%),

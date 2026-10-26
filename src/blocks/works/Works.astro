@@ -53,6 +53,8 @@ const first = items[0];
 
     <!-- место цилиндра: здесь ловятся свайп, протаскивание и клик; без WebGL здесь же плоское окно с видео -->
     <div class="works__ring" role="group" aria-roledescription={d.works.carousel} aria-label={d.works.title} data-works-area>
+      <!-- браузер не дал ролику пойти сам (энергосбережение): кнопка запуска поверх передней панели -->
+      <button type="button" class="works__play" aria-label={d.works.play} data-works-play hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg></button>
       <div class="works__flat" data-works-flat>
         {items.map((it, k) => (
           <video class:list={['works__vid', { 'is-on': k === 0 }]} muted playsinline disablepictureinpicture preload={k === 0 ? 'metadata' : 'none'}

@@ -59,6 +59,7 @@ export const en: Dict = {
     next: 'Next',
     video: 'Video',
     concept: 'concept',
+    play: 'Play video',
     project: 'Project {n} of {total}',
   },
   process: {

@@ -23,7 +23,7 @@ export interface Dict {
    *  prev/next: стрелки (кадр назад и дальше, на краях переходят к соседней работе); video: подпись точки видео;
    *  concept: пометка у придуманных проектов; project: «Работа {n} из {total}» для счётчика */
   works: { title: string; open: string; year: string; stack: string; yours: string; screens: string; screen: string; carousel: string;
-    prev: string; next: string; video: string; concept: string; project: string };
+    prev: string; next: string; video: string; concept: string; project: string; play: string };
   process: { title: string; steps: { title: string; text: string }[] };
   contacts: {
     title: string; lead: string;

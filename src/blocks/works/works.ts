@@ -113,6 +113,11 @@ export function init(root: HTMLElement) {
   let active = false, auto = false;
   let stuckT = 0;
   const holds = new Set<string>(); // причины паузы автопоказа: жест, фокус с клавиатуры
+  // сколько роликов досмотрено подряд сами по себе; человек листал сам (touched): сцена дальше сама не идёт
+  let watched = 0, touched = false;
+  const playBtn = one<HTMLButtonElement>('[data-works-play]');
+  /** браузер не дал запустить ролик сам (энергосбережение, строгий автоплей): кнопка на цилиндре */
+  const blocked = (on: boolean) => { if (playBtn) playBtn.hidden = !on; };
 
   /** видео работы j: играет только переднее и только пока блок на экране */
   const playFront = () => {
@@ -123,55 +128,70 @@ export function init(root: HTMLElement) {
     v.classList.add('is-on');
     if (!active) { v.pause(); return; }
     if (v.preload === 'none') v.preload = 'auto';
-    v.play().catch(() => { /* не дал запустить: стоит постер, автопоказ уйдёт дальше по таймеру */ });
+    v.play().then(() => blocked(false)).catch(() => blocked(true));
     ring?.live(k);
     // страховка: видео застряло или не грузится
-    stuckT = window.setTimeout(() => { if (active && auto && !holds.size && (v.paused || v.readyState < 2)) step(1); }, STUCK * 1000);
+    stuckT = window.setTimeout(() => { if (active && auto && !holds.size && (v.paused || v.readyState < 2)) autoNext(); }, STUCK * 1000);
     // следующее видео заранее узнаёт длительность и первый кадр
     const nv = videos[mod(k + 1, N)];
     if (nv && nv.preload === 'none') nv.preload = 'metadata';
   };
 
-  /** карточка и номера под передней работой */
+  /** карточка и номера под передней работой. Видна всегда ровно одна работа: прежняя смена сначала
+   *  доводится до конца, и только потом ищется, какая карточка сейчас на экране (иначе при быстрых
+   *  переключениях оставались видны две и наезжали друг на друга) */
   let swap: gsap.core.Timeline | null = null;
-  const setCard = (j: number, animate: boolean) => {
-    const a = P.find((p) => !p.el.hidden), b = P[j];
+  const setCard = (j: number, animate: boolean, dir = 1) => {
     countN.textContent = nn(j + 1);
     if (countSr) countSr.textContent = countTpl.replace(/\d+/, String(j + 1));
     dots.forEach((d, i) => d.setAttribute('aria-current', String(i === j)));
     if (info[j]?.accent) root.style.setProperty('--accent', info[j].accent);
-    if (a === b) return;
-    swap?.progress(1);
+    swap?.progress(1); swap?.kill(); swap = null;
+    const a = P.find((p) => !p.el.hidden), b = P[j];
+    if (a === b) { P.forEach((p) => (p.el.hidden = p !== b)); return; }
     if (!animate || !a) {
-      P.forEach((p) => (p.el.hidden = p !== b));
+      P.forEach((p) => { p.el.hidden = p !== b; gsap.set([p.name, ...p.parts], { clearProps: 'opacity,transform' }); });
       nameOf(j); fitName(j);
       return;
     }
+    // текст уезжает в сторону поворота цилиндра и приходит с другой стороны, пока барабан поворачивается
     const tl = gsap.timeline();
     swap = tl;
-    tl.to([a.name, ...a.parts], { opacity: 0, y: -10, duration: 0.2, ease: 'power2.in', stagger: 0.03 })
+    tl.to([a.name, ...a.parts], { opacity: 0, x: -28 * dir, duration: 0.32, ease: 'power2.in', stagger: 0.03 })
       .add(() => {
-        a.el.hidden = true; gsap.set([a.name, ...a.parts], { clearProps: 'opacity,transform' });
-        b.el.hidden = false;
+        P.forEach((p) => (p.el.hidden = p !== b));
+        gsap.set([a.name, ...a.parts], { clearProps: 'opacity,transform' });
         nameOf(j); fitName(j);
         nameOf(j).play(0);
       })
-      .fromTo(b.parts, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.55, ease: 'expo.out', stagger: 0.06, clearProps: 'transform' });
+      .fromTo(b.parts, { opacity: 0, x: 28 * dir }, { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out', stagger: 0.07, clearProps: 'transform' }, '+=0.12');
   };
 
   /** повернуть цилиндр к позиции pos (в панелях); передняя работа = pos по модулю числа работ */
-  const goTo = (pos: number, dur = 1.1) => {
+  // куда цилиндр едет сейчас: быстрые нажатия «дальше» складываются, а не теряются посреди поворота
+  let tgt = 0;
+  const goTo = (pos: number, dur = 1.6) => {
+    tgt = pos;
     const j = mod(Math.round(pos), N);
     const changed = j !== k;
+    const dir = ring ? Math.sign(pos - ring.pos) || 1 : 1;
     k = j;
-    setCard(j, changed && active);
+    setCard(j, changed && active, dir);
     if (ring) ring.spin(pos, calm ? 0 : dur);
     else videos.forEach((v, i) => v.classList.toggle('is-on', i === j));
     if (changed || videos[k]?.paused) { videos[k].currentTime = 0; playFront(); }
   };
-  const step = (dir: number) => goTo(Math.round(ring ? ring.pos : k) + dir);
+  const step = (dir: number) => goTo(Math.round(ring ? tgt : k) + dir);
+  /** ролик досмотрели: следующая работа, а после последней, если человек ничего не трогал, следующий блок */
+  const autoNext = () => {
+    watched++;
+    if (watched >= N && !touched && !calm) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+    step(1);
+  };
+  /** человек сам листает: досмотр не считается, автопоказ дальше идёт, но блок сам не уходит */
+  const user = () => { touched = true; };
   /** к работе j кратчайшим путём */
-  const pick = (j: number) => { const now = ring ? Math.round(ring.pos) : k; let d = mod(j - mod(now, N), N); if (d > N / 2) d -= N; goTo(now + d); };
+  const pick = (j: number) => { const now = ring ? Math.round(tgt) : k; let d = mod(j - mod(now, N), N); if (d > N / 2) d -= N; goTo(now + d); };
 
   /* ---------- жесты: протаскивание мышью и пальцем, боковой свайп тачпада ---------- */
   let drag: { id: number; x: number; y: number; p0: number; on: boolean; off: boolean; t: number; v: number } | null = null;
@@ -192,6 +212,7 @@ export function init(root: HTMLElement) {
       if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) { d.off = true; return; }
       if (Math.abs(dx) <= 6) return;
       d.on = dragged = true;
+      user();
       holds.add('drag');
       area.classList.add('is-drag');
       try { area.setPointerCapture(e.pointerId); } catch { /* отпущен */ }
@@ -216,7 +237,11 @@ export function init(root: HTMLElement) {
   area.addEventListener('pointerup', release);
   area.addEventListener('pointercancel', release);
   // клик без протаскивания: следующая работа
-  area.addEventListener('click', (e) => { if (dragged) { dragged = false; e.preventDefault(); return; } step(1); });
+  area.addEventListener('click', (e) => {
+    if (dragged) { dragged = false; e.preventDefault(); return; }
+    if ((e.target as Element).closest('[data-works-play]')) return;
+    user(); step(1);
+  });
   // боковой свайп двумя пальцами на тачпаде: один жест = одна работа, как вертикальный свайп листает блоки.
   // Жест кончается паузой в событиях или сменой направления; инерция того же жеста второй раз не листает
   let wAcc = 0, wDone = false, wLast = 0, wDir = 0;
@@ -229,19 +254,20 @@ export function init(root: HTMLElement) {
     wLast = now;
     if (wDone) return;
     wAcc += Math.abs(dx);
-    if (wAcc >= 40) { wDone = true; step(dir); }
+    if (wAcc >= 40) { wDone = true; user(); step(dir); }
   }, { passive: false });
 
   /* ---------- стрелки, номера, клавиши ---------- */
   nav.addEventListener('click', (e) => {
     const s = (e.target as Element).closest<HTMLButtonElement>('[data-works-step]');
-    if (s) { step(Number(s.dataset.worksStep) || 1); return; }
+    if (s) { user(); step(Number(s.dataset.worksStep) || 1); return; }
     const d = (e.target as Element).closest<HTMLButtonElement>('[data-works-dot]');
-    if (d) pick(Number(d.dataset.worksDot) || 0);
+    if (d) { user(); pick(Number(d.dataset.worksDot) || 0); }
   });
   root.addEventListener('keydown', (e) => {
     if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !(e.target as Element).closest?.('[data-works-nav], [data-works-area]')) return;
     e.preventDefault();
+    user();
     step(e.key === 'ArrowRight' ? 1 : -1);
     if ((e.target as Element).closest('[data-works-dot]')) dots[k]?.focus();
   });
@@ -250,9 +276,13 @@ export function init(root: HTMLElement) {
   // видео доиграло: следующая работа (если не держат жестом или фокусом)
   videos.forEach((v, j) => v.addEventListener('ended', () => {
     if (j !== k) return;
-    if (active && auto && !holds.size) step(1);
+    if (active && auto && !holds.size) autoNext();
     else { v.currentTime = 0; if (active) v.play().catch(() => {}); }
   }));
+  // кнопка запуска, если браузер не дал ролику пойти сам; любое касание страницы тоже пробует запустить
+  playBtn?.addEventListener('click', (e) => { e.stopPropagation(); playFront(); });
+  const retry = () => { if (active && videos[k]?.paused) playFront(); };
+  ['pointerdown', 'keydown', 'touchend'].forEach((t) => addEventListener(t, retry, { passive: true }));
 
   /* ---------- вход ---------- */
   const entry = gsap.timeline({ paused: true })
@@ -280,6 +310,7 @@ export function init(root: HTMLElement) {
   root.classList.add('is-primed');
   watchBlock(root, () => {
     active = true; auto = true;
+    watched = 0; touched = false;
     if (!builtW) build();
     ring?.layout();
     ring?.start();
@@ -292,6 +323,7 @@ export function init(root: HTMLElement) {
     playFront();
   }, () => {
     active = false; auto = false;
+    blocked(false);
     clearTimeout(stuckT);
     videos.forEach((v) => v.pause());
     ring?.stop();

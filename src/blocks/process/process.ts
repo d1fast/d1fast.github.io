@@ -531,11 +531,19 @@ export function init(root: HTMLElement) {
     if (on) holds.add(src); else holds.delete(src);
     if (holds.size) timer?.pause(); else timer?.resume();
   };
+  // человек в этот заход сам выбирал шаг: после последнего шага сцена дальше сама не листает
+  let touched = false;
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function startTimer(delay: number) {
     timer?.kill();
     progBox(cur);
     timer = gsap.fromTo(prog, { scaleX: 0 }, { scaleX: 1, duration: DWELL[cur], ease: 'none', delay, paused: holds.size > 0,
-      onComplete: () => { if (isOn()) go(cur + 1); } });
+      onComplete: () => {
+        if (!isOn()) return;
+        // все четыре шага досмотрели: сцена переходит к контактам
+        if (cur === N - 1 && !touched && !calm) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+        go(cur + 1);
+      } });
   }
 
   const digits = roll.children.length; // 1 2 3 4 и ещё раз 1 для перехода по кругу
@@ -573,6 +581,7 @@ export function init(root: HTMLElement) {
   let cur = -1;
   function go(next: number, byUser = false) {
     const i = ((next % N) + N) % N;
+    if (byUser) touched = true;
     if (i === cur) return;
     const from = cur;
     cur = i;
@@ -743,6 +752,7 @@ export function init(root: HTMLElement) {
 
   let first: gsap.core.Tween | undefined;
   watchBlock(root, () => {
+    touched = false;
     reset();
     bgIn.restart();
     gsap.set(nodes, { scale: 0 });
