@@ -22,25 +22,17 @@ export const en: Dict = {
   hero: {
     name: 'Saveliy Lopatin',
     nick: 'd1fast',
-    h1: 'Saveliy Lopatin: websites, Telegram bots and apps, end to end',
-    ask: [
-      { lines: ['~Want a', '*Telegram bot*', 'with AI?'], word: 'BOT' },
-      { lines: ['~Or a', '*beautiful site*', 'for your café?'], word: 'SITE' },
-      { lines: ['~Maybe an', '*app* for', 'bookings?'], word: 'APP' },
-      { lines: ['~Or even', 'a *game* for', 'your promo?'], word: 'GAME' },
+    h1: 'Saveliy Lopatin (d1fast): websites, apps, bots and 3D, end to end',
+    beats: [
+      ['Got an|idea?'],
+      ['But not sure', 'who to trust|with it?'],
+      ['I\u2019m|Sava'],
+      ['I turn|ideas', 'into|products'],
     ],
-    doubt: ['~But not sure', 'who to trust', 'with it?'],
-    answer: ['~Then you', 'came to the', '*right place.*'],
-    sub: 'I’m Saveliy. I build sites, Telegram bots and apps end to end, show a working version early and stay in touch.',
-    skip: 'Skip',
+    sub: 'Websites, web services, apps, bots and 3D. From the first call to launch.',
     ctaContact: 'Discuss a project',
     ctaWorks: 'Work',
-    cards: {
-      chat: { name: 'Ugli · bot', status: 'online', me: 'Pick a wine for steak', bot: 'A 2021 Malbec fits. Book a table for 7\u00a0pm?', yes: 'Yes, for two', other: 'Other time' },
-      site: { url: 'pena · café' },
-      book: { title: 'Book a haircut', days: ['Mon 12', 'Tue 13', 'Wed 14', 'Thu 15'], times: ['10:00', '12:30', '14:00', '16:30'], button: 'Book 14:00' },
-      game: { label: 'Spin the wheel', prize: '−20%', note: 'off your first order' },
-    },
+    photoAlt: 'Sava, the author of this site',
   },
 
   services: {

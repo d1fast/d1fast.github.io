@@ -1,316 +1,263 @@
 import { gsap } from 'gsap';
-import { ASK, DOUBT, ANSWER, paint, unpaint, type Palette } from './hero/palettes';
-import { createSpace, IN, DWELL, FLY, type Space } from './hero/space';
-
-type Line = { muted: boolean; html: string };
-interface States { ask: { lines: Line[]; word: string }[]; doubt: Line[]; answer: Line[] }
+import type { Glass } from './hero/glass';
 
 /**
- * Первый экран-воронка. Вопросы («Хотите Telegram-бота с нейросетью?», «Или эстетичный сайт для кофейни?»…)
- * по очереди пролетают по кривым системы координат: быстро выезжают, у точки чтения замедляются и быстро уходят,
- * за каждым тянется лента его цвета, рядом летит картинка, новый цвет разливается кругом от точки чтения.
- * Сомнение («Но не знаете, кому это доверить?»): цвет сереет, кривые путаются в клубок. Ответ («Тогда вы попали
- * по адресу.»): подсолнечный фон, кривые распутываются и сходятся в цель d1fast, поднимаются текст обо мне и
- * кнопки; дальше по лентам бегут бусины. Рассказ пропускается кликом или кнопкой, при возвращении он короче.
- * При «уменьшить движение» рассказ идёт так же, без покачивания, наклона за мышью и конфетти.
+ * Первый экран, чёрно-белый. При входе на сайт секунду чёрный экран, потом проявляется маленький знак «d1fast ©»
+ * и гаснет. Дальше фразы стеклянными буквами по очереди въезжают по цилиндру справа, подлетают к зрителю,
+ * стоят, пока их читают, и быстро и плавно уезжают влево (hero/glass.ts). С третьей фразой («Я Сава») за стеклом
+ * проявляется фото. Последняя фраза остаётся заголовком по центру, под ней строка обо мне и кнопки.
+ * Досмотрели до конца и ничего не трогали: через несколько секунд сцена сама переходит к следующему блоку.
+ * При возвращении на экран короткий вход: сразу последняя фраза. Без WebGL тот же рассказ обычным текстом не идёт:
+ * знак, потом заголовок, строка и кнопки. «Уменьшить движение»: без поворотов и подлёта, только проявление.
  */
-export function initHero(onDone?: (hero: HTMLElement) => void) {
+
+// сколько фраза стоит перед зрителем, с; вторую («кому доверить?») читают дольше
+const HOLD = [1.25, 2.3, 1.9];
+const IN = 1.15; // въезд
+const OUT = 0.72; // уезд
+const AUTO = 6.5; // столько финал стоит перед тем, как сцена сама перейдёт дальше, с
+
+export function initHero() {
   const found = document.querySelector<HTMLElement>('[data-hero]');
   if (!found || found.classList.contains('is-bound')) return;
   const hero: HTMLElement = found;
   hero.classList.add('is-bound');
-  const states: States = JSON.parse(hero.dataset.states || '{"ask":[],"doubt":[],"answer":[]}');
-  const words: string[] = JSON.parse(hero.dataset.words || '[]');
-  const canvas = hero.querySelector<HTMLCanvasElement>('[data-hero-gl]')!;
-  const spaceEl = hero.querySelector<HTMLElement>('[data-hero-space]')!;
-  const aimEl = hero.querySelector<HTMLElement>('[data-hero-aim]')!;
-  const qs = [...hero.querySelectorAll<HTMLElement>('[data-hero-q]')];
-  const cards = [...hero.querySelectorAll<HTMLElement>('[data-hero-card]')];
-  const doubtEl = hero.querySelector<HTMLElement>('[data-hero-doubt]');
-  const say = hero.querySelector<HTMLElement>('[data-hero-say]')!;
-  const ws = [...say.querySelectorAll<HTMLElement>('.hero__w')];
-  const sub = hero.querySelector<HTMLElement>('[data-hero-sub]');
-  const cta = [...hero.querySelectorAll<HTMLElement>('[data-hero-cta] > *')];
-  const skip = hero.querySelector<HTMLButtonElement>('[data-hero-skip]');
-  const disc = hero.querySelector<HTMLElement>('[data-hero-flood]');
   const html = document.documentElement;
+  const beats: string[][] = JSON.parse(hero.dataset.beats || '[]');
+  const canvas = hero.querySelector<HTMLCanvasElement>('[data-hero-gl]')!;
+  const slot = hero.querySelector<HTMLElement>('[data-hero-slot]')!;
+  const title = hero.querySelector<HTMLElement>('[data-hero-title]')!;
+  const ends = [hero.querySelector<HTMLElement>('[data-hero-sub]'), ...hero.querySelectorAll<HTMLElement>('[data-hero-cta] > *')].filter(Boolean) as HTMLElement[];
+  const cta = hero.querySelector<HTMLElement>('[data-hero-cta]');
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // класс stage стоит в разметке, stage-on ставит сцена позже: первый экран судит по первому, иначе при открытии
-  // страницы на другом блоке он счёл бы себя открытым и перекрасил шапку
+  const coarse = matchMedia('(pointer: coarse)').matches;
   const staged = () => html.classList.contains('stage');
   const isOpen = () => !staged() || hero.classList.contains('is-current');
-  const endEls = [sub, ...cta].filter(Boolean) as HTMLElement[];
-  let sp: Space | null = null;
-  let seq: gsap.core.Timeline | null = null;
-  let played = false, telling = false;
+  const N = beats.length;
 
-  /* ---------- палитра: блок, а пока он открыт, и шапка, точки, курсор ---------- */
-  const chrome = () => [...document.querySelectorAll<HTMLElement>('.site-header, .dots, .cursor')];
-  const unchrome = () => chrome().forEach((el) => unpaint(el));
-  let pal: Palette = ASK[0];
-  const setPal = (p: Palette) => {
-    pal = p;
-    paint(hero, p);
-    sp?.tone(p);
-    if (isOpen()) chrome().forEach((el) => paint(el, p));
+  let glass: Glass | null = null;
+  let failed = false;
+  let played = false; // полный рассказ уже видели
+  let tl: gsap.core.Timeline | null = null;
+  let autoT: gsap.core.Tween | null = null;
+  let touched = false;
+
+  /* ---------- стекло: модуль с three.js грузится сразу, пока экран чёрный ---------- */
+  const glOk = (() => {
+    const c = document.createElement('canvas');
+    const g = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
+    g?.getExtension('WEBGL_lose_context')?.loseContext();
+    return !!g;
+  })();
+  const finalBox = () => {
+    const h = hero.getBoundingClientRect(), s = slot.getBoundingClientRect();
+    return { cx: s.left - h.left + s.width / 2, cy: s.top - h.top + s.height / 2, w: s.width, h: s.height };
   };
-  setPal(pal);
-  let flooding: gsap.core.Tween | null = null;
-  /** Новый цвет разливается кругом из точки (x, y) блока; без точки проявляется по всему блоку (сомнение). */
-  function flood(p: Palette, at: { x: number; y: number } | null, dur = 0.75) {
-    flooding?.progress(1);
-    if (!disc) { setPal(p); return; }
-    const r = hero.getBoundingClientRect();
-    const o = at ?? { x: r.width / 2, y: r.height / 2 };
-    const reach = Math.hypot(Math.max(o.x, r.width - o.x), Math.max(o.y, r.height - o.y));
-    const D = 200; // диаметр круга в разметке, px
-    gsap.set(disc, { x: o.x - D / 2, y: o.y - D / 2, backgroundColor: p.bg, visibility: 'visible', opacity: at ? 1 : 0, scale: at ? 0.01 : (reach * 2) / D + 0.2 });
-    let swapped = false;
-    const t = flooding = gsap.to(disc, {
-      ...(at ? { scale: (reach * 2) / D + 0.2, ease: 'expo.out' } : { opacity: 1, ease: 'power1.inOut' }), duration: dur,
-      // переменные меняются, когда круг закрыл почти всё; вопросы и картинки держат цвета своей палитры сами
-      onUpdate: () => { if (!swapped && t.progress() > (at ? 0.3 : 0.5)) { swapped = true; setPal(p); } },
-      onComplete: () => { if (!swapped) setPal(p); gsap.set(disc, { visibility: 'hidden', scale: 0.01 }); if (flooding === t) flooding = null; },
-    });
-  }
+  const ready: Promise<Glass | null> = !glOk ? Promise.resolve(null) : (async () => {
+    try {
+      const fonts = document.fonts?.ready ?? Promise.resolve();
+      await Promise.race([fonts, new Promise((r) => setTimeout(r, 1500))]);
+      const { createGlass } = await import('./hero/glass');
+      const g = await createGlass({ canvas, beats, photo: hero.dataset.photo || '', calm, coarse });
+      g.layout(finalBox());
+      g.warm();
+      canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); g.stop(); glass = null; failed = true; hero.classList.remove('is-glass'); showFinal(true); }, { once: true });
+      glass = g;
+      hero.classList.add('is-glass');
+      return g;
+    } catch { failed = true; return null; }
+  })();
 
-  /* ---------- кегль: вопрос влезает в своё место, ответ в колонку ---------- */
-  function fit() {
-    const r = hero.getBoundingClientRect();
-    const portrait = r.height > r.width * 1.05;
-    // примерка в том же шрифте, что и летящие вопросы: строка в невидимом .hero__q кеглем 100px
-    const tryout = document.createElement('p');
-    tryout.className = 'hero__q';
-    tryout.style.cssText = 'font-size:100px;transform:none';
-    const probe = document.createElement('span');
-    probe.className = 'hero__ql';
-    tryout.append(probe);
-    spaceEl.append(tryout);
-    let max = 0;
-    for (const l of [...states.ask.flatMap((a) => a.lines), ...states.doubt]) {
-      probe.classList.toggle('is-m', l.muted);
-      probe.innerHTML = l.html;
-      max = Math.max(max, probe.offsetWidth);
-    }
-    tryout.remove();
-    const gut = parseFloat(getComputedStyle(hero).getPropertyValue('--gutter')) || 16;
-    const room = portrait ? r.width - gut * 2.5 : r.width * 0.44;
-    const cap = portrait ? Math.min(r.height * 0.052, 64) : Math.min(r.height * 0.088, 84);
-    spaceEl.style.setProperty('--fs-q', `${Math.max(18, Math.floor(Math.min((room / Math.max(1, max)) * 100, cap)))}px`);
-    // ответ: самая длинная строка не шире колонки
-    say.style.removeProperty('--fs-say');
-    const box = say.parentElement?.clientWidth || 0;
-    if (!box) return;
-    let wide = 0;
-    ws.forEach((w) => { wide = Math.max(wide, w.offsetWidth); });
-    const fs = parseFloat(getComputedStyle(say).fontSize);
-    if (wide > box * 0.98) say.style.setProperty('--fs-say', `${Math.floor((fs * box * 0.98) / wide)}px`);
-  }
-
-  /* ---------- ответ, текст обо мне, кнопки, «Пропустить» ---------- */
-  const linesHide = () => { gsap.killTweensOf(ws); gsap.set(ws, { yPercent: 115, rotate: 0, opacity: 0 }); };
-  const linesIn = (delay = 0) => gsap.fromTo(ws, { yPercent: 115, rotate: 4, opacity: 1 }, { yPercent: 0, rotate: 0, opacity: 1, duration: 0.95, ease: 'expo.out', stagger: 0.09, delay, overwrite: true });
-  const linesSet = () => { gsap.killTweensOf(ws); gsap.set(ws, { yPercent: 0, rotate: 0, opacity: 1 }); };
-  const endHide = () => { gsap.killTweensOf(endEls); gsap.set(endEls, { opacity: 0, y: 18, visibility: 'hidden' }); };
-  const endIn = (delay = 0) => {
-    gsap.fromTo(endEls, { opacity: 0, y: 18, visibility: 'visible' }, { opacity: 1, y: 0, duration: 0.8, ease: 'expo.out', stagger: 0.08, delay, overwrite: true });
-    // «Пропустить» стоит там же, где поднимаются кнопки: исчезает сразу, чтобы они не наложились
-    if (skip && !skip.hidden) { gsap.killTweensOf(skip); skip.hidden = true; }
-  };
-  const skipIn = () => { if (!skip) return; skip.hidden = false; gsap.fromTo(skip, { opacity: 0 }, { opacity: 1, duration: 0.5, delay: 0.9 }); };
-  const answered = (on: boolean) => hero.classList.toggle('is-answered', on);
-  const settle = () => {
-    telling = false;
-    hero.classList.remove('is-telling');
-    document.dispatchEvent(new CustomEvent('hero:settled'));
-  };
-
-  /* ---------- состояние пространства ---------- */
-  const killSpace = () => { if (!sp) return; gsap.killTweensOf([sp.st, ...sp.curves, ...sp.fly]); };
-  /** финал сразу: кривые сошлись в цель, всё нарисовано */
-  const spaceFinal = () => {
-    if (!sp) return;
-    killSpace();
-    sp.fly.forEach((f) => { f.v = -1; });
-    Object.assign(sp.st, { m: 1, tangle: 0, axes: 1, fin: 1, grow: 1, dz: -5, dy: 0, dop: 0 });
-    sp.curves.forEach((c) => { c.drawn = 1; c.vis = 1; });
-  };
-
-  /* ---------- сценарии ---------- */
-  /** где сейчас рассказ: номер вопроса, сомнение или ответ */
-  let beat: number | 'doubt' | 'answer' | null = null;
-  function tell() {
-    if (!sp) return;
-    const s = sp;
-    seq?.kill(); killSpace();
-    flooding?.progress(1);
-    played = true; telling = true;
-    hero.classList.add('is-telling');
-    answered(false);
-    endHide(); linesHide(); skipIn();
-    setPal(ASK[0]);
-    s.fly.forEach((f) => { f.v = -1; });
-    Object.assign(s.st, { m: 0, tangle: 0, axes: 0, fin: 0, grow: 0, dz: -5, dy: 0, dop: 0 });
-    s.curves.forEach((c) => { c.drawn = 0; c.vis = 0; });
-    // следующий вопрос въезжает, когда прежний начал улетать; на узком экране стоя пути пересекаются,
-    // поэтому там новый ждёт, пока прежний почти скроется
-    const GAP = IN + DWELL + (hero.clientHeight > hero.clientWidth * 1.05 ? 0.45 : 0.15);
-    const tl = gsap.timeline();
-    // оси прорастают из начала координат, пока не прилетел первый вопрос
-    tl.to(s.st, { grow: 1, duration: 0.9, ease: 'power3.out' }, 0);
-    const T0 = 0.45;
-    states.ask.forEach((_, k) => {
-      const t = T0 + k * GAP;
-      tl.set(s.curves[k], { vis: 1 }, t);
-      tl.fromTo(s.fly[k], { v: 0 }, { v: 1, duration: FLY, ease: 'none', immediateRender: false }, t);
-      tl.call(() => { beat = k; if (k > 0) flood(ASK[k % ASK.length], s.anchor(k)); }, [], t + IN * 0.45);
-      tl.call(() => s.burst(k), [], t + IN);
-      // пройденная лента становится тонким следом
-      tl.to(s.curves[k], { vis: 0, duration: 0.7, ease: 'power1.inOut' }, t + FLY - 0.1);
-    });
-    // сомнение: когда последний вопрос почти улетел, цвет сереет по всему экрану, кривые путаются,
-    // вопрос выплывает из глубины и дрожит
-    const tD = T0 + (states.ask.length - 1) * GAP + IN + DWELL + 0.5;
-    tl.call(() => { beat = 'doubt'; flood(DOUBT, null, 0.9); }, [], tD);
-    tl.to(s.curves, { vis: 0, duration: 0.5, ease: 'power1.in', overwrite: 'auto' }, tD);
-    tl.to(s.st, { tangle: 1, duration: 1.1, ease: 'sine.inOut' }, tD + 0.3);
-    tl.fromTo(s.st, { dz: -5, dy: 0, dop: 0 }, { dz: 0, dop: 1, duration: 1, ease: 'expo.out', immediateRender: false }, tD + 0.15);
-    // ответ: сомнение проваливается вниз, жёлтый разливается из цели, тонкие кривые распутываются и сходятся
-    // в цель, оси уезжают туда же; уже в цели кривые наливаются лентами своих цветов
-    const tA = tD + 2.2;
-    tl.to(s.st, { dz: -2.2, dy: -0.9, dop: 0, duration: 0.38, ease: 'power2.in' }, tA - 0.38);
-    tl.call(() => { beat = 'answer'; flood(ANSWER, s.target(), 0.9); answered(true); }, [], tA);
-    tl.to(s.st, { tangle: 0, duration: 1.2, ease: 'power2.inOut' }, tA);
-    tl.to(s.st, { m: 1, axes: 1, duration: 1.4, ease: 'power3.inOut' }, tA);
-    tl.to(s.curves, { vis: 1, duration: 0.55, stagger: 0.08, ease: 'back.out(1.6)' }, tA + 1.0);
-    tl.to(s.st, { fin: 1, duration: 0.6, ease: 'power1.out' }, tA + 1.25);
-    tl.call(() => s.burst('target'), [], tA + 1.35);
-    tl.call(() => linesIn(), [], tA + 0.3);
-    tl.call(() => endIn(), [], tA + 0.95);
-    tl.call(settle, [], tA + 1.6);
-    seq = tl;
-  }
-  /** короткий вход при возвращении: сразу ответ, ленты заново дорисовываются в цель */
-  function brief() {
-    if (!sp) return;
-    const s = sp;
-    seq?.kill(); killSpace();
-    flooding?.progress(1);
-    telling = false;
-    hero.classList.remove('is-telling');
-    if (skip) skip.hidden = true;
-    endHide(); linesHide();
-    setPal(ANSWER);
-    answered(true);
-    beat = 'answer';
-    s.fly.forEach((f) => { f.v = -1; });
-    Object.assign(s.st, { m: 1, tangle: 0, axes: 1, fin: 0, grow: 1, dz: -5, dy: 0, dop: 0 });
-    s.curves.forEach((c) => { c.drawn = 0; c.vis = 1; });
-    const tl = gsap.timeline();
-    tl.to(s.curves, { drawn: 1, duration: 1.1, stagger: 0.1, ease: 'power2.out' }, 0.25);
-    tl.to(s.st, { fin: 1, duration: 0.5, ease: 'power1.out' }, 1.1);
-    tl.call(() => s.burst('target'), [], 1.2);
-    tl.call(() => linesIn(), [], 0.1);
-    tl.call(() => endIn(), [], 0.35);
-    tl.call(settle, [], 0.6);
-    seq = tl;
-  }
-  /** пропуск рассказа: жёлтый, ответ, текст и кнопки, кривые сходятся в цель */
-  function finish() {
-    if (!telling || !sp) return;
-    const s = sp;
-    seq?.kill(); killSpace();
-    const focused = document.activeElement === skip;
-    s.fly.forEach((f) => { f.v = -1; });
-    gsap.to(s.st, { dop: 0, duration: 0.25 });
-    gsap.to(s.curves, { drawn: 1, vis: 1, duration: 0.6, ease: 'power2.out' });
-    gsap.to(s.st, { tangle: 0, m: 1, axes: 1, grow: 1, duration: 1, ease: 'power3.inOut' });
-    gsap.to(s.st, { fin: 1, duration: 0.5, delay: 0.7 });
-    flood(ANSWER, s.target(), 0.6);
-    beat = 'answer';
-    answered(true);
-    linesIn();
-    endIn();
-    // фокус был на «Пропустить», которая исчезла: он переходит на главную кнопку, а не на начало страницы
-    if (focused) cta[0]?.focus({ preventScroll: true });
+  /* ---------- финал: строка и кнопки, шапка и точки ---------- */
+  const endHide = () => { gsap.killTweensOf(ends); gsap.set(ends, { opacity: 0, y: 16, visibility: 'hidden' }); };
+  const endIn = (delay = 0) => gsap.fromTo(ends, { opacity: 0, y: 16, visibility: 'visible' }, { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out', stagger: 0.09, delay, overwrite: true });
+  const chrome = (on: boolean) => html.classList.toggle('is-intro', !on);
+  const settle = () => { hero.classList.add('is-final'); document.dispatchEvent(new CustomEvent('hero:settled')); };
+  /** без стекла: заголовок обычным текстом */
+  function showFinal(instant = false) {
+    hero.classList.add('is-flat');
+    gsap.killTweensOf(title);
+    if (instant) gsap.set(title, { opacity: 1, y: 0 });
+    else gsap.fromTo(title, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, ease: 'power3.out' });
+    endIn(instant ? 0 : 0.35);
+    chrome(true);
     settle();
   }
-  /** финал без анимации: блок открыт не первым, рассказ покажется, когда до него дойдут */
-  function still() {
-    seq?.kill();
-    telling = false;
-    spaceFinal();
-    setPal(ANSWER);
-    linesSet();
-    if (skip) skip.hidden = true;
-    gsap.set(endEls, { opacity: 1, y: 0, visibility: 'visible' });
-    answered(true);
-    beat = 'answer';
-    sp?.draw();
-  }
-  const play = () => (played ? brief() : tell());
 
-  // до шрифтов ничего не видно: ответ, текст и кнопки спрятаны (без скрипта виден ответ)
-  linesHide();
+  /* ---------- досмотрели: сцена сама переходит дальше ---------- */
+  const arm = () => {
+    autoT?.kill();
+    if (calm || touched || !staged()) return;
+    autoT = gsap.delayedCall(AUTO, () => { if (!touched && hero.classList.contains('is-current')) hero.dispatchEvent(new CustomEvent('block:done')); });
+  };
+  const touch = () => { touched = true; autoT?.kill(); };
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((t) => hero.addEventListener(t, touch, { passive: true }));
+  cta?.addEventListener('pointerenter', touch);
+  cta?.addEventListener('focusin', touch);
+
+  /* ---------- сценарии ---------- */
+  const reset = (g: Glass) => {
+    g.beat.forEach((b, k) => Object.assign(b, { rot: g.span(k) + 1.3, push: 0, on: 0 }));
+  };
+  /** фразы по очереди; withMark: перед ними чёрный экран и знак (вход на сайт) */
+  let run = 0;
+  async function story(withMark: boolean) {
+    const id = ++run;
+    tl?.kill(); tl = null;
+    played = true;
+    hero.classList.remove('is-final');
+    endHide();
+    chrome(!withMark);
+    const t0 = performance.now();
+    if (withMark) {
+      // секунда темноты, потом знак проявляется из размытия и гаснет. Это CSS-анимация: она идёт плавно,
+      // даже если в это время главный поток собирает буквы
+      hero.classList.remove('is-marking');
+      void hero.offsetWidth;
+      hero.classList.add('is-marking');
+    }
+    // стекло ещё грузится: знак подождёт (на медленной связи), но не бесконечно
+    const g = await Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), withMark ? 9000 : 3000))]);
+    if (id !== run) return;
+    if (!g) { hero.classList.remove('is-marking'); showFinal(); return; }
+    const left = withMark ? Math.max(0, 3.05 - (performance.now() - t0) / 1000) : 0;
+    const t = gsap.timeline({ delay: left });
+    tl = t;
+    beatsInto(t, 0);
+  }
+  /** фразы на таймлайн t начиная с момента at (в секундах таймлайна) */
+  function beatsInto(t: gsap.core.Timeline, at: number) {
+    const g = glass!;
+    g.layout(finalBox());
+    reset(g);
+    // кадры рисуются с началом рассказа, пока идёт знак видеокарта свободна
+    t.call(() => g.start(), [], at);
+    t.to(g.bd, { fade: 1, light: 1, duration: 1.4, ease: 'power2.out' }, at);
+    let s = at + 0.2;
+    for (let k = 0; k < N; k++) {
+      const b = g.beat[k], last = k === N - 1, photo = k === N - 2;
+      const from = g.span(k) + 0.55;
+      t.fromTo(b, { rot: calm ? 0 : from, push: calm ? 0 : -0.16, on: 0 }, { rot: 0, push: 0, duration: calm ? 0.01 : IN, ease: 'power3.out', immediateRender: false }, s);
+      t.to(b, { on: 1, duration: calm ? 0.8 : 0.55, ease: 'power1.out' }, s);
+      t.to(g.view, { cy: g.slotY(k), duration: k ? IN : 0.01, ease: 'power3.inOut' }, k ? s - 0.25 : s);
+      if (photo) t.fromTo(g.bd, { photo: 0 }, { photo: 1, duration: 2, ease: 'power2.out', immediateRender: false }, s + 0.05);
+      if (last) {
+        t.call(() => { endIn(); chrome(true); }, [], s + IN * 0.6);
+        t.call(() => { settle(); arm(); }, [], s + IN + 0.4);
+        break;
+      }
+      const hold = HOLD[k] ?? 1.6;
+      // пока фразу читают, она медленно подлетает ближе
+      if (!calm) t.to(b, { push: 0.045, duration: hold + IN * 0.45, ease: 'sine.inOut' }, s + IN * 0.55);
+      const x = s + IN * 0.8 + hold;
+      // уезжает быстро и плавно: разгон без рывка, гаснет у края цилиндра
+      t.to(b, { rot: calm ? 0 : -(g.span(k) + 0.5), push: calm ? 0 : -0.08, duration: OUT, ease: 'power2.in' }, x);
+      t.to(b, { on: 0, duration: calm ? 0.5 : OUT * 0.75, ease: 'power1.in' }, x + (calm ? 0 : OUT * 0.25));
+      if (photo) t.to(g.bd, { photo: 0, duration: 0.9, ease: 'power2.in' }, x - 0.05);
+      s = x + (calm ? 0.55 : OUT * 0.5);
+    }
+  }
+  /** короткий вход при возвращении: сразу последняя фраза */
+  async function brief() {
+    const id = ++run;
+    tl?.kill(); tl = null;
+    // стекло ещё собирается (вернулись сразу после загрузки): немного подождать, иначе заголовок текстом
+    const g = glass ?? await Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), 2500))]);
+    if (id !== run) return;
+    if (!g) { showFinal(true); return; }
+    hero.classList.remove('is-final');
+    endHide();
+    chrome(true);
+    g.layout(finalBox());
+    reset(g);
+    g.start();
+    const k = N - 1, b = g.beat[k];
+    const t = gsap.timeline();
+    tl = t;
+    t.set(g.view, { cy: g.slotY(k) }, 0);
+    t.to(g.bd, { fade: 1, light: 1, photo: 0, duration: 0.6, ease: 'power2.out' }, 0);
+    t.fromTo(b, { rot: calm ? 0 : g.span(k) + 0.55, push: calm ? 0 : -0.16, on: 0 }, { rot: 0, push: 0, duration: calm ? 0.01 : IN, ease: 'power3.out' }, 0.15);
+    t.to(b, { on: 1, duration: 0.55, ease: 'power1.out' }, 0.15);
+    t.call(() => endIn(), [], 0.15 + IN * 0.55);
+    t.call(settle, [], 0.15 + IN);
+  }
+  /** финал сразу, без анимации: блок открыт не первым */
+  function still() {
+    run++;
+    tl?.kill();
+    chrome(true);
+    hero.classList.remove('is-marking');
+    gsap.set(ends, { opacity: 1, y: 0, visibility: 'visible' });
+    hero.classList.add('is-final');
+    ready.then((g) => {
+      if (!g) { if (failed || !glOk) showFinal(true); return; }
+      reset(g);
+      const k = N - 1;
+      Object.assign(g.beat[k], { rot: 0, push: 0, on: 1 });
+      Object.assign(g.bd, { fade: 1, light: 1, photo: 0 });
+      g.view.cy = g.slotY(k);
+    });
+  }
+
+  // до запуска сцены всё спрятано (без скрипта видно заголовок, строку и кнопки)
   endHide();
 
   /* ---------- уход и возвращение ---------- */
-  let leftT = 0;
   hero.addEventListener('block:leave', () => {
-    sp?.stop(); seq?.kill();
-    flooding?.progress(1);
-    unchrome();
-    if (telling) settle();
-    // когда волна перехода закроет экран, блок ждёт возвращения уже в цветах ответа (короткий вход)
-    clearTimeout(leftT);
-    leftT = window.setTimeout(() => { if (played && !hero.classList.contains('is-current')) { pal = ANSWER; paint(hero, ANSWER); sp?.tone(ANSWER); } }, 1200);
+    run++;
+    tl?.kill(); tl = null;
+    autoT?.kill();
+    glass?.stop();
+    hero.classList.remove('is-marking');
+    chrome(true);
+    if (!hero.classList.contains('is-final')) settle();
   });
-
-  /* ---------- мышь и касание ---------- */
-  // клик или тап по пустому месту: во время рассказа пропускает его, потом цель вспыхивает конфетти
-  let down = { x: 0, y: 0, t: 0 };
-  skip?.addEventListener('click', finish);
-  hero.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
-  hero.addEventListener('pointerup', (e) => {
-    if ((e.target as Element).closest('a, button')) return;
-    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10 || performance.now() - down.t > 450) return;
-    if (telling) finish(); else sp?.poke();
-  });
-  hero.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !sp) return;
-    const r = hero.getBoundingClientRect();
-    sp.pointer(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1, true);
-  }, { passive: true });
-  hero.addEventListener('pointerleave', () => sp?.pointer(0, 0, false));
-
-  /* ---------- запуск: после шрифтов (от них зависят размеры), но не дольше 1,2 с ---------- */
-  const fonts = document.fonts?.ready ?? Promise.resolve();
-  Promise.race([fonts, new Promise((r) => setTimeout(r, 1200))]).then(() => {
-    fit();
-    sp = createSpace({
-      canvas, space: spaceEl, aim: aimEl, questions: qs, cards, doubt: doubtEl,
-      palettes: ASK, words, nick: hero.dataset.nick || 'd1fast', calm,
-    });
-    sp.tone(pal);
-    sp.layout();
-    let rt = 0;
-    addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => { fit(); sp?.layout(); sp?.draw(); }, 120); }, { passive: true });
-    // шрифт мог догрузиться позже: размеры вопросов пересчитываются
-    fonts.then(() => { fit(); sp?.layout(); });
-    if (!staged()) new IntersectionObserver(([en]) => { if (en.isIntersecting) sp?.start(); else sp?.stop(); }).observe(hero);
-    if (isOpen()) { sp.start(); play(); }
-    else { still(); document.dispatchEvent(new CustomEvent('hero:settled')); }
-    onDone?.(hero);
-  });
-
-  /** Возвращение на первый экран: если рассказ ещё не видели, он целиком, иначе короткий вход. */
   (hero as HTMLElement & { _reenter?: () => void })._reenter = () => {
-    clearTimeout(leftT);
-    chrome().forEach((el) => paint(el, pal));
-    sp?.layout();
-    sp?.start();
-    play();
+    touched = true; // вернулись сами: дальше сцена сама не листает
+    if (!played && glass) { story(false); return; }
+    void brief();
   };
+
+  /* ---------- мышь: цилиндр чуть поворачивается за курсором ---------- */
+  hero.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || !glass) return;
+    const r = hero.getBoundingClientRect();
+    glass.pointer(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1, true);
+  }, { passive: true });
+  hero.addEventListener('pointerleave', () => glass?.pointer(0, 0, false));
+
+  let rt = 0;
+  addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = window.setTimeout(() => {
+      if (!glass) return;
+      glass.layout(finalBox());
+      // фраза, которая сейчас стоит, остаётся на своей высоте
+      const k = glass.beat.findIndex((b) => b.on > 0.5 && Math.abs(b.rot) < 0.2);
+      if (k >= 0 && !gsap.isTweening(glass.view)) glass.view.cy = glass.slotY(k);
+    }, 120);
+  }, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (!glass || !isOpen()) return;
+    if (document.hidden) { glass.stop(); tl?.pause(); } else { glass.start(); tl?.resume(); }
+  });
+
+  // для проверки скриншотами: перемотка рассказа на нужную секунду (только в режиме разработки)
+  if (import.meta.env.DEV) (window as unknown as { __hero: object }).__hero = { seek: (s: number) => { tl?.pause(); tl?.seek(s, false); }, time: () => tl?.time() ?? -1, dur: () => tl?.duration() ?? -1 };
+
+  /* ---------- запуск: после того, как сцена отметила текущий блок (initStage идёт следом) ---------- */
+  queueMicrotask(() => {
+    if (isOpen()) {
+      if (!glOk) {
+        chrome(false);
+        hero.classList.add('is-marking');
+        gsap.delayedCall(3.05, () => { played = true; showFinal(); arm(); });
+      } else void story(true);
+    } else {
+      still();
+      document.dispatchEvent(new CustomEvent('hero:settled'));
+    }
+  });
 }
 
 export function heroReenter(hero: HTMLElement) {

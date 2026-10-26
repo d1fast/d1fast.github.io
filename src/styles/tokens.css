@@ -44,7 +44,8 @@
   --charcoal: #21262B;  --slate: #5F7389;
   --night: #0E0F10;     --frost: #EEECE6;  --amber: #F2B44C;
   --concrete: #EEF0F2;
-  /* первый экран: ответ рассказа и страницы без своего блока (404, политика); вопросы перебирают свои палитры (src/scripts/hero/palettes.ts) */
+  /* первый экран: чёрно-белый; страница 404: подсолнух */
+  --coal: #070707;      --chalk: #EDEDEA;
   --sun: #FFD43B;       --sun-ink: #121110;
 
   /* значения по умолчанию = первый экран */
@@ -60,7 +61,8 @@
 }
 
 /* Темы. Селектор без :root, чтобы работал и на <html>, и на самом блоке. */
-[data-theme="hero"]     { --bg: var(--sun);      --fg: var(--sun-ink);  --accent: var(--sun-ink);   --accent-fg: var(--sun);      --focus: var(--sun-ink); --error: #A3140C; }
+[data-theme="hero"]     { --bg: var(--coal);     --fg: var(--chalk);    --accent: var(--chalk);     --accent-fg: var(--coal);     --focus: var(--chalk);   --error: #FF8A80; }
+[data-theme="sun"]      { --bg: var(--sun);      --fg: var(--sun-ink);  --accent: var(--sun-ink);   --accent-fg: var(--sun);      --focus: var(--sun-ink); --error: #A3140C; }
 [data-theme="services"] { --bg: var(--matcha);   --fg: var(--cherry);   --accent: #C8174F;        --accent-fg: var(--matcha);   --focus: var(--cherry);  --error: #8A1400; }
 [data-theme="works"]    { --bg: var(--night);    --fg: var(--frost);    --accent: var(--amber);   --accent-fg: #1A1407;         --focus: var(--frost);   --error: #FFB4A8; }
 [data-theme="process"]  { --bg: var(--concrete); --fg: var(--charcoal); --accent: var(--slate);   --accent-fg: var(--concrete); --focus: var(--charcoal);--error: #B3230D; }

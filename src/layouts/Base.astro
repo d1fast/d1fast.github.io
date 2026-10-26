@@ -25,7 +25,7 @@ interface Props {
   /** Посекционный скролл на главной. */
   snap?: boolean;
 }
-const { lang, path, noindex = false, theme = 'hero', footer = true, snap = false, ogWidth = 1200, ogHeight = 630 } = Astro.props;
+const { lang, path, noindex = false, theme = 'sun', footer = true, snap = false, ogWidth = 1200, ogHeight = 630 } = Astro.props;
 const d = t(lang);
 const blocks: [string, string][] = [['top', lang === 'ru' ? 'Начало' : 'Start'], ['services', d.nav.services], ['works', d.nav.works], ['process', d.nav.process], ['contacts', d.nav.contacts]];
 const title = Astro.props.title ?? d.meta.title;
@@ -38,7 +38,7 @@ const ogImage = `${origin}${base}${Astro.props.ogImage ?? (lang === 'en' ? '/og-
 const other = lang === 'ru' ? 'en' : 'ru';
 ---
 <!doctype html>
-<html lang={d.htmlLang} data-theme={theme} class:list={[{ stage: snap }]}>
+<html lang={d.htmlLang} data-theme={snap ? 'hero' : theme} class:list={[{ stage: snap }]}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -62,7 +62,7 @@ const other = lang === 'ru' ? 'en' : 'ru';
     <meta property="og:locale" content={lang === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta property="og:locale:alternate" content={other === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#FFD43B" />
+    <meta name="theme-color" content={snap ? '#070707' : '#FFD43B'} />
     <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${base}/favicon-32.png`} sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />

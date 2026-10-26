@@ -5,7 +5,8 @@ import { gsap } from 'gsap';
  * переносят на соседний блок через переход на холсте поверх страницы: экран закрывается цветом
  * следующего блока, страница под ним мгновенно переезжает, и холст открывает новый блок.
  * У каждого блока свой переход на входе. Если блок выше экрана, сначала прокручивается он сам.
- * Блок получает события block:enter и block:leave и класс is-current.
+ * Блок получает события block:enter и block:leave и класс is-current. Блок, который досмотрели до конца,
+ * шлёт block:done, и сцена сама переходит к следующему.
  */
 
 type Dir = 1 | -1;
@@ -354,6 +355,14 @@ export function initStage(hooks: StageHooks = {}) {
     // с клавиатуры (Enter по ссылке) фокус переезжает в блок вместе со сценой
     goTo(b, undefined, e.detail === 0);
   });
+
+  // блок досмотрели до конца и ничего не трогали: сцена сама переходит к следующему
+  list.forEach((b) => b.addEventListener('block:done', () => {
+    if (b !== current || busy || document.hidden) return;
+    const all = blocks();
+    const next = all[all.indexOf(b) + 1];
+    if (next) goTo(next, 1);
+  }));
 
   // фокус с клавиатуры ушёл в другой блок: сцена переезжает туда же без перехода
   document.addEventListener('focusin', (e) => {

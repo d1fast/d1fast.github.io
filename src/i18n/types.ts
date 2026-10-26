@@ -9,23 +9,14 @@ export interface Dict {
     langSwitch: string; langSwitchTitle: string; skipToContent: string;
   };
   /**
-   * Первый экран-воронка. ask: вопросы, которые сменяют друг друга (строки заголовка; «~» в начале строки:
-   * приглушённая, *…*: акцент), shape: во что складываются знаки; doubt: сомнение; answer: ответ;
-   * sub: кто я и как работаю (до 20 слов); h1: заголовок для поиска и скринридеров.
+   * Первый экран: чёрный экран, знак d1fast ©, потом фразы стеклянными буквами на цилиндре (beats: строки фразы,
+   * «|» внутри строки: перенос на узком экране), последняя остаётся заголовком; sub: одна строка под ним;
+   * h1: заголовок для поиска и скринридеров; photoAlt: подпись к фото, которое проявляется с третьей фразой.
    */
   hero: {
     name: string; nick: string; h1: string;
-    /** вопросы воронки: строки (~ приглушает строку, *…* выделяет) и слово, которое встаёт объёмными буквами */
-    ask: { lines: string[]; word: string }[];
-    doubt: string[]; answer: string[]; sub: string; skip: string;
-    ctaContact: string; ctaWorks: string;
-    /** картинки, которые летят рядом с вопросами: чат бота, сайт кофейни, запись, колесо призов */
-    cards: {
-      chat: { name: string; status: string; me: string; bot: string; yes: string; other: string };
-      site: { url: string };
-      book: { title: string; days: string[]; times: string[]; button: string };
-      game: { label: string; prize: string; note: string };
-    };
+    beats: string[][];
+    sub: string; ctaContact: string; ctaWorks: string; photoAlt: string;
   };
   services: { title: string; items: { title: string; text: string }[] };
   /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера;

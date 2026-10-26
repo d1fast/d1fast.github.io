@@ -38,7 +38,7 @@ function initBlocks() {
     let started = false;
     const go = () => { if (!started) { started = true; queue(); } };
     document.addEventListener('hero:settled', go, { once: true });
-    setTimeout(go, 12000);
+    setTimeout(go, 20000);
   } else queue();
   if (!document.documentElement.classList.contains('stage-on')) {
     const io = new IntersectionObserver((entries) => {

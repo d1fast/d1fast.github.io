@@ -1,79 +1,30 @@
 ---
-// Первый экран-воронка. Вопросы («Хотите Telegram-бота…», «Или эстетичный сайт…») по очереди пролетают
-// по кривым системы координат, у каждого своя палитра и своя картинка рядом (hero.ts, hero/space.ts,
-// hero/palettes.ts). Потом сомнение, ответ «Тогда вы попали по адресу.», кто я и кнопки; кривые сходятся в цель.
-// Без скрипта виден ответ, текст обо мне и кнопки на жёлтом. Для поиска и скринридеров есть обычный h1.
+// Первый экран, чёрно-белый: чёрный экран, знак «d1fast ©», потом фразы стеклянными буквами на цилиндре
+// (src/scripts/hero.ts, hero/glass.ts). Последняя фраза остаётся заголовком по центру, под ней строка и кнопки.
+// Без скрипта и без WebGL виден тот же заголовок обычным текстом. Для поиска и скринридеров есть обычный h1.
 import { t, type Lang } from '../i18n';
-import { ASK, DOUBT, qvars } from '../scripts/hero/palettes';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
-const c = d.hero.cards;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-/** строка заголовка: «~» в начале приглушает её, *…* выделяет плашкой */
-const line = (s: string) => ({ muted: s.startsWith('~'), html: esc(s.replace(/^~/, '')).replace(/\*(.+?)\*/g, '<em>$1</em>') });
-const states = { ask: d.hero.ask.map((a) => ({ lines: a.lines.map(line), word: a.word })), doubt: d.hero.doubt.map(line), answer: d.hero.answer.map(line) };
-const words = d.hero.ask.map((a) => a.word.toLocaleLowerCase(lang));
-// колесо призов: восемь секторов в цветах кривых
-const wheel = ['#2547FF', '#FFF6EE', '#FFC83D', '#121110', '#2547FF', '#FFF6EE', '#FFC83D', '#121110'];
+const beats = d.hero.beats;
+const last = beats[beats.length - 1].map((l) => l.replace(/\|/g, ' '));
 ---
 <section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero
-  data-states={JSON.stringify(states)} data-words={JSON.stringify(words)} data-nick={d.hero.nick}>
-  <div class="hero__floodbox" aria-hidden="true"><i class="hero__flood" data-hero-flood></i></div>
+  data-beats={JSON.stringify(beats)} data-photo={`${base}/photo/me-bw.webp`}>
   <canvas class="hero__gl" aria-hidden="true" data-hero-gl></canvas>
+  <p class="hero__mark" aria-hidden="true" data-hero-mark>{d.hero.nick}<span>©</span></p>
 
-  <!-- летящие вопросы и картинки: transform ставит hero/space.ts -->
-  <div class="hero__space" aria-hidden="true" data-hero-space>
-    <div class="hero__card hc-chat" data-hero-card="0" style={qvars(ASK[0])}>
-      <div class="hc-chat__head"><i>{c.chat.name.slice(0, 1)}</i><b>{c.chat.name}</b><span>{c.chat.status}</span></div>
-      <p class="hc-chat__msg is-me">{c.chat.me}</p>
-      <p class="hc-chat__msg">{c.chat.bot}</p>
-      <div class="hc-chat__btns"><span>{c.chat.yes}</span><span>{c.chat.other}</span></div>
+  <div class="container hero__inner">
+    <h1 class="visually-hidden">{d.hero.h1}</h1>
+    <!-- место заголовка: сюда встаёт последняя стеклянная фраза; без WebGL здесь она же текстом -->
+    <div class="hero__slot" data-hero-slot>
+      <p class="hero__title" aria-hidden="true" data-hero-title>{last.map((l) => <span>{l}</span>)}</p>
     </div>
-    <div class="hero__card hc-site" data-hero-card="1" style={qvars(ASK[1])}>
-      <div class="hc-site__bar"><i></i><i></i><i></i><span>{c.site.url}</span></div>
-      <img src={`${base}/work/pena/hero-800.webp`} alt="" width="800" height="450" decoding="async" />
+    <p class="hero__sub" data-hero-sub>{d.hero.sub}</p>
+    <div class="hero__cta" data-hero-cta>
+      <a class="btn btn--primary" href="#contacts" data-magnetic>{d.hero.ctaContact}</a>
+      <a class="btn btn--ghost" href="#works" data-magnetic="0.2">{d.hero.ctaWorks}</a>
     </div>
-    <div class="hero__card hc-book" data-hero-card="2" style={qvars(ASK[2])}>
-      <b class="hc-book__title">{c.book.title}</b>
-      <div class="hc-book__days">{c.book.days.map((x, i) => <span class:list={{ 'is-on': i === 2 }}>{x}</span>)}</div>
-      <div class="hc-book__times">{c.book.times.map((x, i) => <span class:list={{ 'is-on': i === 2 }}>{x}</span>)}</div>
-      <span class="hc-book__btn">{c.book.button}</span>
-    </div>
-    <div class="hero__card hc-game" data-hero-card="3" style={qvars(ASK[3])}>
-      <div class="hc-game__wheel" style={`background:conic-gradient(${wheel.map((w, i) => `${w} ${i * 45}deg ${(i + 1) * 45}deg`).join(',')})`}><i></i></div>
-      <b class="hc-game__pin"></b>
-      <div class="hc-game__txt"><span>{c.game.label}</span><strong>{c.game.prize}</strong><small>{c.game.note}</small></div>
-    </div>
-    {states.ask.map((a, k) => (
-      <p class="hero__q" data-hero-q={k} style={qvars(ASK[k])}>
-        {a.lines.map((l) => <span class:list={['hero__ql', { 'is-m': l.muted }]} set:html={l.html} />)}
-      </p>
-    ))}
-    <p class="hero__q hero__q--doubt" data-hero-doubt style={qvars(DOUBT)}>
-      {states.doubt.map((l) => <span class:list={['hero__ql', { 'is-m': l.muted }]} set:html={l.html} />)}
-    </p>
-  </div>
-
-  <div class="container hero__grid">
-    <div class="hero__text">
-      <h1 class="visually-hidden">{d.hero.h1}</h1>
-      <p class="hero__say" aria-hidden="true" data-hero-say>
-        {states.answer.map((l) => (
-          <span class="hero__ln"><span class:list={['hero__w', { 'is-m': l.muted }]} set:html={l.html} /></span>
-        ))}
-      </p>
-      <div class="hero__end">
-        <p class="hero__sub" data-hero-sub>{d.hero.sub}</p>
-        <div class="hero__cta" data-hero-cta>
-          <a class="btn btn--primary" href="#contacts" data-magnetic>{d.hero.ctaContact}</a>
-          <a class="btn btn--ghost" href="#works" data-magnetic="0.2">{d.hero.ctaWorks}</a>
-        </div>
-        <button class="hero__skip" type="button" data-hero-skip hidden>{d.hero.skip} <span aria-hidden="true">→</span></button>
-      </div>
-    </div>
-    <!-- место цели: сюда в конце сходятся кривые -->
-    <div class="hero__aim" aria-hidden="true" data-hero-aim></div>
   </div>
 </section>
