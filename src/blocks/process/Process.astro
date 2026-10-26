@@ -14,6 +14,11 @@ const arc = (r: number, a0: number, a1: number) => {
   const p = (a: number) => `${(100 + r * Math.cos((a * Math.PI) / 180)).toFixed(2)},${(100 + r * Math.sin((a * Math.PI) / 180)).toFixed(2)}`;
   return `M${p(a0)} A${r},${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${p(a1)}`;
 };
+// лупа: ручка от оправы по диагонали, блик дугой внутри стекла слева сверху
+const lensFrom = (LENS.r * Math.SQRT1_2).toFixed(1);
+const glareR = LENS.r * 0.74;
+const glareAt = (a: number) => `${(glareR * Math.cos((a * Math.PI) / 180)).toFixed(1)} ${(glareR * Math.sin((a * Math.PI) / 180)).toFixed(1)}`;
+const lensGlare = `M${glareAt(203)}A${glareR.toFixed(1)} ${glareR.toFixed(1)} 0 0 1 ${glareAt(249)}`;
 const compassArc = arc(86, 100, 400);
 const compassArc2 = arc(62, 160, 330);
 const compassTicks = Array.from({ length: 21 }, (_, i) => {
@@ -157,7 +162,7 @@ const compassTicks = Array.from({ length: 21 }, (_, i) => {
 
           <!-- 1. лупа: внутри увеличенная копия наброска и свои копии вопросов -->
           <g class="pr-lens" data-process-lens>
-            <path class="pr-lens-handle" d="M33 33L68 68" data-process-lens-handle />
+            <path class="pr-lens-handle" d={`M${lensFrom} ${lensFrom}L${LENS.hand} ${LENS.hand}`} data-process-lens-handle />
             <circle class="pr-lens-glass" r={LENS.r} />
             <g clip-path="url(#process-lens-clip)">
               <g data-process-lens-view>
@@ -175,7 +180,7 @@ const compassTicks = Array.from({ length: 21 }, (_, i) => {
               </g>
             </g>
             <circle class="pr-lens-rim" r={LENS.r} />
-            <path class="pr-lens-glare" d="M-31 -13A34 34 0 0 1 -12 -32" />
+            <path class="pr-lens-glare" d={lensGlare} />
           </g>
 
         </svg>

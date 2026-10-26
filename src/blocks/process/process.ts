@@ -16,21 +16,23 @@ gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
  * Шаги идут сами (переезд MOVE и DWELL[шаг] секунд стоянки). Наведение, фокус или тап выбирают шаг и ставят на паузу.
  * На собранной лампе плафон смотрит на курсор.
  */
-// на первом шаге лупа обходит все вопросы, на четвёртом лампа включается: им нужно больше времени
-const DWELL = [4.6, 2.8, 2.8, 4];
+// на четвёртом шаге лампа включается, ему нужно больше времени. Первый шаг стоит не меньше, чем лупа идёт
+// первый круг до последнего вопроса (см. lensShow)
+const DWELL = [4, 2.8, 2.8, 4];
 const MOVE = 0.8;
 const N = 4;
 const ZOOM = 1.3; // увеличение в лупе
-const ZOOM_MAN = 1.68; // над человечком лупа крупнее: в стекле голова, шея и облачко мыслей
+const ZOOM_MAN = 1.45; // над человечком лупа крупнее: в стекле голова, шея и облачко мыслей
 const HOLD = 0.3; // столько лупа стоит над вопросом
+const MAN_HOLD = 0.85; // над человечком чуть дольше: он успевает выругаться
 const WARM = '#FFE7A0';
 const DEG = Math.PI / 180;
 type Sketch = 'off' | 'scribble' | 'clean' | 'ghost';
 const clamp = gsap.utils.clamp;
 const smooth = (a: number, b: number, x: number) => { const t = clamp(0, 1, (x - a) / (b - a)); return t * t * (3 - 2 * t); };
 /** ручка лупы смотрит вниз-вправо, а у самого стола поворачивается вправо, чтобы не уйти под стол */
-const handleAngle = (y: number) => 45 - 35 * smooth(300, 350, y);
-const HANDLE = Math.hypot(68, 68); // длина ручки лупы от центра
+const handleAngle = (y: number) => 45 - 35 * smooth(318, 356, y);
+const HANDLE = Math.hypot(LENS.hand, LENS.hand); // длина ручки лупы от центра
 
 export function init(root: HTMLElement) {
   const q = gsap.utils.selector(root);
@@ -250,7 +252,7 @@ export function init(root: HTMLElement) {
     const vis = opacityOf(lens);
     MARKS.forEach((m, i) => {
       const d = Math.hypot(m[0] - x, m[1] - y);
-      marks[i].style.fillOpacity = (1 - vis * (1 - clamp(0, 1, (d - 36) / 26))).toFixed(2);
+      marks[i].style.fillOpacity = (1 - vis * (1 - clamp(0, 1, (d - LENS.r + 8) / 24))).toFixed(2);
       if (i !== MAN_I && lensOn && L.k > 0.85 && !flipped[i] && d < 26) flip(i);
     });
     // лупа над человечком: он ругается; ушла: успокаивается, и над головой появляется «!»
@@ -298,6 +300,8 @@ export function init(root: HTMLElement) {
 
   let ticking = false;
   const tick = (on: boolean) => { if (on && !ticking) gsap.ticker.add(lensRender); if (!on && ticking) gsap.ticker.remove(lensRender); ticking = on; };
+  const stay = (i: number) => ((i + 1) % SN === MAN_I ? MAN_HOLD : HOLD); // стоянка после перехода i
+  /** запускает обход и возвращает, через сколько секунд первый круг дойдёт до последнего вопроса */
   function lensShow(delay: number) {
     lensOn = true;
     L.s = 0; L.k = 0;
@@ -308,8 +312,8 @@ export function init(root: HTMLElement) {
     to(L, { k: 1, duration: 0.8, ease: 'power2.inOut', delay });
     // обход: переход с мягким разгоном и торможением, стоянка над вопросом; круг замкнут, повтор без рывка
     const walk = tl({ delay: delay + 0.8 + HOLD, repeat: -1 });
-    // у человечка лупа задерживается: он успевает выругаться
-    SEG.forEach((d, i) => { walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' }); walk.to({}, { duration: (i + 1) % SN === MAN_I ? 1.7 : HOLD }); });
+    SEG.forEach((d, i) => { walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' }); walk.to({}, { duration: stay(i) }); });
+    return delay + 0.8 + HOLD + SEG.slice(0, SN - 2).reduce((a, d, i) => a + d + stay(i), 0) + SEG[SN - 2];
   }
   function lensHide() {
     swearOff(true);
@@ -469,6 +473,7 @@ export function init(root: HTMLElement) {
     tl().to(tip, { rotation: -3 * dir, duration: 0.35, ease: 'power2.out' }).to(tip, { rotation: 0, duration: 0.75, ease: 'bounce.out' });
   }
 
+  let lensEnd = 0; // когда лупа на первом шаге дойдёт до последнего вопроса, от начала шага
   function scene(from: number, next: number) {
     const t0 = from < 0 ? 0.25 : 0;
     const had = partsOn;
@@ -479,7 +484,7 @@ export function init(root: HTMLElement) {
       const d = t0 + (had ? (from === N - 1 ? 0.8 : 0.45) : 0);
       sketch('scribble', d);
       marksShow(d + 0.55);
-      lensShow(d + 0.7);
+      lensEnd = lensShow(d + 0.7);
     } else if (next === 1) {
       lensHide(); marksHide(); polish(false);
       if (had) scatter(); else stow();
@@ -503,7 +508,8 @@ export function init(root: HTMLElement) {
     const r = rail.getBoundingClientRect(), n = nodes[i].getBoundingClientRect();
     return { x: n.left + n.width / 2 - r.left, y: n.top + n.height / 2 - r.top };
   };
-  const trackBox = () => { const r = rail.getBoundingClientRect(), t = track.getBoundingClientRect(); return { x: t.left - r.left, w: t.width }; };
+  // размеры линии по раскладке, без transform: на входе линия ещё вытягивается из нуля, а заливку уже надо посчитать
+  const trackBox = () => ({ x: track.offsetLeft, w: track.offsetWidth || 1 });
   let cartX = 0;
   function moveCart(i: number, dur: number) {
     const c = center(i), tb = trackBox();
@@ -534,10 +540,10 @@ export function init(root: HTMLElement) {
   // человек в этот заход сам выбирал шаг: после последнего шага сцена дальше сама не листает
   let touched = false;
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function startTimer(delay: number) {
+  function startTimer(delay: number, dur: number) {
     timer?.kill();
     progBox(cur);
-    timer = gsap.fromTo(prog, { scaleX: 0 }, { scaleX: 1, duration: DWELL[cur], ease: 'none', delay, paused: holds.size > 0,
+    timer = gsap.fromTo(prog, { scaleX: 0 }, { scaleX: 1, duration: dur, ease: 'none', delay, paused: holds.size > 0,
       onComplete: () => {
         if (!isOn()) return;
         // все четыре шага досмотрели: сцена переходит к контактам
@@ -597,7 +603,9 @@ export function init(root: HTMLElement) {
     moveCart(i, dur);
     if (from >= 0) ride(loop ? 240 : 180 * Math.abs(i - from), loop || i > from ? 1 : -1);
     scene(from, i);
-    startTimer(byUser ? 0.25 : from < 0 ? 1.1 : MOVE);
+    const wait = byUser ? 0.25 : from < 0 ? 1.1 : MOVE;
+    // первый шаг не кончается, пока последний вопрос не стал «!» и немного не побыл на виду
+    startTimer(wait, i === 0 ? Math.max(DWELL[0], lensEnd + 0.9 - wait) : DWELL[i]);
   }
 
   /* ---------- управление ---------- */

@@ -84,15 +84,16 @@ html.js .process:not(.is-primed) .process__inner { visibility: hidden; }
 .pr-snap path { stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
 .pr-snap { opacity: 0; }
 .pr-lens-glass { fill: color-mix(in oklab, var(--bg) 93%, var(--accent)); }
-.pr-lens-rim { fill: none; stroke: var(--fg); stroke-width: 5; }
-.pr-lens-handle { stroke: var(--fg); stroke-width: 12; stroke-linecap: round; }
-.pr-lens-glare { fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round; }
+.pr-lens-rim { fill: none; stroke: var(--fg); stroke-width: 4; }
+.pr-lens-handle { stroke: var(--fg); stroke-width: 9; stroke-linecap: round; }
+.pr-lens-glare { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; }
 /* без скрипта видна готовая лампа */
 .pr-blue, .pr-sketch, .pr-lens, .pr-check { opacity: 0; }
 
 /* ---------- линия с постами ---------- */
 .process__line { position: relative; --node: 44px; --cart: 60px; }
-.process__track { position: absolute; left: calc(var(--node) / 2); right: 6px; top: calc(var(--node) / 2); height: 1px; background: var(--line-strong); transform-origin: 0 50%; }
+/* линия от левого края до стрелки у правого: поля по бокам одинаковые, посты стоят на ней */
+.process__track { position: absolute; left: 0; right: 6px; top: calc(var(--node) / 2); height: 1px; background: var(--line-strong); transform-origin: 0 50%; }
 .process__track::after { content: ''; position: absolute; right: -5px; top: -4px; width: 9px; height: 9px; border-top: 1.5px solid var(--fg); border-right: 1.5px solid var(--fg); transform: rotate(45deg); }
 .process__done, .process__prog { position: absolute; left: 0; top: -1px; height: 3px; transform-origin: 0 50%; transform: scaleX(0); }
 .process__done { width: 100%; background: var(--fg); }
@@ -120,10 +121,9 @@ html.js .process:not(.is-primed) .process__inner { visibility: hidden; }
   .process__btn:hover .process__node { border-color: var(--accent); }
 }
 
-/* телефон: подпись по центру под своим кружком, линия от центра первого кружка */
+/* телефон: подпись по центру под своим кружком */
 @media (max-width: 599px) {
   .process__btn { justify-items: center; text-align: center; width: 100%; }
-  .process__track { left: calc((100% - 24px) / 8); }
 }
 
 /* высокий телефон: номер над подписью, как на компьютере */
@@ -140,37 +140,42 @@ html.js .process:not(.is-primed) .process__inner { visibility: hidden; }
   .process__draw { max-height: max(200px, min(44dvh, calc(100dvh - 470px))); }
   .process__line { --cart: 66px; }
   .process__name { font-size: 16px; letter-spacing: .06em; }
-  /* посты на равных расстояниях, подпись по центру под своим кружком, линия от центра первого */
+  /* посты на равных расстояниях, подпись по центру под своим кружком */
   .process__line { --sg: 16px; }
   .process__steps { column-gap: var(--sg); }
   .process__btn { justify-items: center; text-align: center; width: 100%; }
-  .process__track { left: calc((100% - 3 * var(--sg)) / 8); }
   .process__num { font-size: clamp(90px, 13vw, 120px); }
   .process__say { font-size: 19px; }
   .process__note { column-gap: 28px; }
 }
 
+/* поля слева и справа одинаковые: лента и линия с постами стоят ровно посередине экрана (полоса навигации справа
+   их не задевает, она выше, на середине высоты) */
+@media (min-width: 761px) { .process > .process__inner { padding-right: var(--gutter); } }
+
 /* ---------- компьютер и любое окно шире 760 боком: слева заголовок и подпись, справа рисунок, внизу линия ---------- */
 @media (min-width: 760px) and (orientation: landscape) {
   .process { --c1: minmax(250px, min(23%, 320px)); --cg: clamp(28px, 3.4vw, 64px); }
-  /* слева блок стоит по общей сетке, справа рисунок и линия доходят до полосы навигации */
-  .process > .process__inner { max-width: none; padding-left: calc(max(0px, (100% - var(--container)) / 2) + var(--gutter)); }
+  /* поля как у общей сетки, с обеих сторон одинаковые */
+  .process > .process__inner { max-width: none; padding-inline: calc(max(0px, (100% - var(--container)) / 2) + var(--gutter)); }
   .process__inner {
     grid-template-columns: var(--c1) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto auto;
     column-gap: var(--cg);
-    row-gap: clamp(18px, 3.2vh, 40px);
+    row-gap: 0;
     align-content: stretch;
   }
-  .process__side { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; min-height: 0; }
+  .process__side { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; min-height: 0; padding-bottom: clamp(14px, 2.4vh, 26px); }
   .process__title { font-size: clamp(56px, 5.8vw, 104px); line-height: .9; }
   .process__note { display: block; min-height: 0; }
   /* крупный тонкий номер занимает левую колонку, как номер листа на чертеже */
   .process__num { font-size: max(96px, min(32vh, 19vw, 300px)); margin: 0 0 clamp(4px, 1vh, 12px) -.04em; }
   .process__say { font-size: var(--text-lg); max-width: 22ch; }
-  .process__stage { grid-column: 2; grid-row: 1; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: clamp(280px, 46vh, 640px); }
-  .process__draw { aspect-ratio: auto; min-height: 0; max-height: none; }
-  .process__line { grid-column: 1 / -1; grid-row: 2; }
+  /* рисунок справа от подписи, лента под лампой во всю ширину, под ней линия с постами */
+  .process__stage { display: contents; }
+  .process__draw { grid-column: 2; grid-row: 1; aspect-ratio: auto; min-height: clamp(266px, calc(46vh - 15px), 625px); max-height: none; }
+  .process__belt { grid-column: 1 / -1; grid-row: 2; }
+  .process__line { grid-column: 1 / -1; grid-row: 3; margin-top: clamp(18px, 3.2vh, 40px); }
   .process__line { --sg: var(--cg); }
   .process__steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .process__name { font-size: 17px; }
@@ -189,15 +194,16 @@ html.js .process:not(.is-primed) .process__inner { visibility: hidden; }
 /* телефон боком: слева заголовок и подпись, справа рисунок, внизу линия с постами */
 @media (orientation: landscape) and (max-height: 540px) and (min-width: 600px), (orientation: landscape) and (max-height: 640px) and (min-width: 600px) and (max-width: 900px) {
   .process > .process__inner { padding-top: calc(var(--header-h) + 8px); padding-bottom: 10px; }
-  .process__inner { grid-template-columns: minmax(170px, 30%) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; column-gap: 24px; row-gap: 8px; align-content: stretch; }
-  .process__side { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-height: 0; }
+  .process__inner { grid-template-columns: minmax(170px, 30%) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; column-gap: 24px; row-gap: 0; align-content: stretch; }
+  .process__side { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-height: 0; padding-bottom: 8px; }
   .process__title { font-size: 34px; }
   .process__note { display: block; }
   .process__num { font-size: 54px; margin: 0 0 2px -.04em; }
   .process__say { font-size: 14px; max-width: 24ch; }
-  .process__stage { grid-column: 2; grid-row: 1; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
-  .process__draw { aspect-ratio: auto; min-height: 0; max-height: none; }
-  .process__line { grid-column: 1 / -1; grid-row: 2; --node: 34px; --cart: 46px; }
+  .process__stage { display: contents; }
+  .process__draw { grid-column: 2; grid-row: 1; aspect-ratio: auto; min-height: 0; max-height: none; }
+  .process__belt { grid-column: 1 / -1; grid-row: 2; }
+  .process__line { grid-column: 1 / -1; grid-row: 3; margin-top: 8px; --node: 34px; --cart: 46px; }
   .process__line { --sg: 24px; }
   .process__steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .process__btn { gap: 6px; }
