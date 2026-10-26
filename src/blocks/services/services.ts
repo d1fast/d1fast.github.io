@@ -60,7 +60,6 @@ export function init(root: HTMLElement) {
   let on = false;
   // человек в этот заход что-то выбирал сам: когда меню дойдёт до конца, сцена сама дальше не листает
   let touched = false;
-  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let ready = false; // вход отыграл, можно листать самому
   let lastSel = 0;
   let intent: ReturnType<typeof setTimeout> | undefined;
@@ -148,7 +147,7 @@ export function init(root: HTMLElement) {
     pipFill.forEach((b) => gsap.set(b, { scaleX: 0 }));
     // последний пункт досмотрели и ничего не трогали: сцена переходит к следующему блоку
     prog = gsap.fromTo(pipFill[current], { scaleX: 0 }, { scaleX: 1, duration: widgets[current].dwell, ease: 'none', paused: true, onComplete: () => {
-      if (current === total - 1 && !touched && !calm) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+      if (current === total - 1 && !touched) { root.dispatchEvent(new CustomEvent('block:done')); return; }
       select(current + 1);
     } });
     sync();

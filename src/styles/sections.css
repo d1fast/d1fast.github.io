@@ -47,15 +47,30 @@ html:not(.js) .hero__gl { display: none; }
 }
 
 .hero__inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(14px, 2.6vh, 28px); text-align: center; min-height: 0; }
-/* место заголовка: стекло вписывается в него, кольцо стоит вокруг его середины; без WebGL здесь тот же заголовок текстом */
-.hero__slot { position: relative; width: min(100%, 1240px); height: clamp(220px, 46vh, 520px); flex: none; display: grid; place-items: center; }
-.hero__title { position: relative; margin: 0; display: grid; font: 700 clamp(36px, min(6.4vw, 9.5vh), 116px)/1.04 var(--font-hero); letter-spacing: -.02em; color: var(--fg); }
+/* место заголовка: стекло вписывается в него, кольцо стоит вокруг его середины; без WebGL здесь те же фразы текстом */
+.hero__slot { position: relative; width: min(100%, 1240px); height: clamp(220px, 46vh, 520px); flex: none; display: grid; place-items: center; perspective: 900px; }
+.hero__title, .hero__beat { position: relative; grid-area: 1 / 1; margin: 0; display: grid; font: 700 clamp(36px, min(6.4vw, 9.5vh), 116px)/1.04 var(--font-hero); letter-spacing: -.01em;
+  color: var(--fg); text-shadow: 0 0 28px rgb(255 255 255 / .18); }
+.hero__beat { opacity: 0; pointer-events: none; will-change: transform, opacity; }
+/* без WebGL фразы гнутся по буквам: слова не рвутся, буквы двигаются по отдельности */
+.hero__w, .hero__ch { display: inline-block; }
 html.js .hero.is-glass:not(.is-flat) .hero__title { visibility: hidden; }
 html.js .hero:not(.is-flat) .hero__title { opacity: 0; }
-/* без WebGL кольцо нарисовано тенями: тонкая белая линия и мягкое свечение */
-.hero__slot::before { content: ''; position: absolute; left: 50%; top: 50%; height: min(100%, 60vh, 40vw); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
-  box-shadow: 0 0 0 1.5px rgb(255 255 255 / .85), 0 0 26px 3px rgb(255 255 255 / .22), inset 0 0 30px rgb(255 255 255 / .1); opacity: 0; transition: opacity 1s var(--ease-out); }
-html:not(.js) .hero__slot::before, .hero.is-flat .hero__slot::before { opacity: 1; }
+/* кольцо без WebGL: тонкая белая линия SVG с мягким свечением, искра на ней; с WebGL кольцо рисует холст */
+.hero__ring, .hero__orbit { position: absolute; left: 50%; top: 50%; translate: -50% -50%; height: min(100%, 60vh, 40vw); aspect-ratio: 1; pointer-events: none; }
+.hero__ring { overflow: visible; filter: drop-shadow(0 0 3px rgb(255 255 255 / .7)) drop-shadow(0 0 18px rgb(255 255 255 / .25)); }
+.hero__ring circle { fill: none; stroke: #fff; vector-effect: non-scaling-stroke; }
+.hero__ring-ghost { stroke-width: 1px; opacity: .08; }
+.hero__ring-line { stroke-width: 1.6px; }
+.hero__ring-pulse { stroke-width: 2px; opacity: 0; }
+.hero__orbit { visibility: hidden; }
+.hero__orbit i { position: absolute; left: 50%; top: 0; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 8px 2px rgb(255 255 255 / .9), 0 0 26px 8px rgb(255 255 255 / .3); }
+.hero__orbit i::before { content: ''; position: absolute; left: 50%; top: 50%; width: 220px; height: 2px; translate: -50% -50%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 255 255 / .55), transparent); }
+.hero.is-glass .hero__ring, .hero.is-glass .hero__orbit { display: none; }
+/* пока скрипт решает, есть ли WebGL, кольца нет; без скрипта оно целое */
+html.js .hero:not(.is-flat) .hero__ring { opacity: 0; }
 .hero__foot { display: grid; justify-items: center; gap: clamp(14px, 2.4vh, 24px); }
 .hero__sub { margin: 0; max-width: 40ch; font: 400 clamp(17px, 1.45vw, 22px)/1.45 var(--font-hero-text); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: balance; }
 .hero__cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
@@ -90,9 +105,9 @@ html.stage-on .site-header, html.stage-on .dots { transition: color .25s var(--e
   .hero { padding: calc(var(--header-h) + 4px) 0 max(22px, calc(var(--safe-b) + 10px)); }
   .hero__inner { justify-content: stretch; gap: 18px; }
   .hero__slot { flex: 1 1 auto; height: auto; min-height: 260px; }
-  .hero__slot::before { height: auto; width: min(94%, 100cqh); }
+  .hero__ring, .hero__orbit { height: auto; width: min(94%, 100cqh); }
   .hero__slot { container-type: size; }
-  .hero__title { font-size: clamp(32px, 10vw, 84px); }
+  .hero__title, .hero__beat { font-size: clamp(32px, 10vw, 84px); }
   .hero__foot { width: 100%; gap: 18px; }
   .hero__sub { font-size: clamp(16px, 4.3vw, 20px); max-width: 30ch; }
 }
@@ -108,8 +123,8 @@ html.stage-on .site-header, html.stage-on .dots { transition: color .25s var(--e
   .hero { padding: calc(var(--header-h) - 4px) 0 max(12px, var(--safe-b)); }
   .hero__inner { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: center; column-gap: clamp(20px, 4vw, 48px); text-align: left; }
   .hero__slot { width: 100%; height: 100%; min-height: 0; container-type: size; }
-  .hero__slot::before { height: min(100cqh, 94cqw); }
-  .hero__title { font-size: clamp(26px, 7vh, 40px); }
+  .hero__ring, .hero__orbit { height: min(100cqh, 94cqw); }
+  .hero__title, .hero__beat { font-size: clamp(26px, 7vh, 40px); }
   .hero__foot { justify-items: start; gap: 14px; }
   .hero__sub { font-size: 15px; max-width: 26ch; text-wrap: pretty; }
   .hero__cta { flex-direction: column; align-items: stretch; width: min(100%, 300px); gap: 10px; }

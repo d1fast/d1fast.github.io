@@ -26,7 +26,8 @@ Visitor arrives from a Telegram link, usually on a phone with a slow mobile conn
 ## Capabilities and Constraints
 - Sections: first screen where the typed brief turns into the page, about, what I do, works, how I work, contacts. Case pages with their own URL. 404, favicon, OG image.
 - One case for now (Aroma Forge, a Three.js fragrance constructor); the works list must look right with one item and with ten.
-- No scroll-scrubbed animation, no pinning, no scroll hijacking. Animations play once on reveal, 0.4 to 1.2 s, transform and opacity only, reduced motion respected.
+- No scroll-scrubbed animation, no pinning, no scroll hijacking. Animations play once on reveal, transform and opacity where possible.
+- Motion plays for everyone: the owner chose not to switch it off for the system "reduce motion" setting, so the site looks the same on every device and browser.
 - Images never overlap text.
 - Mobile must be as good as desktop.
 - One calm sentence about AI writing code; never in headings.

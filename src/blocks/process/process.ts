@@ -539,7 +539,6 @@ export function init(root: HTMLElement) {
   };
   // человек в этот заход сам выбирал шаг: после последнего шага сцена дальше сама не листает
   let touched = false;
-  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function startTimer(delay: number, dur: number) {
     timer?.kill();
     progBox(cur);
@@ -547,7 +546,7 @@ export function init(root: HTMLElement) {
       onComplete: () => {
         if (!isOn()) return;
         // все четыре шага досмотрели: сцена переходит к контактам
-        if (cur === N - 1 && !touched && !calm) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+        if (cur === N - 1 && !touched) { root.dispatchEvent(new CustomEvent('block:done')); return; }
         go(cur + 1);
       } });
   }

@@ -32,7 +32,6 @@ export function init(root: HTMLElement) {
   const nav = one('[data-works-nav]');
   const yours = one('[data-works-yours]');
   const vert = matchMedia(VERT);
-  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const info: { poster: string }[] = JSON.parse(root.dataset.worksRing || '[]');
   const videos = [...root.querySelectorAll<HTMLVideoElement>('[data-works-video]')];
   const dots = [...root.querySelectorAll<HTMLButtonElement>('[data-works-dot]')];
@@ -129,7 +128,7 @@ export function init(root: HTMLElement) {
     v.classList.add('is-on');
     if (!active) { v.pause(); return; }
     if (v.preload === 'none') v.preload = 'auto';
-    v.playbackRate = calm ? 1 : RATE;
+    v.playbackRate = RATE;
     v.play().then(() => blocked(false)).catch(() => blocked(true));
     ring?.live(k);
     // страховка: видео застряло или не грузится
@@ -178,7 +177,7 @@ export function init(root: HTMLElement) {
     const dir = ring ? Math.sign(pos - ring.pos) || 1 : 1;
     k = j;
     setCard(j, changed && active, dir);
-    if (ring) ring.spin(pos, calm ? 0 : dur);
+    if (ring) ring.spin(pos, dur);
     else videos.forEach((v, i) => v.classList.toggle('is-on', i === j));
     if (changed || videos[k]?.paused) { videos[k].currentTime = 0; playFront(); }
   };
@@ -186,7 +185,7 @@ export function init(root: HTMLElement) {
   /** ролик досмотрели: следующая работа, а после последней, если человек ничего не трогал, следующий блок */
   const autoNext = () => {
     watched++;
-    if (watched >= N && !touched && !calm) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+    if (watched >= N && !touched) { root.dispatchEvent(new CustomEvent('block:done')); return; }
     step(1);
   };
   /** человек сам листает: досмотр не считается, автопоказ дальше идёт, но блок сам не уходит */
@@ -322,7 +321,7 @@ export function init(root: HTMLElement) {
     gsap.fromTo(P[k].parts, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out', stagger: 0.06, delay: 0.55, clearProps: 'transform' });
     cardIn.play(0.7);
     // цилиндр въезжает с поворота и встаёт на переднюю работу
-    if (ring && !calm) { const p = Math.round(ring.pos); ring.set(p - 0.6); ring.spin(p, 1.5, 'expo.out'); }
+    if (ring) { const p = Math.round(ring.pos); ring.set(p - 0.6); ring.spin(p, 1.5, 'expo.out'); }
     playFront();
   }, () => {
     active = false; auto = false;
@@ -354,7 +353,7 @@ export function init(root: HTMLElement) {
       ring.set(0);
       ring.layout(vert.matches);
       // цилиндр пришёл, когда блок уже открыт: въезжает с поворота, как при обычном входе
-      if (active) { ring.start(); ring.live(k); if (!calm) { ring.set(k - 0.6); ring.spin(k, 1.5, 'expo.out'); } }
+      if (active) { ring.start(); ring.live(k); ring.set(k - 0.6); ring.spin(k, 1.5, 'expo.out'); }
       canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ring?.stop(); ring = null; root.classList.remove('is-gl', 'will-gl'); videos.forEach((v, i) => v.classList.toggle('is-on', i === k)); }, { once: true });
     } catch { ring = null; root.classList.remove('will-gl'); }
   })();

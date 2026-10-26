@@ -263,7 +263,6 @@ export function init(root: HTMLElement) {
   const foot = rise(footer, { y: 0, duration: 0.8 });
 
   // ---------- конверт ----------
-  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const envPaper = q<SVGPathElement>('[data-env-paper]'), envUnder = q<SVGPathElement>('[data-env-under]'), envEdge = q<SVGPathElement>('[data-env-edge]');
   const envAir = [...root.querySelectorAll<SVGPathElement>('[data-env-air]')];
   const flapAir = [...root.querySelectorAll<SVGPathElement>('[data-env-flap-air]')], flapEdge = q<SVGPathElement>('[data-env-flap-edge]');
@@ -319,56 +318,49 @@ export function init(root: HTMLElement) {
   const UNFOLD = 0.7;
   const FULL = 'inset(0% -10% 0% -10%)';
   const envTl = gsap.timeline({ paused: true });
-  if (calm) {
-    // без движения: конверта нет, письмо просто проявляется
-    envTl.fromTo(letter, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power1.out', immediateRender: true }, 0)
-      .fromTo(stampEl, { opacity: 0 }, { opacity: 1, duration: 0.4, immediateRender: true }, 0.3)
-      .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.01, immediateRender: true }, 0.3);
-  } else {
-    const packet = [form, foldTop, foldBot];
-    envTl
-      // конверт ложится: подлетает снизу с лёгким поворотом и выравнивается
-      .fromTo(letter, { y: 46, rotation: -5, scale: 0.96, opacity: 0 }, { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 1, ease: 'power3.out', immediateRender: true }, 0)
-      // печать: прижали, по ней пошла трещина, половинки расходятся и падают
-      .fromTo(wax, { opacity: 1, scale: 1 }, { scale: 0.9, duration: 0.14, ease: 'power2.out', immediateRender: true }, T.wax)
-      .to(wax, { scale: 1, duration: 0.2, ease: 'power2.out' }, T.wax + 0.14)
-      .fromTo(halves, { x: 0, y: 0, rotation: 0, opacity: 1 }, { x: (i) => (i ? 4 : -4), rotation: (i) => (i ? 9 : -9), duration: 0.18, ease: 'power2.out', immediateRender: true, transformOrigin: '50% 100%' }, T.wax + 0.14)
-      .to(halves, { y: 64, x: (i) => (i ? 16 : -16), rotation: (i) => (i ? 48 : -40), opacity: 0, duration: 0.55, ease: 'power2.in', stagger: 0.05 }, T.wax + 0.3)
-      // клапан откидывается к себе и назад; когда лёг плашмя над конвертом, уходит за письмо
-      .fromTo(flap, { rotationX: 0, opacity: 1, zIndex: 8 }, { rotationX: -180, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.flap)
-      .set(flap, { zIndex: 0 }, T.pull)
-      // конверт стягивают вниз на свою высоту (клапан ниже конверта в 0,56 раза, ему путь в процентах больше),
-      // письмо в руке чуть поднимается и ложится обратно
-      .fromTo([envBack, pocket], { yPercent: 0, opacity: 1 }, { yPercent: 105, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.pull)
-      .fromTo(flap, { yPercent: 0 }, { yPercent: 105 / 0.56, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.pull)
-      // клапан гаснет раньше: иначе его кончик торчит из-за письма «крышей»
-      // гасим стороны клапана, а не сам клапан: прозрачность на нём сплющила бы 3D, и вместо подкладки мелькнула бы изнанка
-      .to(flap.children, { opacity: 0, duration: 0.35, ease: 'power1.in' }, T.pull + 0.1)
-      .to([envBack, pocket], { opacity: 0, duration: 0.5, ease: 'power1.in' }, T.pull + 0.4)
-      // погасший конверт возвращается на место: сдвинутый вниз, он растягивал бы прокрутку блока
-      .set([envBack, pocket, flap], { yPercent: 0, visibility: 'hidden' }, T.pull + 0.95)
-      .to(packet, { keyframes: [{ y: -12, duration: 0.45, ease: 'power2.out' }, { y: 0, duration: 0.55, ease: 'power2.inOut' }] }, T.pull)
-      // письмо раскрывается: верхняя треть к себе и вверх, потом нижняя к себе и вниз
-      .fromTo(form, { clipPath: 'inset(33.333% -10% 33.333% -10%)' }, { clipPath: 'inset(0% -10% 33.333% -10%)', duration: 0.01, immediateRender: true }, T.top + UNFOLD)
-      .fromTo(foldTop, { rotationX: -180, visibility: 'visible' }, { rotationX: 0, duration: UNFOLD, ease: 'power2.inOut', immediateRender: true }, T.top)
-      .set(foldTop, { visibility: 'hidden' }, T.top + UNFOLD)
-      // нижняя створка лежит под верхней; показываем её, когда верхняя пошла вверх (иначе по краю пачки мелькал бы её кант)
-      .fromTo(foldBot, { rotationX: 180, visibility: 'hidden', zIndex: 4 }, { visibility: 'visible', duration: 0.01, immediateRender: true }, T.top)
-      .to(foldBot, { rotationX: 0, duration: UNFOLD, ease: 'power2.inOut' }, T.bot)
-      // нижняя створка идёт к зрителю: она поверх уже раскрытой верхней
-      .set(foldBot, { zIndex: 6 }, T.bot)
-      .to(form, { clipPath: FULL, duration: 0.01 }, T.bot + UNFOLD)
-      .set(form, { clipPath: 'none' }, T.bot + UNFOLD + 0.02)
-      .set(foldBot, { visibility: 'hidden' }, T.bot + UNFOLD)
-      // сгибы видны сразу после раскрытия и медленно расходятся
-      .fromTo(creases[0], { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: true }, T.top + UNFOLD - 0.06)
-      .fromTo(creases[1], { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: true }, T.bot + UNFOLD - 0.06)
-      .to(creases, { opacity: 0, duration: 1.6, ease: 'sine.inOut' }, T.bot + UNFOLD + 0.5)
-      // марку прижимают к углу, штемпель отпечатывается на своём месте, бумага вздрагивает
-      .fromTo(stampEl, { scale: 1.45, rotation: 18, y: -14, opacity: 0 }, { scale: 1, rotation: 4, y: 0, opacity: 1, duration: 0.55, ease: 'power3.out', immediateRender: true }, T.stamp)
-      .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.34, ease: 'power2.out', stagger: 0.04, immediateRender: true }, T.post)
-      .to(letter, { keyframes: { y: [0, 2.5, 0] }, duration: 0.24, ease: 'none' }, T.post);
-  }
+  const packet = [form, foldTop, foldBot];
+  envTl
+    // конверт ложится: подлетает снизу с лёгким поворотом и выравнивается
+    .fromTo(letter, { y: 46, rotation: -5, scale: 0.96, opacity: 0 }, { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 1, ease: 'power3.out', immediateRender: true }, 0)
+    // печать: прижали, по ней пошла трещина, половинки расходятся и падают
+    .fromTo(wax, { opacity: 1, scale: 1 }, { scale: 0.9, duration: 0.14, ease: 'power2.out', immediateRender: true }, T.wax)
+    .to(wax, { scale: 1, duration: 0.2, ease: 'power2.out' }, T.wax + 0.14)
+    .fromTo(halves, { x: 0, y: 0, rotation: 0, opacity: 1 }, { x: (i) => (i ? 4 : -4), rotation: (i) => (i ? 9 : -9), duration: 0.18, ease: 'power2.out', immediateRender: true, transformOrigin: '50% 100%' }, T.wax + 0.14)
+    .to(halves, { y: 64, x: (i) => (i ? 16 : -16), rotation: (i) => (i ? 48 : -40), opacity: 0, duration: 0.55, ease: 'power2.in', stagger: 0.05 }, T.wax + 0.3)
+    // клапан откидывается к себе и назад; когда лёг плашмя над конвертом, уходит за письмо
+    .fromTo(flap, { rotationX: 0, opacity: 1, zIndex: 8 }, { rotationX: -180, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.flap)
+    .set(flap, { zIndex: 0 }, T.pull)
+    // конверт стягивают вниз на свою высоту (клапан ниже конверта в 0,56 раза, ему путь в процентах больше),
+    // письмо в руке чуть поднимается и ложится обратно
+    .fromTo([envBack, pocket], { yPercent: 0, opacity: 1 }, { yPercent: 105, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.pull)
+    .fromTo(flap, { yPercent: 0 }, { yPercent: 105 / 0.56, duration: 0.9, ease: 'power2.inOut', immediateRender: true }, T.pull)
+    // клапан гаснет раньше: иначе его кончик торчит из-за письма «крышей»
+    // гасим стороны клапана, а не сам клапан: прозрачность на нём сплющила бы 3D, и вместо подкладки мелькнула бы изнанка
+    .to(flap.children, { opacity: 0, duration: 0.35, ease: 'power1.in' }, T.pull + 0.1)
+    .to([envBack, pocket], { opacity: 0, duration: 0.5, ease: 'power1.in' }, T.pull + 0.4)
+    // погасший конверт возвращается на место: сдвинутый вниз, он растягивал бы прокрутку блока
+    .set([envBack, pocket, flap], { yPercent: 0, visibility: 'hidden' }, T.pull + 0.95)
+    .to(packet, { keyframes: [{ y: -12, duration: 0.45, ease: 'power2.out' }, { y: 0, duration: 0.55, ease: 'power2.inOut' }] }, T.pull)
+    // письмо раскрывается: верхняя треть к себе и вверх, потом нижняя к себе и вниз
+    .fromTo(form, { clipPath: 'inset(33.333% -10% 33.333% -10%)' }, { clipPath: 'inset(0% -10% 33.333% -10%)', duration: 0.01, immediateRender: true }, T.top + UNFOLD)
+    .fromTo(foldTop, { rotationX: -180, visibility: 'visible' }, { rotationX: 0, duration: UNFOLD, ease: 'power2.inOut', immediateRender: true }, T.top)
+    .set(foldTop, { visibility: 'hidden' }, T.top + UNFOLD)
+    // нижняя створка лежит под верхней; показываем её, когда верхняя пошла вверх (иначе по краю пачки мелькал бы её кант)
+    .fromTo(foldBot, { rotationX: 180, visibility: 'hidden', zIndex: 4 }, { visibility: 'visible', duration: 0.01, immediateRender: true }, T.top)
+    .to(foldBot, { rotationX: 0, duration: UNFOLD, ease: 'power2.inOut' }, T.bot)
+    // нижняя створка идёт к зрителю: она поверх уже раскрытой верхней
+    .set(foldBot, { zIndex: 6 }, T.bot)
+    .to(form, { clipPath: FULL, duration: 0.01 }, T.bot + UNFOLD)
+    .set(form, { clipPath: 'none' }, T.bot + UNFOLD + 0.02)
+    .set(foldBot, { visibility: 'hidden' }, T.bot + UNFOLD)
+    // сгибы видны сразу после раскрытия и медленно расходятся
+    .fromTo(creases[0], { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: true }, T.top + UNFOLD - 0.06)
+    .fromTo(creases[1], { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: true }, T.bot + UNFOLD - 0.06)
+    .to(creases, { opacity: 0, duration: 1.6, ease: 'sine.inOut' }, T.bot + UNFOLD + 0.5)
+    // марку прижимают к углу, штемпель отпечатывается на своём месте, бумага вздрагивает
+    .fromTo(stampEl, { scale: 1.45, rotation: 18, y: -14, opacity: 0 }, { scale: 1, rotation: 4, y: 0, opacity: 1, duration: 0.55, ease: 'power3.out', immediateRender: true }, T.stamp)
+    .fromTo(postInk, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.34, ease: 'power2.out', stagger: 0.04, immediateRender: true }, T.post)
+    .to(letter, { keyframes: { y: [0, 2.5, 0] }, duration: 0.24, ease: 'none' }, T.post);
   // какой стороной створка смотрит на зрителя, решает угол, а не backface-visibility: Safari её иногда теряет,
   // и на обороте проступала зеркальная копия формы. Оборот всегда чистая бумага
   const sides = (fold: HTMLElement) => {
@@ -525,7 +517,7 @@ export function init(root: HTMLElement) {
     // при переходе между блоками экран ещё открывается: самолётик стартует, когда шторка ушла
     const veiled = !!document.querySelector('.stage-fx.is-on');
     // письмо открывается, когда заголовок дописан, а росчерк пошёл
-    later = gsap.delayedCall(veiled ? 0.62 : 0.15, () => write(() => { if (!calm) pack(); envTl.timeScale(1); envelope.play(0.25); foot.play(1.2); }));
+    later = gsap.delayedCall(veiled ? 0.62 : 0.15, () => write(() => { pack(); envTl.timeScale(1); envelope.play(0.25); foot.play(1.2); }));
   }, () => {
     stopFlight();
     opened = null; openCall?.kill(); openCall = null;

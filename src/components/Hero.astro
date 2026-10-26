@@ -1,7 +1,8 @@
 ---
 // Первый экран, чёрно-белый: темнота, знак «d1fast ©», потом фразы стеклянными буквами прилетают к светящемуся
 // кольцу (src/scripts/hero.ts, hero/glass.ts). Последняя фраза остаётся заголовком в кольце, под ней строка и кнопки.
-// Без скрипта и без WebGL виден тот же заголовок обычным текстом в нарисованном кольце. Для поиска и скринридеров есть обычный h1.
+// Без WebGL тот же рассказ идёт обычным текстом: фразы летят теми же путями, кольцо рисуется линией SVG.
+// Без скрипта виден заголовок в целом кольце. Для поиска и скринридеров есть обычный h1.
 import { t, type Lang } from '../i18n';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
@@ -17,6 +18,14 @@ const last = beats[beats.length - 1].map((l) => l.replace(/\|/g, ' '));
     <h1 class="visually-hidden">{d.hero.h1}</h1>
     <!-- место заголовка: вокруг него кольцо, сюда встаёт последняя стеклянная фраза; без WebGL здесь она же текстом -->
     <div class="hero__slot" data-hero-slot>
+      <!-- кольцо без WebGL: линия рисуется от верха по часовой, искра бежит по ней; с WebGL кольцо рисует холст.
+           Скрипт переводит его в пиксели экрана (viewBox по размеру) -->
+      <svg class="hero__ring" viewBox="0 0 100 100" aria-hidden="true" data-hero-ring>
+        <circle class="hero__ring-ghost" cx="50" cy="50" r="48" />
+        <circle class="hero__ring-line" cx="50" cy="50" r="48" data-hero-line />
+        <circle class="hero__ring-pulse" cx="50" cy="50" r="48" data-hero-pulse />
+      </svg>
+      <span class="hero__orbit" aria-hidden="true" data-hero-orbit><i></i></span>
       <p class="hero__title" aria-hidden="true" data-hero-title>{last.map((l) => <span>{l}</span>)}</p>
     </div>
     <div class="hero__foot">

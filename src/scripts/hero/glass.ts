@@ -72,7 +72,7 @@ export interface Glass {
   dispose(): void;
 }
 
-interface Opts { canvas: HTMLCanvasElement; beats: string[][]; calm: boolean; coarse: boolean }
+interface Opts { canvas: HTMLCanvasElement; beats: string[][]; coarse: boolean }
 type Glyph = { ha: number; x_min: number; x_max: number };
 
 const font = new Font(typeface as unknown as FontData);
@@ -303,7 +303,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 export async function createGlass(o: Opts): Promise<Glass> {
   const t0 = performance.now();
-  const { canvas, beats, calm, coarse } = o;
+  const { canvas, beats, coarse } = o;
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setClearColor(0x070707, 1);
   // своё стекло дешёвое: плотность пикселей как у экрана (до 2), на слабом железе снижается сама
@@ -412,8 +412,8 @@ export async function createGlass(o: Opts): Promise<Glass> {
     // параллакс за мышью: фразы чуть поворачиваются, лёгкое покачивание в покое
     const e = 1 - Math.exp(-dt * 3.5);
     ptr.x += (ptr.tx - ptr.x) * e; ptr.y += (ptr.ty - ptr.y) * e;
-    drum.rotation.y = ptr.x * 0.1 + (calm ? 0 : Math.sin(time * 0.31) * 0.014);
-    drum.rotation.x = ptr.y * 0.07 + (calm ? 0 : Math.sin(time * 0.23) * 0.008);
+    drum.rotation.y = ptr.x * 0.1 + Math.sin(time * 0.31) * 0.014;
+    drum.rotation.x = ptr.y * 0.07 + Math.sin(time * 0.23) * 0.008;
     items.forEach((it, k) => {
       const b = beat[k], m = it.m, u = it.u;
       // скорость фразы по экрану, сглаженная
@@ -429,7 +429,7 @@ export async function createGlass(o: Opts): Promise<Glass> {
       const sp = Math.hypot(m.vx, m.vy);
       if (sp > 2) { m.dx = m.vx / sp; m.dy = m.vy / sp; }
       // растяжение от скорости (в экранах в секунду) через пружину: на торможении фраза чуть сжимается и выпрямляется
-      const tgt = calm ? 0 : 1.45 * Math.pow(clamp01((sp / L() - 0.2) / 3.2), 0.7) * b.flex;
+      const tgt = 1.45 * Math.pow(clamp01((sp / L() - 0.2) / 3.2), 0.7) * b.flex;
       m.kv += (240 * (tgt - m.k) - 19 * m.kv) * dt;
       m.k += m.kv * dt;
       const kk = Math.max(-0.18, Math.min(1.8, m.k));
@@ -454,7 +454,7 @@ export async function createGlass(o: Opts): Promise<Glass> {
       u.uSheen.value = b.sheen;
     });
     // искра сама обходит кольцо; на компьютере тянется к курсору
-    if (idling && !calm) {
+    if (idling) {
       if (ptr.on) {
         const c = U.uRing.value;
         const tgt = Math.atan2(((ptr.tx + 1) / 2) * W - c.x, c.y - ((ptr.ty + 1) / 2) * H) / (Math.PI * 2);
@@ -507,7 +507,7 @@ export async function createGlass(o: Opts): Promise<Glass> {
     half: (k) => ({ w: items[k].hw, h: items[k].hh }),
     start() { if (running) return; running = true; last = 0; gsap.ticker.add(tick); },
     stop() { if (!running) return; running = false; gsap.ticker.remove(tick); },
-    pointer(x, y, on) { if (calm) return; ptr.on = on; ptr.tx = on ? x : 0; ptr.ty = on ? y : 0; },
+    pointer(x, y, on) { ptr.on = on; ptr.tx = on ? x : 0; ptr.ty = on ? y : 0; },
     idle(on) { idling = on; },
     warm() {
       // все фразы один раз видимы: шейдер и геометрия уходят в видеокарту до начала рассказа
