@@ -13,16 +13,16 @@ const fontCss = fs.readFileSync('src/styles/fonts.generated.css', 'utf8')
 
 const page = (w, h, scale = 1) => browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
 
-// Снимок первого экрана: ответ, текст обо мне и кривые, сошедшиеся в цель, на жёлтом, без шапки и кнопок.
+// Снимок первого экрана: последняя стеклянная фраза по центру и строка под ней, без шапки и кнопок.
 for (const lang of ['ru', 'en']) {
   const p = await page(1200, 630);
   await p.goto(base + (lang === 'ru' ? '' : 'en/'), { waitUntil: 'networkidle' });
-  await p.waitForTimeout(800);
-  // рассказ пропускается сразу к ответу: «Тогда вы попали по адресу» и кривые в цели
-  await p.click('[data-hero-skip]');
+  // вступление перематывается к концу (в dev у первого экрана есть window.__hero)
+  await p.waitForFunction(() => window.__hero && window.__hero.dur() > 0, null, { timeout: 60000 });
+  await p.evaluate(() => { window.__hero.seek(window.__hero.dur()); });
   await p.mouse.move(2, 2);
-  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.hero__skip,.cursor{visibility:hidden!important}.hero__sub{font-size:24px!important}' });
-  await p.waitForTimeout(2600);
+  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.cursor{visibility:hidden!important}.hero__sub{font-size:24px!important}' });
+  await p.waitForTimeout(1500);
   await p.screenshot({ path: `public/${lang === 'ru' ? 'og' : 'og-en'}.png` });
   await p.close();
   console.log('og', lang);

@@ -85,7 +85,6 @@ const CHECK = ['......x', '.....xx', 'x...xx.', 'xx.xx..', '.xxx...', '..x....']
 const UP = ['..x..', '.xxx.', 'xxxxx'];
 const BELL = ['...x...', '..xxx..', '.xxxxx.', '.xxxxx.', 'xxxxxxx', '.......', '...x...'];
 const SEND = ['x....', 'xxx..', 'xxxxx', 'xxx..', 'x....'];
-const CLOUD = ['....xxxx....', '..xxxxxxxx..', '.xxxxxxxxxx.', 'xxxxxxxxxxxx', 'xxxxxxxxxxxx', '.xxxxxxxxxx.'];
 
 function cursor(parent: HTMLElement, x: number, y: number) {
   const c = el(parent, 'svc-cur');
@@ -93,8 +92,6 @@ function cursor(parent: HTMLElement, x: number, y: number) {
   return at(c, x, y);
 }
 
-// мигание выделения: 0,1,0,1…
-const blink = (n: number) => (p: number) => (p >= 1 ? 1 : Math.floor(p * n) % 2);
 const S = (n: number) => `steps(${n})`;
 const TAU = Math.PI * 2;
 
@@ -180,10 +177,6 @@ function timed(dwell: number, cam: Cam, build: () => gsap.core.Timeline): Widget
 function ring(parent: HTMLElement, b: Box, pad = 6) {
   const r = el(parent, 'svc-ring', [b[0] - pad, b[1] - pad, b[2] + pad * 2, b[3] + pad * 2]);
   return { r, from: { scaleX: b[2] / (b[2] + pad * 2), scaleY: b[3] / (b[3] + pad * 2), opacity: 1 } };
-}
-/** несколько надписей на одном месте, видна одна */
-function swap(tl: gsap.core.Timeline, els: HTMLElement[], i: number, t: number) {
-  tl.set(els, { opacity: (k: number) => (k === i ? 1 : 0) }, t);
 }
 
 /* ---------- 1. Сайты: окно браузера, страница собирается. Курсор жмёт подписанную кнопку «Заказать»,
@@ -469,7 +462,7 @@ function devices(root: HTMLElement, ui: WidgetUI): Widget {
   svg.appendChild(path);
   const routeW = el(map, '', [0, 0, 84, 148]);
   routeW.appendChild(svg);
-  const home = pic(map, PIN, { x: C.ac }, 71, 22, 1);
+  pic(map, PIN, { x: C.ac }, 71, 22, 1); // метка адреса в конце маршрута
   const car = el(map, 'svc-courier', [0, 0, 8, 8]);
   // время до прибытия
   const eta = el(app, 'svc-eta', [4, 4, 40, 14]);
