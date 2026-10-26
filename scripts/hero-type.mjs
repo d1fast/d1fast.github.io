@@ -3,11 +3,13 @@
 // Результат лежит в репозитории (src/scripts/hero/unbounded.json), сборке этот скрипт не нужен.
 // fontkitten не умеет вариации у woff2 (падает на составных глифах), поэтому точки контуров сдвигаются вручную
 // процессором вариаций, взятым у пробного экземпляра шрифта. В вариативном шрифте контуры буквы перекрываются
-// (ножки «П» отдельно от перекладины), а three.js режет такие контуры неверно: дыры и щели в лице буквы.
-// Поэтому кривые раскладываются в ломаные и сливаются в один контур (polygon-clipping, только для скрипта).
+// (ножки «П» отдельно от перекладины), а у «в» и «B» дыра одним самопересекающимся контуром; шрифт заливается
+// по правилу ненулевой обмотки, а three.js режет такие контуры неверно: дыры и щели в лице буквы.
+// Поэтому кривые раскладываются в ломаные и пересобираются Clipper'ом по тому же правилу в простые контуры
+// и дыры (clipper-lib, только для скрипта).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { create } from 'fontkitten';
-import pc from 'polygon-clipping';
+import ClipperLib from 'clipper-lib';
 
 const WGHT = 700;
 const ROOT = new URL('../', import.meta.url);
@@ -81,38 +83,24 @@ function flatten(c) {
   out.pop(); // последняя точка совпадает с первой
   return out;
 }
-const area = (r) => r.reduce((a, p, i) => { const q = r[(i + 1) % r.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0) / 2;
-const inside = (pt, r) => {
-  let c = false;
-  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
-    const [xi, yi] = r[i], [xj, yj] = r[j];
-    if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) c = !c;
-  }
-  return c;
-};
-/** контуры буквы → один набор без перекрытий в формате typeface: заливки по часовой, дыры против (как ждёт three.js) */
+const SC = 16; // Clipper считает в целых: координаты шрифта умножаются на SC
+/** контуры буквы → простые контуры без перекрытий в формате typeface: заливки по часовой, дыры против (как ждёт three.js).
+ *  Все контуры вместе заливаются по правилу ненулевой обмотки, как у самого шрифта */
 function toTypeface(cts) {
   const rings = cts.filter((c) => c.length > 1).map(flatten).filter((r) => r.length > 2);
   if (!rings.length) return { o: '', x_min: 0, x_max: 0 };
-  // направление заливки задаёт самый большой контур, дыры идут в обратную сторону
-  const big = rings.reduce((a, r) => (Math.abs(area(r)) > Math.abs(area(a)) ? r : a));
-  const sign = Math.sign(area(big));
-  const solids = rings.filter((r) => Math.sign(area(r)) === sign);
-  const holes = rings.filter((r) => Math.sign(area(r)) !== sign);
-  const polys = solids.map((r) => [r, ...holes.filter((h) => inside(h[0], r))]);
-  const merged = pc.union(...polys.map((p) => [p]));
+  const paths = rings.map((r) => r.map(([x, y]) => ({ X: Math.round(x * SC), Y: Math.round(y * SC) })));
+  const simple = ClipperLib.Clipper.SimplifyPolygons(paths, ClipperLib.PolyFillType.pftNonZero);
   const R = Math.round;
   let o = '', x0 = Infinity, x1 = -Infinity;
-  for (const poly of merged) {
-    poly.forEach((ring, k) => {
-      let r = ring.slice(0, -1);
-      // у polygon-clipping внешний контур против часовой стрелки: для three.js заливка по часовой
-      const cw = area(r) < 0;
-      if ((k === 0 && !cw) || (k > 0 && cw)) r = r.reverse();
-      o += `m ${R(r[0][0])} ${R(r[0][1])} `;
-      for (let i = 1; i < r.length; i++) o += `l ${R(r[i][0])} ${R(r[i][1])} `;
-      for (const p of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
-    });
+  for (const path of simple) {
+    let r = path.map((p) => [p.X / SC, p.Y / SC]);
+    if (r.length < 3) continue;
+    // у Clipper заливка против часовой, дыры по часовой; three.js ждёт наоборот
+    r = r.reverse();
+    o += `m ${R(r[0][0])} ${R(r[0][1])} `;
+    for (let i = 1; i < r.length; i++) o += `l ${R(r[i][0])} ${R(r[i][1])} `;
+    for (const p of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
   }
   return { o: o.trim(), x_min: x0 === Infinity ? 0 : R(x0), x_max: x1 === -Infinity ? 0 : R(x1) };
 }

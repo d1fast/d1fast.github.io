@@ -15,8 +15,9 @@ import typeface from './unbounded.json';
  * Форма фразы считается в вершинном шейдере, геометрия строится один раз: фраза тянется вслед за движением
  * (буквы позади ведущего края отстают, сами буквы вытягиваются, хвост чуть провисает) и выгибается
  * тем сильнее, чем быстрее летит; на месте она почти ровная и только слегка выпуклая.
- * Стекло своё, без отдельного прохода преломления: фон (графит, кольцо, искра) задан формулой, и буква
- * берёт его в точке, куда её грань отклоняет луч. Отражения из той же формулы студии. Поэтому стекло не рябит:
+ * Стекло своё, белое и матовое: лицо буквы почти белое, боковины и фаски затенены по свету студии, поэтому
+ * текст читается и на чёрном, и на кольце. Отдельного прохода преломления нет: фон (графит, кольцо, искра)
+ * задан формулой, и буква слегка пропускает его в точке, куда её грань отклоняет луч. Поэтому стекло не рябит:
  * нет картинки в половинном размере, нет зерна, которое меняется каждый кадр, блики мягкие.
  * Координаты: 1 единица = 1 css-пиксель на плоскости z = 0, начало в центре кольца, y вверх, z к зрителю.
  */
@@ -79,8 +80,8 @@ const GLYPHS = typeface.glyphs as unknown as Record<string, Glyph>;
 const EM = typeface.resolution;
 const CAP = typeface.capHeight / EM;
 const LH = 1.1; // межстрочный интервал в кеглях
-const DEPTH = 0.3; // толщина букв в кеглях
-const TRACK = -0.02; // трекинг, кегли: Unbounded широкий, чуть плотнее читается крупнее
+const DEPTH = 0.18; // толщина букв в кеглях: боковины видны, но не забивают форму буквы
+const TRACK = 0.015; // трекинг, кегли: объёмные буквы с небольшим зазором не слипаются в слове
 const FILL = 1.4; // на узком экране строки фразы выравниваются по ширине самой длинной, но не крупнее в 1,4 раза
 const adv = (ch: string) => (GLYPHS[ch]?.ha ?? 0) / EM + TRACK;
 const widthEm = (s: string) => [...s].reduce((w, ch) => w + adv(ch), 0) - TRACK;
@@ -93,7 +94,7 @@ function glyph(ch: string, q: { curve: number; bevel: number }): BufferGeometry 
   if (ch.trim()) {
     const t = new TextGeometry(ch, {
       font, size: 1, depth: DEPTH, curveSegments: q.curve,
-      bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.03, bevelOffset: 0, bevelSegments: q.bevel,
+      bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.022, bevelOffset: 0, bevelSegments: q.bevel,
     });
     t.deleteAttribute('uv');
     // гладкие фаски, острые рёбра между лицом буквы и боковиной без фаски не размываются
@@ -283,14 +284,15 @@ void main() {
   vec2 off = (T.xy + V.xy) * uRefr - vL * 0.22;
   vec3 behind = scene(px + vec2(off.x, -off.y), 1.0);
   float F = 0.04 + 0.96 * pow(1.0 - NdV, 5.0);
-  // тело стекла молочное: фон сквозь него виден приглушённым, само стекло светлое, буквы читаются и на чёрном;
-  // сверху вниз мягкий перелив, как у стекла под софтбоксом
+  // белое матовое стекло: лицо буквы почти белое, сверху чуть светлее; боковины и фаски темнее по свету студии,
+  // поэтому форма буквы чёткая и на чёрном, и на кольце. Сквозь стекло слегка проступает то, что за ним
   float gy = clamp(vB.y, -1.0, 1.0) * 0.5 + 0.5;
-  vec3 body = behind * 0.55 + vec3(0.3 + 0.26 * gy + 0.05 * N.y);
-  vec3 col = mix(body, studio(reflect(-V, N)), clamp(0.12 + F * 1.6, 0.0, 1.0));
-  vec3 Hh = normalize(normalize(vec3(-0.45, 0.75, 0.6)) + V);
-  col += 0.65 * pow(max(dot(N, Hh), 0.0), 36.0);
-  col += 0.32 * pow(1.0 - NdV, 3.0);
+  vec3 L = normalize(vec3(-0.4, 0.75, 0.55));
+  float light = 0.56 + 0.26 * N.y + 0.26 * N.z + 0.3 * max(dot(N, L), 0.0);
+  vec3 col = vec3(0.93) * light * (0.9 + 0.1 * gy);
+  col = mix(col, behind + 0.6 * col, 0.12);
+  col = mix(col, studio(reflect(-V, N)), clamp(F * 1.2, 0.0, 0.6));
+  col += 0.35 * pow(max(dot(N, normalize(L + V)), 0.0), 50.0);
   // блик проходит по фразе наискось
   float sh = vB.x * 0.8 + vB.y * 0.35 - uSheen;
   col += vec3(0.42) * exp(-sh * sh * 28.0) * (0.55 + 0.45 * (1.0 - NdV));
@@ -442,7 +444,7 @@ export async function createGlass(o: Opts): Promise<Glass> {
       // вертикальный полёт ещё и выгибает строки дугой: концы отстают
       const ext = u.uExt.value * kk;
       u.uBC.value.set(-m.dx * ext, -m.dy * ext);
-      u.uBend.value.set((0.18 + 0.5 * pos * hx) / (it.hw + ext * hx), (0.45 * pos * vy) / (it.hh + ext * vy));
+      u.uBend.value.set((0.1 + 0.55 * pos * hx) / (it.hw + ext * hx), (0.45 * pos * vy) / (it.hh + ext * vy));
       u.uArch.value = (0.3 * pos * vy * Math.sign(m.dy || 1)) / it.hw;
       u.uPos.value.set(b.x, b.y, b.z);
       u.uDeep.value = b.deep;
