@@ -115,11 +115,9 @@ export function init(root: HTMLElement) {
   const channel = (i: number) => {
     sw?.kill();
     sw = gsap.timeline()
-      .to(tube, { scaleY: 0.02, scaleX: 1.04, duration: 0.1, ease: 'steps(3)' })
-      .set(flash, { opacity: 1 })
+      .to(tube, { opacity: 0, duration: 0.16, ease: 'sine.in' })
       .add(() => show(i))
-      .to(tube, { scaleY: 1, scaleX: 1, duration: 0.2, ease: 'steps(5)' })
-      .to(flash, { opacity: 0, duration: 0.2, ease: 'steps(4)' }, '<');
+      .to(tube, { opacity: 1, duration: 0.3, ease: 'sine.out' });
   };
 
   /* ---------- текст в окне ---------- */
@@ -283,7 +281,7 @@ export function init(root: HTMLElement) {
     // экран включается, как кинескоп
     .fromTo(power, { scaleX: 0, scaleY: 0.012 }, { scaleX: 1, scaleY: 0.012, duration: 0.16, ease: 'steps(4)' }, 0.62)
     .to(power, { scaleY: 1, duration: 0.24, ease: 'steps(5)' }, 0.78)
-    .call(() => show(current), [], 0.62)
+    .call(() => show(current), [], 1.02)
     // выделение мигает, треугольник падает сверху
     .fromTo([band, inv], { opacity: 0 }, { opacity: 1, duration: 0.42, ease: blink(6) }, 0.5)
     .fromTo(mkDrop, { y: -28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'bounce.out' }, 0.52)
@@ -313,7 +311,7 @@ export function init(root: HTMLElement) {
     title.reset();
     entry.pause(0);
     sw?.kill();
-    gsap.set(tube, { scaleX: 1, scaleY: 1 });
+    gsap.set(tube, { opacity: 1, scaleX: 1, scaleY: 1 });
     gsap.set(flash, { opacity: 0 });
     widgets.forEach((w) => w.stop());
     slots.forEach((s) => s.classList.remove('is-shown'));

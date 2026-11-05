@@ -445,7 +445,7 @@ export function init(root: HTMLElement) {
     // галочка появляется в свете и отпечатывается: кольцо расходится, искры разлетаются
     const C = B + 0.5;
     gsap.set(checkC, { drawSVG: '100%', fillOpacity: 1 });
-    t.fromTo(check, { opacity: 1, scale: 0, rotation: -120 }, { scale: 1, rotation: 0, duration: 0.5, ease: 'back.out(2.2)' }, C)
+    t.fromTo(check, { opacity: 0, scale: 0.85, rotation: 0 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.45, ease: 'power2.out' }, C)
       .fromTo(checkM, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.32, ease: 'power3.out' }, C + 0.36)
       .fromTo(ring, { opacity: 0.9, scale: 0.9 }, { opacity: 0, scale: 2.1, duration: 0.8, ease: 'power2.out' }, C + 0.42)
       .fromTo(sparks, { opacity: 1, drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 0.22, ease: 'power3.out' }, C + 0.42)

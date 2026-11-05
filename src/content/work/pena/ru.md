@@ -9,11 +9,11 @@ page: false
 role: Дизайн, вёрстка, анимация
 stack: [Astro, GSAP]
 cover: /work/pena/poster.webp
-coverAlt: Первый экран сайта кофейни «Пена» с чашкой капучино сверху
+coverAlt: Первый экран сайта кофейни «Пена» с фотографией бариста
 video: { mp4: /work/pena/video.mp4, webm: /work/pena/video.webm, poster: /work/pena/start.webp }
 media:
   - src: /work/pena/hero.webp
-    alt: Первый экран с заголовком и чашкой капучино с сердцем из пены
+    alt: Первый экран с заголовком и фотографией бариста
   - src: /work/pena/menu.webp
     alt: Меню по вкладкам, десерты с ценами
   - src: /work/pena/beans.webp

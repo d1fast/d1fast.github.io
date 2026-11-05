@@ -1,8 +1,8 @@
 import { initReveal } from './reveal';
 import { initCursor } from './cursor';
-import { initMagnetic, initScramble, initActiveItems, initMarquee, initCopy, initTilt } from './interactions';
+import { initMagnetic, initScramble } from './interactions';
 import { initForm } from './form';
-import { initHero, heroReenter } from './hero';
+import { initHero } from './hero';
 import { initStage } from './stage';
 
 /* Скрипты блоков главной подгружаются, когда блок первый раз приближается к экрану. */
@@ -28,8 +28,7 @@ function ensureBlock(root: HTMLElement) {
 function initBlocks() {
   const roots = [...document.querySelectorAll<HTMLElement>('[data-block]:not([data-block="hero"])')];
   if (!roots.length) return;
-  // текущий блок сразу, остальные по одному, когда браузер свободен. Пока на первом экране идёт рассказ,
-  // их не трогаем: сборка блоков заняла бы главный поток, и заставка дёргалась бы
+  // Текущий блок сразу, остальные по одному в свободное время браузера.
   roots.filter((r) => r.classList.contains('is-current')).forEach(ensureBlock);
   const idle = (cb: () => void) => ('requestIdleCallback' in window ? (window as any).requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 600));
   const queue = () => { let i = 0; const next = () => { if (i < roots.length) ensureBlock(roots[i++]).then(() => idle(next)); }; idle(next); };
@@ -49,18 +48,12 @@ function initBlocks() {
 }
 
 function init() {
-  initHero();
-  const hero = document.querySelector<HTMLElement>('[data-hero]');
-  hero?.addEventListener('block:enter', (e) => { if (!(e as CustomEvent).detail?.first) heroReenter(hero); });
   initStage({ prepare: (b) => (b.dataset.block === 'hero' ? undefined : ensureBlock(b)) });
+  initHero();
   initBlocks();
   initReveal();
   initMagnetic();
   initScramble();
-  initActiveItems();
-  initMarquee();
-  initCopy();
-  initTilt();
   initForm();
 }
 

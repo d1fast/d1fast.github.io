@@ -23,14 +23,10 @@ export const en: Dict = {
     name: 'Saveliy Lopatin',
     nick: 'd1fast',
     h1: 'Saveliy Lopatin (d1fast): I build websites, apps, bots and 3D',
-    beats: [
-      ['Got an|idea?'],
-      ['But not sure', 'who to trust|with it?'],
-      ['I build', 'digital|products'],
-    ],
-    sub: 'Websites, web services, apps, bots and 3D.',
+    title: ['Ideas', 'come alive.'],
+    sub: 'Websites, apps, bots and 3D.',
     ctaContact: 'Discuss a project',
-    ctaWorks: 'Work',
+    ctaWorks: 'Explore my work',
   },
 
   services: {
@@ -52,6 +48,8 @@ export const en: Dict = {
     screens: 'Project screens',
     screen: 'Screen {n} of {total}',
     carousel: 'carousel',
+    swipe: 'Swipe to explore ↔',
+    enlarge: 'Enlarge',
     prev: 'Previous',
     next: 'Next',
     video: 'Video',

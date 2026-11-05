@@ -20,8 +20,6 @@ const html = document.documentElement;
 const blocks = () => [...document.querySelectorAll<HTMLElement>('.block[data-block]')];
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const inOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const outQ = (t: number) => 1 - Math.pow(1 - t, 3);
-const inQ = (t: number) => t * t * t;
 
 /* ---------- переходы ---------- */
 
@@ -316,6 +314,8 @@ export function initStage(hooks: StageHooks = {}) {
     if (Math.abs(tDy) < 4 && !tAxis) return;
     const dir: Dir = tDy > 0 ? 1 : -1;
     const t = e.target as Element;
+    // Нативная галерея должна получить горизонтальный жест до первого preventDefault.
+    if (t.closest?.('[data-native-scroll-x]') && (tAxis === 'x' || Math.abs(tDx) > Math.abs(tDy))) { tAxis = 'x'; tNav = false; return; }
     const inner = t.closest?.('textarea, [data-scroll-inside]');
     if (inner && canScroll(inner, dir)) return;
     if (canScroll(current, dir)) return;

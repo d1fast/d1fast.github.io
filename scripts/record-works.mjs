@@ -3,7 +3,7 @@
 // node scripts/record-works.mjs tg|coffee — пишет public/work/<slug>/video.mp4, video.webm, poster.webp и кадры (+ -800).
 // Сцена на странице — один таймлайн GSAP на паузе: каждый кадр ставится через window.__seek(t), поэтому видео ровное
 // при любой скорости машины. Компьютер: 1104×621 с плотностью 1,45 (на выходе 1600×900), телефон: 390×844 с плотностью 2.
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
@@ -25,8 +25,7 @@ const FR = path.resolve('.record', name);
 fs.rmSync(FR, { recursive: true, force: true });
 fs.mkdirSync(FR, { recursive: true });
 fs.mkdirSync(OUT, { recursive: true });
-const exe = ['/opt/pw-browsers/chromium'].find((p) => fs.existsSync(p));
-const browser = await chromium.launch(exe ? { executablePath: exe } : {});
+const browser = await launchBrowser();
 const run = (cmd) => execSync(cmd, { stdio: 'inherit' });
 
 async function open(mobile) {

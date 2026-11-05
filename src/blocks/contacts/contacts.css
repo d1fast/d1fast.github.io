@@ -110,7 +110,7 @@ html.stage-on .block.contacts > .block__inner { flex: 1 0 auto; min-height: 0; }
 /* галочки: квадрат и отметка в одном SVG (рамка CSS прилипает к пикселям, а SVG нет, и отметка съезжала) */
 .check { position: relative; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; cursor: pointer; }
 .check__box { position: absolute; left: -4px; top: -4px; width: 30px; height: 30px; margin: 0; opacity: 0; cursor: pointer; }
-.check__mark { position: relative; flex: none; display: block; width: 22px; height: 22px; overflow: visible; shape-rendering: geometricPrecision; border-radius: 5px; }
+.check__mark { pointer-events: none; position: relative; flex: none; display: block; width: 22px; height: 22px; overflow: visible; shape-rendering: geometricPrecision; border-radius: 5px; }
 .check__frame { fill: color-mix(in oklab, var(--paper) 70%, #fff); stroke: var(--ink); stroke-width: 1.5; transition: fill .2s var(--ease-out); }
 /* длина штриха задана числом, без pathLength: Safari с ним рисует галочку не до конца */
 .check__tick { opacity: 0; fill: none; stroke: var(--ink); stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 17; stroke-dashoffset: 17; transition: stroke-dashoffset .3s var(--ease-out), opacity 0s .3s; }

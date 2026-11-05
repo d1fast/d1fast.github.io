@@ -28,7 +28,7 @@ const work = defineCollection({
     media: z
       .array(z.object({ src: z.string(), alt: z.string(), caption: z.string().optional(), kind: z.enum(['image', 'video']).default('image'), portrait: z.boolean().default(false) }))
       .default([]),
-    link: z.string().url().optional(),
+    link: z.url().optional(),
     draft: z.boolean().default(false),
   }),
 });

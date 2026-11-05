@@ -1,39 +1,28 @@
 ---
-// Первый экран, чёрно-белый: темнота, знак «d1fast ©», потом фразы стеклянными буквами прилетают к светящемуся
-// кольцу (src/scripts/hero.ts, hero/glass.ts). Последняя фраза остаётся заголовком в кольце, под ней строка и кнопки.
-// Без WebGL тот же рассказ идёт обычным текстом: фразы летят теми же путями, кольцо рисуется линией SVG.
-// Без скрипта виден заголовок в целом кольце. Для поиска и скринридеров есть обычный h1.
+import '../styles/hero.css';
 import { t, type Lang } from '../i18n';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
-const beats = d.hero.beats;
-const last = beats[beats.length - 1].map((l) => l.replace(/\|/g, ' '));
 ---
-<section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero data-beats={JSON.stringify(beats)}>
-  <canvas class="hero__gl" aria-hidden="true" data-hero-gl></canvas>
-  <p class="hero__mark" aria-hidden="true" data-hero-mark>{d.hero.nick}<span>©</span></p>
-
+<section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero>
+  <div class="hero__art" aria-hidden="true" data-hero-art>
+    <img class="hero__fallback" src={`${import.meta.env.BASE_URL}art/hero-knot.webp`} alt="" width="1000" height="720" fetchpriority="high" />
+    <canvas class="hero__canvas" data-hero-canvas></canvas>
+  </div>
   <div class="container hero__inner">
-    <h1 class="visually-hidden">{d.hero.h1}</h1>
-    <!-- место заголовка: вокруг него кольцо, сюда встаёт последняя стеклянная фраза; без WebGL здесь она же текстом -->
-    <div class="hero__slot" data-hero-slot>
-      <!-- кольцо без WebGL: линия рисуется от верха по часовой, искра бежит по ней; с WebGL кольцо рисует холст.
-           Скрипт переводит его в пиксели экрана (viewBox по размеру) -->
-      <svg class="hero__ring" viewBox="0 0 100 100" aria-hidden="true" data-hero-ring>
-        <circle class="hero__ring-ghost" cx="50" cy="50" r="48" />
-        <circle class="hero__ring-line" cx="50" cy="50" r="48" data-hero-line />
-        <circle class="hero__ring-pulse" cx="50" cy="50" r="48" data-hero-pulse />
-      </svg>
-      <span class="hero__orbit" aria-hidden="true" data-hero-orbit><i></i></span>
-      <p class="hero__title" aria-hidden="true" data-hero-title>{last.map((l) => <span>{l}</span>)}</p>
-    </div>
+    <h1 class="hero__title" aria-label={d.hero.title.join(' ')}>
+      <span class="hero__word hero__word--first">{d.hero.title[0]}</span>
+      <span class="hero__word hero__word--last">{d.hero.title[1]}</span>
+    </h1>
     <div class="hero__foot">
-      <p class="hero__sub" data-hero-sub>{d.hero.sub}</p>
-      <!-- две равные кнопки из одного стекла; у «Обсудить проект» точка «на связи» -->
-      <div class="hero__cta" data-hero-cta>
-        <a class="hero__btn" href="#contacts" data-magnetic="0.2"><span class="hero__live" aria-hidden="true"></span>{d.hero.ctaContact}</a>
-        <a class="hero__btn" href="#works" data-magnetic="0.2">{d.hero.ctaWorks}<svg class="hero__arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M10.5 5.5 15 10l-4.5 4.5" /></svg></a>
+      <p class="hero__sub">{d.hero.sub}</p>
+      <div class="hero__cta">
+        <a class="hero__primary" href="#works">
+          <span>{d.hero.ctaWorks}</span>
+          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M10 68 68 10 M10 10h58v58" /></svg>
+        </a>
+        <a class="hero__secondary" href="#contacts">{d.hero.ctaContact}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" /></svg></a>
       </div>
     </div>
   </div>

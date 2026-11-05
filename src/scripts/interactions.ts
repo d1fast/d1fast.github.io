@@ -1,8 +1,7 @@
 import { gsap } from 'gsap';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 
-gsap.registerPlugin(ScrambleTextPlugin, DrawSVGPlugin);
+gsap.registerPlugin(ScrambleTextPlugin);
 
 const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
 
@@ -37,85 +36,5 @@ export function initScramble(root: ParentNode = document) {
       tween?.kill();
       tween = gsap.to(el, { duration: 0.6, scrambleText: { text, chars: cyr ? 'абвгдежзиклмнопрстуфхцчшщэюя' : 'abcdefghijklmnopqrstuvwxyz', speed: 0.8, revealDelay: 0.1 } });
     });
-  }
-}
-
-/**
- * Пункты списков оживают при наведении, а на телефоне, когда пункт в центре экрана.
- * Ставит класс is-active на один пункт за раз.
- */
-export function initActiveItems(root: ParentNode = document) {
-  const lists = root.querySelectorAll<HTMLElement>('[data-active-list]:not(.is-active-bound)');
-  for (const list of lists) {
-    list.classList.add('is-active-bound');
-    const items = [...list.children] as HTMLElement[];
-    let current: HTMLElement | null = null;
-    const set = (el: HTMLElement | null) => {
-      items.forEach((i) => i.classList.toggle('is-active', i === el));
-      if (el && el !== current) {
-        // иконка пункта рисуется штрихом, как на чертеже
-        const strokes = el.querySelectorAll('[data-draw] svg *');
-        if (strokes.length) gsap.fromTo(strokes, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.7, ease: 'power2.out', stagger: 0.035, overwrite: true });
-      }
-      current = el;
-    };
-    if (fine()) {
-      items.forEach((i) => {
-        i.addEventListener('pointerenter', () => set(i));
-        i.addEventListener('focusin', () => set(i));
-      });
-      list.addEventListener('pointerleave', () => set(null));
-      list.addEventListener('focusout', (e) => { if (!list.contains(e.relatedTarget as Node)) set(null); });
-    } else {
-      const io = new IntersectionObserver((entries) => {
-        for (const e of entries) if (e.isIntersecting) set(e.target as HTMLElement);
-      }, { rootMargin: '-42% 0px -42% 0px', threshold: 0 });
-      items.forEach((i) => io.observe(i));
-    }
-  }
-}
-
-/** Бегущая строка: двигается через CSS, а здесь только ставится на паузу вне экрана. */
-export function initMarquee(root: ParentNode = document) {
-  const els = root.querySelectorAll<HTMLElement>('[data-marquee]:not(.is-marquee-bound)');
-  if (!els.length) return;
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) (e.target as HTMLElement).classList.toggle('is-paused', !e.isIntersecting);
-  });
-  els.forEach((el) => { el.classList.add('is-marquee-bound'); io.observe(el); });
-}
-
-/** Почта копируется по клику. */
-export function initCopy(root: ParentNode = document) {
-  for (const btn of root.querySelectorAll<HTMLElement>('[data-copy]:not(.is-copy-bound)')) {
-    btn.classList.add('is-copy-bound');
-    const label = btn.querySelector<HTMLElement>('[data-copy-label]');
-    label?.setAttribute('aria-live', 'polite');
-    const original = label?.textContent || '';
-    btn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(btn.dataset.copy!);
-        if (label) { label.textContent = btn.dataset.copied || original; btn.classList.add('is-copied'); setTimeout(() => { label.textContent = original; btn.classList.remove('is-copied'); }, 1600); }
-      } catch { location.href = `mailto:${btn.dataset.copy}`; }
-    });
-  }
-}
-
-/** Лёгкий наклон карточек за курсором. Только мышь, только transform. */
-export function initTilt(root: ParentNode = document) {
-  if (!fine()) return;
-  for (const el of root.querySelectorAll<HTMLElement>('[data-tilt]:not(.is-tilt-bound)')) {
-    el.classList.add('is-tilt-bound');
-    const max = Number(el.dataset.tilt || 6);
-    const rx = gsap.quickTo(el, 'rotationX', { duration: 0.5, ease: 'power3.out' });
-    const ry = gsap.quickTo(el, 'rotationY', { duration: 0.5, ease: 'power3.out' });
-    gsap.set(el, { transformPerspective: 900, transformStyle: 'preserve-3d' });
-    el.addEventListener('pointermove', (e) => {
-      const r = el.getBoundingClientRect();
-      const px = (e.clientX - r.left) / r.width - 0.5;
-      const py = (e.clientY - r.top) / r.height - 0.5;
-      rx(-py * max); ry(px * max);
-    });
-    el.addEventListener('pointerleave', () => { rx(0); ry(0); });
   }
 }

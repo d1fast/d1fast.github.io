@@ -1,54 +1,25 @@
-# Product
+# Сайт Савелия Лопатина
 
-<!-- impeccable:product-schema 1 -->
+Портфолио и личная визитка разработчика d1fast. Посетитель должен быстро понять, что здесь делают, посмотреть работы и написать о своей задаче.
 
-## Platform
+## Посетители
 
-web
+Заказчики небольших цифровых продуктов, работодатели и команды. Ссылку часто открывают из Telegram на телефоне. Мобильная версия должна показывать сами проекты достаточно крупно.
 
-## Stack
-Astro (static output), GSAP for motion, vanilla TypeScript. Deployed to GitHub Pages through GitHub Actions. Chosen by the builder; the owner delegated the choice.
+## Разделы
 
-## Users
-Two audiences open the same link, most often from Telegram on a phone:
-- Clients (small businesses, founders, people who need a website, a bot, a 3D scene or a small game) deciding whether to write to Savely.
-- Employers and recruiters checking whether he can ship real products.
+1. Движущийся плакат: крупное «Идеи оживают», светлый фон, бургунди и цитрон. Объёмный узел из ленты реагирует на курсор и касание. Переход к работам встроен в композицию, без залитых кнопок и вводных подписей.
+2. Что делаю: игровое меню, пиксельные мини-сцены. Действие и результат должны быть понятны без спешки.
+3. Работы: тёмная галерея, крупный цилиндр с видео на компьютере. На телефоне вертикальные кадры со свайпом. Придуманные проекты помечены как концепты.
+4. Как работаю: чертёж, сборка и включение лампы. Четыре этапа работы.
+5. Контакты: бумажное письмо, самолётик, форма отправки в Telegram через Cloudflare Worker.
 
-## Product Purpose
-Personal site of Savely Lopatin (nickname d1fast), a young developer from Moscow who builds digital products end to end: websites, web apps, Telegram bots, 3D scenes, small games, interfaces. The site exists to get the visitor to write to him in Telegram. Success: the visitor understands within seconds what he makes, sees proof of craft, and writes.
+Русская версия открывается в корне, английская по /en/. Разделы главной переключаются сценой; высокие разделы прокручиваются внутри. У конструктора ароматов есть отдельная страница кейса. У двух демонстрационных концептов её нет.
 
-## Positioning
-He understands what a product gives the business, thinks everything through up front, writes a detailed spec, and keeps polishing until he likes the result himself. The site must show this, not state it: the site is its own brief turned into a product, and every section proves the claim rather than describing it.
+## Манера
 
-## Operating Context
-Visitor arrives from a Telegram link, usually on a phone with a slow mobile connection. Desktop visits come from employers. Native scroll only. Russian is the default language, English at /en/. Contact happens through Telegram (@glslg031), email (saveliylopatin@yandex.ru) and a short form that later posts to a Telegram bot through a small server function.
+Каждый раздел имеет собственную композицию, типографику, цвета и движение. Текст простой, от первого лица. Не придумывать клиентов, отзывы и результаты. На первом экране контент и действия доступны сразу. Не возвращать вступление с прилетающими стеклянными буквами.
 
-## Capabilities and Constraints
-- Sections: first screen where the typed brief turns into the page, about, what I do, works, how I work, contacts. Case pages with their own URL. 404, favicon, OG image.
-- One case for now (Aroma Forge, a Three.js fragrance constructor); the works list must look right with one item and with ten.
-- No scroll-scrubbed animation, no pinning, no scroll hijacking. Animations play once on reveal, transform and opacity where possible.
-- Motion plays for everyone: the owner chose not to switch it off for the system "reduce motion" setting, so the site looks the same on every device and browser.
-- Images never overlap text.
-- Mobile must be as good as desktop.
-- One calm sentence about AI writing code; never in headings.
-- No photo of the owner anywhere on the site (his decision); the name sits small in the header, top left.
-- Open decisions: server function host (Yandex Cloud Functions later).
+## Технологии
 
-## Brand Commitments
-- Name: Савелий Лопатин / Savely Lopatin, nickname d1fast.
-- Voice: first person, plain spoken Russian, no pathos, no bureaucratic phrasing, dashes rare. English is natural English, not a literal translation.
-- Mood: bright and bold, dark allowed; saturated colors and unexpected combinations; unusual grid, type and interaction decisions; never a template; text always readable.
-- References for technique, not copying: kirpichagency.com (how text appears and how services come alive on hover), torebentsen.com (works as a list with video previews). Anti-reference: jasonvakker.com.
-- Facts may be lightly invented for trust (no numbers; "young developer"; Moscow). No real client brand names.
-
-## Evidence on Hand
-- Aroma Forge demo: source at /home/user/aroma-forge, screenshots in /home/user/aroma-forge/screenshots (desktop 1920x1080 and phone 390x844). Video previews to be recorded from the running app.
-- No photo: the owner asked not to use one.
-- No testimonials, no metrics. Do not fabricate numbers.
-
-## Product Principles
-- Show, don't tell: every claim about craft is demonstrated by the site itself.
-- Phone first: the link is opened from Telegram.
-- Motion is authored once per moment and never tied to scroll position.
-- Content is in the HTML from the start; animation runs on top of it.
-- Adding a case must be one text file plus media.
+Astro, TypeScript, GSAP, Three.js. Статическая сборка публикуется через GitHub Actions на GitHub Pages. Серверный обработчик формы развёрнут отдельно. Его секреты не входят в сборку сайта.

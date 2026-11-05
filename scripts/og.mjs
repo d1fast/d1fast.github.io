@@ -1,10 +1,9 @@
 // Картинки для ссылок и иконки: node scripts/og.mjs (нужен запущенный npm run dev: снимается первый экран).
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 
 const base = process.argv[2] || 'http://localhost:4321/';
-const exe = ['/opt/pw-browsers/chromium'].find((p) => fs.existsSync(p));
-const browser = await chromium.launch(exe ? { executablePath: exe } : {});
+const browser = await launchBrowser();
 // Шрифты встраиваются как data-URI: страница рендерится из about:blank, и внешние адреса не подходят.
 const fontCss = fs.readFileSync('src/styles/fonts.generated.css', 'utf8')
   .split('\n').filter((l) => /Geologica|JetBrains Mono/.test(l) && !/italic/.test(l))
@@ -13,15 +12,13 @@ const fontCss = fs.readFileSync('src/styles/fonts.generated.css', 'utf8')
 
 const page = (w, h, scale = 1) => browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
 
-// Снимок первого экрана: последняя стеклянная фраза по центру и строка под ней, без шапки и кнопок.
+// Снимок первого экрана после загрузки объёмной ленты.
 for (const lang of ['ru', 'en']) {
   const p = await page(1200, 630);
   await p.goto(base + (lang === 'ru' ? '' : 'en/'), { waitUntil: 'networkidle' });
-  // вступление перематывается к концу (в dev у первого экрана есть window.__hero)
-  await p.waitForFunction(() => window.__hero && window.__hero.dur() > 0, null, { timeout: 60000 });
-  await p.evaluate(() => { window.__hero.seek(window.__hero.dur()); });
+  await p.waitForTimeout(3600);
   await p.mouse.move(2, 2);
-  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.cursor{visibility:hidden!important}.hero__sub{font-size:24px!important}' });
+  await p.addStyleTag({ content: '.site-header,.dots,.hero__cta,.hero__cta>*,.cursor{visibility:hidden!important}.hero__sub{font-size:20px!important}' });
   await p.waitForTimeout(1500);
   await p.screenshot({ path: `public/${lang === 'ru' ? 'og' : 'og-en'}.png` });
   await p.close();
@@ -46,6 +43,6 @@ for (const [file, size] of [['apple-touch-icon.png', 180], ['favicon-32.png', 32
 const png64 = fs.readFileSync('public/favicon-64.png').toString('base64');
 fs.writeFileSync('public/favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64"><image width="64" height="64" href="data:image/png;base64,${png64}"/></svg>`);
 fs.rmSync('public/favicon-64.png');
-fs.writeFileSync('public/site.webmanifest', JSON.stringify({ name: 'd1fast', short_name: 'd1fast', start_url: '/', display: 'browser', background_color: '#FFD43B', theme_color: '#FFD43B', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }, null, 2));
+fs.writeFileSync('public/site.webmanifest', JSON.stringify({ name: 'd1fast', short_name: 'd1fast', start_url: '/', display: 'browser', background_color: '#EEECE5', theme_color: '#EEECE5', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }] }, null, 2));
 await browser.close();
 console.log('icons done');

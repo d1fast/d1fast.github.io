@@ -3,8 +3,8 @@
   "short_name": "d1fast",
   "start_url": "/",
   "display": "browser",
-  "background_color": "#FFD43B",
-  "theme_color": "#FFD43B",
+  "background_color": "#EEECE5",
+  "theme_color": "#EEECE5",
   "icons": [
     {
       "src": "/icon-192.png",

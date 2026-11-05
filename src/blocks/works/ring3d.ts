@@ -120,7 +120,7 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
     // пикселей на единицу у передней панели: на компьютере до 74 % ширины места, соседние видны по краям;
     // на телефоне стоя передняя панель почти во всю ширину (92 %) и строго по центру, соседние показываются при повороте,
     // под ней место для отражения
-    const ppu = Math.min((a.width * (vert ? 0.92 : 0.74)) / chord, (a.height * (vert ? 0.64 : 0.72)) / H);
+    const ppu = Math.min((a.width * (vert ? 0.92 : 0.96)) / chord, (a.height * (vert ? 0.64 : 0.85)) / H);
     dist = Hc / (2 * Math.tan((camera.fov * Math.PI) / 360) * ppu);
     lift = dist * (vert ? 0.06 : 0.12);
     place(0);

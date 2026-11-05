@@ -13,7 +13,7 @@ const PERIOD = 3; // узор плоскости повторяется кажд
 const ROWS = 6; // рядов в кадре плоскости (лишние отсекаются замером)
 const VERT = '(max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait)'; // вертикальная раскладка (works.css)
 const STUCK = 9; // видео не запустилось (режим энергосбережения): через столько секунд следующая работа
-const RATE = 1.25; // ролики идут чуть быстрее записи: автопоказ работ короче, история в ролике та же
+const RATE = 1; // обычная скорость: действия в демо должны успевать читаться
 
 type Tile = { src: string; portrait: boolean };
 
@@ -122,6 +122,8 @@ export function init(root: HTMLElement) {
   /** видео работы j: играет только переднее и только пока блок на экране */
   const playFront = () => {
     clearTimeout(stuckT);
+    root.querySelectorAll<HTMLElement>('[data-works-mobile]').forEach((el, j) => { el.hidden = j !== k; });
+    if (vert.matches) { videos.forEach((v) => v.pause()); blocked(false); ring?.stop(); return; }
     videos.forEach((v, j) => { if (j !== k) { v.pause(); v.classList.remove('is-on'); } });
     const v = videos[k];
     if (!v) return;
@@ -199,7 +201,7 @@ export function init(root: HTMLElement) {
   const unit = () => Math.max(220, area.clientWidth * 0.55); // столько пикселей жеста = одна панель
   area.addEventListener('dragstart', (e) => e.preventDefault());
   area.addEventListener('pointerdown', (e) => {
-    if (e.button > 0) return;
+    if (e.button > 0 || vert.matches) return;
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, p0: ring ? ring.pos : k, on: false, off: false, t: performance.now(), v: 0 };
     dragged = false;
   });
@@ -240,6 +242,7 @@ export function init(root: HTMLElement) {
   area.addEventListener('pointercancel', release);
   // клик без протаскивания: следующая работа
   area.addEventListener('click', (e) => {
+    if (vert.matches) return;
     if (dragged) { dragged = false; e.preventDefault(); return; }
     if ((e.target as Element).closest('[data-works-play]')) return;
     user(); step(1);
@@ -248,7 +251,7 @@ export function init(root: HTMLElement) {
   // Жест кончается паузой в событиях или сменой направления; инерция того же жеста второй раз не листает
   let wAcc = 0, wDone = false, wLast = 0, wDir = 0;
   root.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || !active) return;
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || !active || vert.matches) return;
     e.preventDefault();
     const dx = e.deltaMode === 1 ? e.deltaX * 32 : e.deltaX;
     const now = performance.now(), dir = Math.sign(dx);
@@ -267,6 +270,7 @@ export function init(root: HTMLElement) {
     if (d) { user(); pick(Number(d.dataset.worksDot) || 0); }
   });
   root.addEventListener('keydown', (e) => {
+    if ((e.target as Element).closest('[data-native-scroll-x]')) return;
     if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !(e.target as Element).closest?.('[data-works-nav], [data-works-area]')) return;
     e.preventDefault();
     user();
@@ -302,6 +306,7 @@ export function init(root: HTMLElement) {
     clearTimeout(rt);
     rt = window.setTimeout(() => {
       ring?.layout(vert.matches);
+      if (active) { if (vert.matches) ring?.stop(); else ring?.start(); playFront(); }
       if (vert.matches !== builtV || Math.abs(root.clientWidth - builtW) > builtW * 0.1) build();
     }, 150);
   }).observe(root);
@@ -336,6 +341,7 @@ export function init(root: HTMLElement) {
 
   // цилиндр: WebGL проверяется заранее, модуль с three.js грузится только если он есть
   const glOk = (() => {
+    if (vert.matches) return false;
     const c = document.createElement('canvas');
     const g = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
     g?.getExtension('WEBGL_lose_context')?.loseContext();

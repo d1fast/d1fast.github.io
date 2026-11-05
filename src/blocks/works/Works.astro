@@ -19,9 +19,10 @@ const items = works.filter((w) => w.data.video).map((w) => {
   const slug = w.id.split('/')[0];
   const v = w.data.video!;
   const desk = w.data.media.filter((m) => !m.portrait && m.kind === 'image').map((m) => base + (small(m.src) ?? m.src));
-  const phones = w.data.media.filter((m) => m.portrait && m.kind === 'image').map((m) => base + m.src);
+  const mobile = w.data.media.filter((m) => m.portrait && m.kind === 'image');
+  const phones = mobile.map((m) => base + m.src);
   // на цилиндре без видео стоит обложка работы (кадр, где сцена собрана), а не первый, часто пустой кадр ролика
-  return { w: w.data, slug, desk, phones, cover: base + w.data.cover, video: { mp4: base + v.mp4, webm: base + v.webm, poster: base + v.poster } };
+  return { w: w.data, slug, desk, phones, mobile, cover: base + w.data.cover, video: { mp4: base + v.mp4, webm: base + v.webm, poster: base + v.poster } };
 });
 const tiles = JSON.stringify([
   ...items.flatMap((it) => it.desk.map((src) => ({ src, portrait: false }))),
@@ -50,6 +51,18 @@ const arrow = (dir: 'l' | 'r') => `<svg viewBox="0 0 24 24" aria-hidden="true"><
     <div class="works__ring" role="group" aria-roledescription={d.works.carousel} aria-label={d.works.title} data-works-area>
       <!-- браузер не дал ролику пойти сам (энергосбережение): кнопка запуска поверх передней панели -->
       <button type="button" class="works__play" aria-label={d.works.play} data-works-play hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg></button>
+      {items.map((it, k) => (
+        <div class="works__mobile" data-works-mobile={k} hidden={k !== 0}>
+          <div class="works__frames" data-native-scroll-x tabindex="0" aria-label={d.works.screens}>
+            {(it.mobile.length ? it.mobile : [{ src: it.w.cover, alt: it.w.coverAlt }]).map((m, i) => (
+              <figure class="works__frame">
+                <img src={base + m.src} alt={m.alt} loading="lazy" width="780" height="1688" />
+                <figcaption>{String(i + 1).padStart(2, '0')} / {String(it.mobile.length || 1).padStart(2, '0')}<span>{d.works.swipe}</span><a href={base + m.src} target="_blank" rel="noopener">{d.works.enlarge}</a></figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ))}
       <div class="works__flat" data-works-flat>
         {items.map((it, k) => (
           <video class:list={['works__vid', { 'is-on': k === 0 }]} muted playsinline disablepictureinpicture preload={k === 0 ? 'metadata' : 'none'}
@@ -71,6 +84,7 @@ const arrow = (dir: 'l' | 'r') => `<svg viewBox="0 0 24 24" aria-hidden="true"><
           <h3 class="works__name" data-works-name>{it.w.title}</h3>
           <p class="works__sub" data-works-part>{it.w.subtitle}</p>
           <p class="works__sum" data-works-part>{it.w.summary}</p>
+          {it.w.page && <a class="works__case" href={`${base}${lang === 'en' ? '/en' : ''}/work/${it.slug}/`}>{d.works.open} ↗</a>}
           <p class="works__meta" data-works-part><span>{it.w.year}</span><span>{it.w.stack.join(', ')}</span>{it.w.concept && <span class="works__concept">{d.works.concept}</span>}</p>
         </div>
       ))}

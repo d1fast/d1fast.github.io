@@ -9,11 +9,11 @@ page: false
 role: Design, front end, motion
 stack: [Astro, GSAP]
 cover: /work/pena/poster.webp
-coverAlt: The first screen of the Pena coffee shop site with a cappuccino seen from above
+coverAlt: The first screen of the Pena coffee shop site with a barista photograph
 video: { mp4: /work/pena/video.mp4, webm: /work/pena/video.webm, poster: /work/pena/start.webp }
 media:
   - src: /work/pena/hero.webp
-    alt: First screen with the headline and a cappuccino with a foam heart
+    alt: First screen with the headline and a barista photograph
   - src: /work/pena/menu.webp
     alt: The tabbed menu with desserts and prices
   - src: /work/pena/beans.webp

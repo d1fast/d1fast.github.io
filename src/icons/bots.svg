@@ -1,8 +1,0 @@
-<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-<polygon points="28,8 5,17 13,21.5 11.5,32 18,25.5"/>
-<line x1="13" y1="21.5" x2="28" y2="8"/>
-<line x1="18" y1="25.5" x2="28" y2="8"/>
-<line x1="17" y1="31.5" x2="27" y2="34.5" stroke-dasharray="2 2.5"/>
-<polygon points="31.1,33.0 32.3,30.9 33.2,29.4 35.0,28.2 37.0,28.2 38.8,29.4 39.7,30.9 40.9,33.0 41.6,35.0 41.0,37.1 39.6,39.0 38.1,40.1 36.0,42.5 33.9,40.1 32.4,39.0 31.0,37.1 30.4,35.0"/>
-<circle cx="36" cy="35" r="2.3"/>
-</svg>

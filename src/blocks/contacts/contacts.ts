@@ -2,7 +2,7 @@ import { gsap } from 'gsap';
 import { SplitText } from 'gsap/SplitText';
 import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
-import { watchBlock, splitLines, rise, wrap } from '../../scripts/block';
+import { watchBlock, rise, wrap } from '../../scripts/block';
 
 gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin);
 
@@ -79,7 +79,7 @@ export function init(root: HTMLElement) {
   let written = false;
   const reveal: number[] = [];
   let spans: [number, number][] = []; // на каком отрезке пути (в пикселях длины) пишется строка
-  let lineLeft: number[] = []; // левый край строк в координатах блока, меряется при раскладке
+  let lineWidths: number[] = []; // ширина строк для синхронного проявления
 
   // ---------- раскладка в координатах блока ----------
   let W = 0, H = 0;
@@ -106,20 +106,21 @@ export function init(root: HTMLElement) {
     const last = lb[lb.length - 1];
     const x0 = Math.min(...lb.map((b) => b.l)) + fs * 0.12, x1 = Math.max(...lb.map((b) => b.r)) - fs * 0.3;
     const y = last.t + last.h * 0.8;
-    // одна плавная линия: подлёт снизу слева по дуге, ровно вдоль строки, уход вправо-вверх по широкой дуге.
-    // Касательные на стыках совпадают (горизонталь), поэтому самолётик нигде не дёргается и не делает резкий поворот.
+    // Подлёт по дуге, мягкая волна под подписью и уход вверх.
     const S: Pt = [-70, y + fs * 0.55], A: Pt = [x0, y], B: Pt = [x1, y];
     const E: Pt = [W + 140, Math.max(top + 20, y - fs * 1.4)];
     const f = (p: Pt) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
     const entry = `M ${f(S)} C ${f([S[0] + (A[0] - S[0]) * 0.55, S[1]])}, ${f([A[0] - Math.min(180, (A[0] - S[0]) * 0.45), A[1]])}, ${f(A)}`;
     const dx = E[0] - B[0];
-    const d = `${entry} L ${f(B)} C ${f([B[0] + dx * 0.4, B[1]])}, ${f([B[0] + dx * 0.72, E[1] + (B[1] - E[1]) * 0.12])}, ${f(E)}`;
+    const d = `${entry} C ${f([x0 + (x1 - x0) * .32, y - fs * .48])}, ${f([x0 + (x1 - x0) * .68, y + fs * .38])}, ${f(B)} C ${f([B[0] + dx * .4, B[1] - fs * .3])}, ${f([B[0] + dx * .72, E[1]])}, ${f(E)}`;
     ruler.setAttribute('d', entry);
     const a0 = ruler.getTotalLength();
-    spans = lb.map(() => [a0, a0 + (x1 - x0)] as [number, number]);
+    ruler.setAttribute('d', d.slice(0, d.lastIndexOf(' C ')));
+    const a1 = ruler.getTotalLength();
+    spans = lb.map(() => [a0, a1] as [number, number]);
     routes.write.el.setAttribute('d', d);
     routes.write.len = routes.write.el.getTotalLength();
-    lineLeft = lb.map((b) => b.l);
+    lineWidths = lb.map((b) => b.w);
 
     // дальше самолётик изредка спокойно пересекает небо по свободной полосе: над содержимым,
     // под ним или (на телефоне) в просвете между подписью и письмом. Без петель и резких виражей.
@@ -181,22 +182,22 @@ export function init(root: HTMLElement) {
     plane.setAttribute('transform', `translate(${(pt.x + dodge.x).toFixed(1)} ${(pt.y + dodge.y).toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${s} ${(s * (1 - bank)).toFixed(3)})`);
     const from = Math.max(0, at - TAIL) / L * 100, to = fly.p * 100;
     gsap.set(trail, { drawSVG: `${from}% ${to}%` });
-    if (cur === routes.write) inkTitle(at, pt.x);
+    if (cur === routes.write) inkTitle(at);
   };
 
   // строка проявляется до хвоста самолётика
-  const inkTitle = (at: number, x: number) => {
+  const inkTitle = (at: number) => {
     lines.forEach((l, i) => {
       const sp = spans[i]; if (!sp) return;
       let w = reveal[i] || 0;
       if (at >= sp[1]) w = 1e4;
-      else if (at > sp[0]) w = Math.max(w, x - (lineLeft[i] || 0) - 4);
+      else if (at > sp[0]) w = Math.max(w, (lineWidths[i] || 0) * (at - sp[0]) / (sp[1] - sp[0]));
       if (w !== reveal[i]) { reveal[i] = w; l.style.setProperty('--w', `${w.toFixed(0)}px`); }
     });
     // росчерк сразу после последней буквы, за ним открывается письмо (самолётик ещё улетает за край)
     if (!swashed && spans.length && at >= spans[spans.length - 1][1]) { swashed = true; swashIn.play(0.05); openSoon(); }
-    // подзаголовок поднимается, когда заголовок написан на треть
-    if (!leadOn && spans.length && at >= spans[0][0] + (spans[spans.length - 1][1] - spans[0][0]) * 0.3) { leadOn = true; lead.play(0); }
+    // Подводка появляется одновременно с началом заголовка.
+    if (!leadOn && spans.length && at >= spans[0][0]) { leadOn = true; lead.play(0); }
   };
   let swashed = false, leadOn = false;
   let opened: (() => void) | null = null, openCall: gsap.core.Tween | null = null;
@@ -258,7 +259,7 @@ export function init(root: HTMLElement) {
   const swashIn = wrap(gsap.timeline({ paused: true })
     .fromTo(swash[0], { clipPath: hid, opacity: 0 }, { clipPath: shown, opacity: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: true })
     .fromTo(swash[1], { clipPath: hid, opacity: 0 }, { clipPath: shown, opacity: 1, duration: 0.9, ease: 'sine.inOut', immediateRender: true }, 0.55));
-  const lead = splitLines(q('[data-lead]'), { duration: 1.4, stagger: 0.2 });
+  const lead = rise(leadEl, { y: 0, duration: 1.1, stagger: 0, ease: 'sine.out' });
   // явные конечные значения: у .btn есть CSS-переход transform, from() с ним путается
   const foot = rise(footer, { y: 0, duration: 0.8 });
 

@@ -94,8 +94,8 @@ function cursor(parent: HTMLElement, x: number, y: number) {
 
 const S = (n: number) => `steps(${n})`;
 const TAU = Math.PI * 2;
-/** сцены идут быстрее, чем записаны: человек не устаёт ждать, пока досмотрит пункт */
-const RATE = 1.4;
+/** Оставляем время на чтение действия и результата. */
+const RATE = 0.95;
 
 /* ---------- камера ---------- */
 /** Масштаб общего плана, css-px на единицу сцены: прямоугольник b вписан в видимую часть экранчика
@@ -103,15 +103,9 @@ const RATE = 1.4;
 const fitS = (v: View, b: Box) => Math.min((v.w - 2 * v.pad) / b[2], (v.h - v.res - 2 * v.pad) / b[3]);
 /** 0 на телефоне (экранчик уже 400 px), 1 на компьютере (от 520 px), между ними плавно */
 const wideF = (w: number) => Math.min(1, Math.max(0, (w - 400) / 120));
-/** Предел наезда. Маленький экранчик (телефон): до 3,8 px на единицу сцены, строка в 8 единиц вырастает
- *  до 30 px, видно только то, что сейчас происходит. Широкий (компьютер): камера наезжает в 2,3 раза,
- *  место действия занимает почти весь экранчик. */
-const capS = (s0: number, w: number) => {
-  const near = Math.max(s0 * 2.3, Math.min(3.8, s0 * 5));
-  return near + (s0 * 2.3 - near) * wideF(w);
-};
-/** на телефоне кадр берёт место действия теснее: всё, на что смотрит камера, крупнее */
-const tight = (w: number) => 1 + 0.3 * (1 - wideF(w));
+/** Общий план остаётся узнаваемым и во время приближения. */
+const capS = (s0: number, w: number) => s0 * (1.8 - 0.72 * wideF(w));
+const tight = (_w: number) => 1;
 
 class Cam {
   // кадр: центр и логарифм размеров прямоугольника сцены, который надо показать
@@ -124,7 +118,7 @@ class Cam {
   constructor(private layer: HTMLElement, readonly b: Box = FULL) {}
   at(r: Box) { return { x: r[0] + r[2] / 2, y: r[1] + r[3] / 2, lw: Math.log(r[2]), lh: Math.log(r[3]) }; }
   /** твин камеры на кадр r: плавный переезд с разгоном и торможением */
-  go(r: Box, duration = 0.8, ease = 'power2.inOut'): gsap.TweenVars { return { ...this.at(r), duration, ease }; }
+  go(r: Box, duration = 0.8, ease = 'sine.inOut'): gsap.TweenVars { return { ...this.at(r), duration, ease }; }
   /** твин на общий план */
   home(duration = 0.9): gsap.TweenVars { return this.go(this.b, duration); }
   set(r: Box = this.b) { Object.assign(this.s, this.at(r)); this.apply(); }
@@ -918,14 +912,7 @@ function cube(root: HTMLElement): Widget {
 
 /* ---------- 6. Игры для акций: всплывающее окно на сайте с колесом скидок. Курсор жмёт «Крутить»,
    колесо останавливается на скидке, выпадает промокод, его копируют. Тап по экрану крутит колесо самому ---------- */
-// цифры 5×7 для подписей на колесе: крупно, читаются уже до того, как колесо закрутят
-const F57: Record<string, string[]> = {
-  '0': ['.xxx.', 'x...x', 'x..xx', 'x.x.x', 'xx..x', 'x...x', '.xxx.'], '1': ['..x..', '.xx..', '..x..', '..x..', '..x..', '..x..', '.xxx.'],
-  '2': ['.xxx.', 'x...x', '....x', '...x.', '..x..', '.x...', 'xxxxx'], '3': ['xxxxx', '...x.', '..x..', '...x.', '....x', 'x...x', '.xxx.'],
-  '5': ['xxxxx', 'x....', 'xxxx.', '....x', '....x', 'x...x', '.xxx.'], '%': ['xx..x', 'xx.x.', '...x.', '..x..', '.x...', '.x.xx', 'x..xx'],
-};
 const LAB = ['10', '25', '5', '30', '15', '20'];
-const PTR = ['ooooooo', 'opppppo', '.opppo.', '.opppo.', '..opo..', '..opo..', '...o...'];
 const SEC = TAU / 6;
 
 function promo(root: HTMLElement, ui: WidgetUI): Widget {
@@ -934,57 +921,40 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
   const bar = el(win, 'svc-bar', [0, 0, 308, 14]);
   [5, 13, 21].forEach((x) => el(bar, 'svc-sq', [x, 4, 6, 6]));
   el(bar, 'svc-sq', [34, 4, 150, 6]).style.opacity = '.55';
-  // колесо: 96×96 логических пикселей на 128×128 единиц сцены. Пиксели колеса рисуются заново на
-  // каждом кадре и переносятся в canvas своего экранного размера ближайшим соседом, без размытия
-  const WP = 96, WC = WP / 2;
-  const wc = document.createElement('canvas');
-  wc.className = 'svc-wheel';
+  // Векторное колесо: сектора и цифры одинаково чёткие на общем плане и при наезде.
+  const NS = 'http://www.w3.org/2000/svg';
+  const wc = document.createElementNS(NS, 'svg');
+  wc.classList.add('svc-wheel');
+  wc.setAttribute('viewBox', '0 0 96 96');
   Object.assign(wc.style, { left: '12px', top: '18px', width: '128px', height: '128px' });
   win.appendChild(wc);
-  const wctx = wc.getContext('2d')!;
-  const off = document.createElement('canvas');
-  off.width = off.height = WP;
-  const octx = off.getContext('2d')!;
-  const img = octx.createImageData(WP, WP);
-  const buf = new Uint32Array(img.data.buffer);
+  const shape = (tag: string, attrs: Record<string, string | number>, parent: SVGElement = wc) => {
+    const node = document.createElementNS(NS, tag);
+    Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, String(v)));
+    parent.appendChild(node);
+    return node;
+  };
+  shape('circle', { cx: 48, cy: 48, r: 47, fill: C.s1 });
+  const wheel = shape('g', {});
+  const sectors = LAB.map((lab, i) => {
+    const a = i * SEC - Math.PI / 2, b = a + SEC;
+    const xy = (v: number, r: number) => `${48 + Math.cos(v) * r} ${48 + Math.sin(v) * r}`;
+    const sector = shape('path', { d: `M48 48 L${xy(a, 41)} A41 41 0 0 1 ${xy(b, 41)} Z`, fill: i % 2 ? C.ac : C.pk, stroke: C.s1, 'stroke-width': 1 }, wheel);
+    const label = shape('text', { x: 48, y: 21, 'text-anchor': 'middle', fill: C.s0, transform: `rotate(${(i + .5) * 60} 48 48)`, style: 'font: 10px Tiny5, monospace' }, wheel);
+    label.textContent = lab + '%';
+    return sector;
+  });
+  for (let i = 0; i < 12; i++) {
+    const a = i * TAU / 12;
+    shape('circle', { cx: 48 + Math.sin(a) * 44, cy: 48 - Math.cos(a) * 44, r: 1.4, fill: i % 2 ? C.ac : C.pk }, wheel);
+  }
+  shape('circle', { cx: 48, cy: 48, r: 6, fill: C.s1 }, wheel);
+  shape('circle', { cx: 48, cy: 48, r: 3, fill: C.ac }, wheel);
+  shape('path', { d: 'M43 1 H53 L48 11 Z', fill: C.pk, stroke: C.s0, 'stroke-width': 1.5 });
   const wh = { a: 0, flash: 0, win: 4 };
-  const RO = 47.4, RR = 41.4, RH = 6.9, RL = 30; // обод, начало обода, ступица, середина подписи
   const draw = () => {
-    const on = Math.floor(performance.now() / 250) % 2;
-    const lit = wh.flash > 0 && wh.flash < 1 && Math.floor(wh.flash * 6) % 2 === 0;
-    for (let y = 0; y < WP; y++) for (let x = 0; x < WP; x++) {
-      const dx = x + 0.5 - WC, dy = y + 0.5 - WC, r = Math.hypot(dx, dy);
-      let c = 0;
-      if (r < RO) {
-        let ph = (Math.atan2(dx, -dy) - wh.a) % TAU;
-        if (ph < 0) ph += TAU;
-        if (r >= RR) {
-          // обод с лампочками
-          c = P.s1;
-          if (r >= RR + 1.2 && r < RO - 1.2) { const j = Math.round(ph / (TAU / 12)); if (Math.abs(ph - (j * TAU) / 12) * r < 1.9) c = (j + on) % 2 ? P.ac : P.pk; }
-        } else if (r < RH) c = r < 3.9 ? P.ac : P.s1;
-        else {
-          const i = Math.floor(ph / SEC) % 6;
-          const rel = ph - (i + 0.5) * SEC;
-          const hot = lit && i === wh.win;
-          c = Math.abs(Math.abs(rel) - SEC / 2) * r < 0.8 ? P.s1 : hot ? P.s0 : i % 2 ? P.ac : P.pk;
-          // подпись поперёк радиуса: у сектора под стрелкой читается прямо
-          const lab = LAB[i] + '%', tw = lab.length * 6 - 1;
-          const gx = Math.floor(r * Math.sin(rel) + tw / 2), gy = Math.floor(RL + 3.5 - r * Math.cos(rel));
-          if (gx >= 0 && gx < tw && gy >= 0 && gy < 7 && gx % 6 < 5 && F57[lab[Math.floor(gx / 6)]][gy][gx % 6] === 'x') c = hot ? P.ac : P.s0;
-        }
-      }
-      buf[y * WP + x] = c;
-    }
-    // стрелка сверху вздрагивает, когда мимо идёт лампочка
-    const kick = (wh.a / (TAU / 12)) % 1 < 0.3 && spinning ? 1 : 0;
-    for (let j = 0; j < PTR.length; j++) for (let i = 0; i < 7; i++) {
-      const ch = PTR[j][i];
-      if (ch !== '.') buf[j * WP + WC - 3 + i - kick] = ch === 'o' ? P.s0 : P.pk;
-    }
-    octx.putImageData(img, 0, 0);
-    wctx.clearRect(0, 0, wc.width, wc.height);
-    wctx.drawImage(off, 0, 0, wc.width, wc.height);
+    wheel.setAttribute('transform', `rotate(${wh.a * 180 / Math.PI} 48 48)`);
+    sectors.forEach((sector, i) => sector.setAttribute('fill', wh.flash > .1 && i === wh.win ? C.fg : i % 2 ? C.ac : C.pk));
   };
   let spinning = false;
   // панель справа
@@ -1006,7 +976,7 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
   const setPrize = (i: number) => { wh.win = i; big.textContent = `−${LAB[i]}%`; code.textContent = `SALE${LAB[i]}`; };
   const target = (from: number, i: number, turns: number) => { const t = -(i + 0.5) * SEC; return from + turns * TAU + ((((t - from) % TAU) + TAU) % TAU); };
   // кадры (сцена = окно + (26, 6))
-  const BTN: Box = [172, 26, 150, 88], WHEEL: Box = [34, 20, 136, 136], PTRB: Box = [72, 18, 60, 46], CARD: Box = [168, 22, 166, 62], CODE: Box = [172, 80, 158, 64];
+  const BTN: Box = [172, 26, 150, 88], WHEEL: Box = [34, 20, 136, 136], PRIZE: Box = [160, 20, 174, 122];
   // кнопка «Крутить»: центр 154+48, 74+13 в окне
   const bx = 26 + 202 - 330, by = 6 + 87 - 186, cpx = 26 + 150 + 40 - 330, cpy = 6 + 20 + 97 - 186;
   const intro = [win, wc, title, ...sub, btn];
@@ -1036,13 +1006,13 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
     .call(() => { spinning = true; }, [], 2.7)
     .fromTo(wh, { a: 0 }, { a: target(0, 4, 4), duration: 2.8, ease: 'power3.out', immediateRender: false }, 2.7)
     .call(() => { spinning = false; }, [], 5.45)
-    .to(cam.s, cam.go(PTRB), 4.55)
+    .to(cam.s, cam.go(WHEEL), 4.55)
     .fromTo(wh, { flash: 0 }, { flash: 1, duration: 0.6, ease: 'none', immediateRender: false }, 5.45)
     // 3. выпадает промокод
-    .to(cam.s, cam.go(CARD), 5.85)
+    .to(cam.s, cam.go(PRIZE), 5.85)
     .fromTo(card, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)', immediateRender: false }, 6.0)
     // 4. камера опускается к коду, он проявляется, его копируют
-    .to(cam.s, cam.go(CODE, 0.6), 6.65)
+    .to(cam.s, cam.go(PRIZE, 0.8), 6.65)
     .fromTo(code, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: S(6), immediateRender: false }, 6.75)
     .fromTo(cur, { x: cpx + 30, y: cpy + 50, opacity: 0 }, { x: cpx, y: cpy, opacity: 1, duration: 0.5, ease: 'power2.out', immediateRender: false }, 6.8)
     .to(cur, { scale: 0.8, duration: 0.08, ease: S(1), yoyo: true, repeat: 1 }, 7.35)
@@ -1064,9 +1034,6 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
     stop() { reset(); auto?.pause(0); wh.a = 0; cam.set(); },
     resize(v) {
       cam.view(v);
-      // размер canvas = экранный размер колеса при самом сильном наезде, кратный 96
-      const s = Math.max(2, Math.min(12, Math.ceil((128 * cam.smax * (window.devicePixelRatio || 1)) / WP)));
-      if (wc.width !== WP * s) { wc.width = wc.height = WP * s; wctx.imageSmoothingEnabled = false; }
       draw();
     },
     // человек сам крутит колесо: от текущего кадра, без скачков
@@ -1090,11 +1057,11 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
         .to(cam.s, cam.go(WHEEL, 0.7), 0.05)
         .to(wh, { a: target(wh.a, i, 4), duration: 2.6, ease: 'power3.out' }, 0.1)
         .call(() => { spinning = false; }, [], 2.7)
-        .to(cam.s, cam.go(PTRB), 1.95)
+        .to(cam.s, cam.go(WHEEL), 1.95)
         .to(wh, { flash: 1, duration: 0.6, ease: 'none' }, 2.75)
-        .to(cam.s, cam.go(CARD), 3.2)
+        .to(cam.s, cam.go(PRIZE), 3.2)
         .fromTo(card, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' }, 3.35)
-        .to(cam.s, cam.go(CODE, 0.6), 4.0)
+        .to(cam.s, cam.go(PRIZE, 0.8), 4.0)
         .fromTo(code, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: S(6) }, 4.15)
         .to(cam.s, cam.home(), 5.2);
     },

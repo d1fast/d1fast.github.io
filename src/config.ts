@@ -2,8 +2,7 @@
 export const site = {
   name: 'd1fast',
   email: 'saveliylopatin@yandex.ru',
-  /** Адрес функции, которая пересылает заявку из формы в Telegram-бота владельца. Пусто, пока не развёрнута:
-   *  тогда форма открывает почтовую программу с готовым письмом. Как развернуть: server/README.md */
+  /** Публичный адрес Cloudflare Worker. Задаётся при сборке через PUBLIC_FORM_ENDPOINT. */
   formEndpoint: import.meta.env.PUBLIC_FORM_ENDPOINT || '',
   year: 2026,
 };
