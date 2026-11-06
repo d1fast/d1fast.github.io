@@ -26,20 +26,12 @@ try {
 
   await page.goto(`${base}/?motion#services`);
   await page.waitForTimeout(1800);
-  // Курсор над экраном останавливает переключение меню, но не сам ролик.
+  // Наведение на окно не должно останавливать показ после окончания сцены.
   await page.locator('[data-services-screen]').hover();
-  await page.mouse.move(1000, 450);
-  await page.mouse.move(1005, 450);
-  await page.waitForTimeout(8500);
-  const site = page.locator('[data-svc-w=sites]');
-  const end = await site.locator('.svc-view > div').last().getAttribute('style');
-  assert.ok(await site.evaluate(el => el.classList.contains('is-shown')));
-  const finalState = await site.locator('.svc-win').evaluate(el => ({ opacity: getComputedStyle(el).opacity, transform: el.style.transform }));
-  await page.waitForTimeout(3500);
-  assert.deepEqual(await site.locator('.svc-win').evaluate(el => ({ opacity: getComputedStyle(el).opacity, transform: el.style.transform })), finalState);
-  assert.equal(finalState.opacity, '1');
-  assert.equal(await site.locator('.svc-view > div').last().getAttribute('style'), end);
-  console.log('Сцена сайта держит результат, повторного появления окна нет');
+  await page.mouse.move(1000,450); await page.mouse.move(1005,450);
+  await page.locator('[data-svc-w=dash].is-shown').waitFor({timeout:12000});
+  assert.equal(await page.locator('[data-services-btn]').nth(1).getAttribute('aria-pressed'),'true');
+  console.log('Сцена сайта завершилась, открылся следующий пункт даже при наведении');
 
   await page.locator('[data-services-btn]').last().click();
   await page.locator('[data-services-screen]').hover();
@@ -50,13 +42,14 @@ try {
   const common = await cam.getAttribute('style');
   await page.waitForTimeout(4600);
   assert.equal(await cam.getAttribute('style'), common, 'Во время вращения колеса камера стоит');
-  await page.waitForTimeout(3400);
+  await page.waitForTimeout(2300);
   const prize = await cam.getAttribute('style');
   assert.notEqual(prize, common, 'Камера приближает готовый промокод');
-  await page.waitForTimeout(1600);
+  await page.waitForTimeout(300);
   assert.equal(await cam.getAttribute('style'), prize, 'После результата камера остаётся на промокоде');
   assert.equal(await page.locator('[data-svc-w=promo] .svc-code__t').textContent(), 'SALE15');
-  console.log('Колесо: общий план, одно приближение, удержание промокода');
+  await page.locator('[data-svc-w=sites].is-shown').waitFor({timeout:4000});
+  console.log('Колесо: общий план, приближение к промокоду, следующий пункт');
 
   await page.goto(`${base}/?questions#process`);
   await page.locator('#process.is-current').waitFor();

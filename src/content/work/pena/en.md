@@ -1,29 +1,29 @@
 ---
 title: Coffee shop site
-subtitle: Pena with its menu, own roast and order ahead
-summary: "A coffee shop site: a tabbed menu, the house roast with flavour notes and ordering ahead through a Telegram bot, so the coffee waits without a queue."
+subtitle: "Pena: coffee, people and a place in the neighbourhood"
+summary: "A coffee shop concept: full-screen photography, a drinks menu, beans to take home and information about the café."
 year: 2026
 order: 3
 concept: true
 page: false
 role: Design, front end, motion
 stack: [Astro, GSAP]
-cover: /work/pena/poster.webp
-coverAlt: The first screen of the Pena coffee shop site with a barista photograph
-video: { mp4: /work/pena/video.mp4, webm: /work/pena/video.webm, poster: /work/pena/start.webp }
+cover: /work/pena/poster-02.webp
+coverAlt: "Pena coffee shop: a full-screen interior photograph and a large wordmark"
+video: { mp4: /work/pena/video-02.mp4, webm: /work/pena/video-02.webm, poster: /work/pena/start-02.webp }
 media:
-  - src: /work/pena/hero.webp
-    alt: First screen with the headline and a barista photograph
-  - src: /work/pena/menu.webp
-    alt: The tabbed menu with desserts and prices
-  - src: /work/pena/beans.webp
-    alt: Three in-house roasts with flavour notes
-  - src: /work/pena/find.webp
-    alt: The address and a route map
-  - src: /work/pena/mobile-hero.webp
+  - src: /work/pena/hero-02.webp
+    alt: Café interior with plants and wooden furniture, with a large Pena wordmark
+  - src: /work/pena/menu-02.webp
+    alt: A drinks menu with large photographs and prices
+  - src: /work/pena/beans-02.webp
+    alt: "Coffee to take home: Brazil, Colombia and Ethiopia with flavour notes"
+  - src: /work/pena/find-02.webp
+    alt: A photograph of a table by the window, the address and opening hours
+  - src: /work/pena/mobile-hero-02.webp
     alt: First screen on a phone
     portrait: true
-  - src: /work/pena/mobile-menu.webp
+  - src: /work/pena/mobile-menu-02.webp
     alt: The menu on a phone
     portrait: true
 ---

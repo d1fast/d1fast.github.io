@@ -1,6 +1,6 @@
 /* Бумажный сад: один прилёт, посадка, затем тихое движение птицы и листьев. */
-.hero { --hero-ink: #43162C; padding: calc(var(--header-h) + 28px) 0 max(32px, var(--safe-b)); overflow: clip; }
-.hero__light { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 77% 42%, #f2d7bb90, transparent 58%), linear-gradient(140deg, transparent 35%, #e9e4d700); }
+.hero { --hero-ink: #34182E; padding: calc(var(--header-h) + 28px) 0 max(32px, var(--safe-b)); overflow: clip; }
+.hero__light { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 6% 100%, #6E9C91 0%, transparent 56%), radial-gradient(ellipse at 96% 20%, #E9B574 0%, transparent 62%), linear-gradient(130deg, #B6A5C7 0%, #C7A5B9 48%, #CDB891 100%); }
 .hero__inner { position: relative; z-index: 3; display: flex; flex-direction: column; justify-content: space-between; height: calc(100svh - var(--header-h) - 60px); min-height: 450px; pointer-events: none; }
 .hero__copy { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: start; padding-bottom: clamp(20px, 5vh, 54px); }
 .hero__title { max-width: 56%; font: 650 clamp(72px, 8.2vw, 130px)/1.02 var(--font-display); letter-spacing: -.065em; color: var(--hero-ink); }
@@ -8,7 +8,7 @@
 .hero__word--last { font-size: .9em; }
 .hero:lang(en) .hero__title { font-size: clamp(68px, 7.1vw, 112px); }
 .hero:lang(en) .hero__word--last { font-size: .76em; }
-.hero__sub { margin-top: 28px; max-width: 29ch; font: 400 clamp(16px, 1.4vw, 21px)/1.5 var(--font-hero-text); color: #43162cbd; }
+.hero__sub { margin-top: 28px; max-width: 29ch; font: 400 clamp(16px, 1.4vw, 21px)/1.5 var(--font-hero-text); color: #4A2B43; }
 .hero__art { position: absolute; z-index: 2; top: calc(var(--header-h) + 12px); bottom: 90px; right: -3%; width: 68%; pointer-events: none; }
 .hero__garden, .hero__fallback, .hero__renderer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .hero__fallback { object-fit: contain; }
@@ -76,7 +76,6 @@ html.js .hero__fallback { animation: hero-scene-in 1.2s .15s both; transition: o
   .hero__scroll { font-size: 10px; }
   .hero__scroll-icon, .hero__scroll svg { height: 26px; }
 }
-@media (prefers-reduced-motion: reduce) { .hero.is-on .hero__scroll svg { animation: none; } }
 
 /* Нативное появление начинается до загрузки скрипта сцены. */
 .hero__light { animation: hero-scene-in 1.7s both; }
@@ -85,9 +84,6 @@ html.js .hero__fallback { animation: hero-scene-in 1.2s .15s both; transition: o
 @keyframes hero-scene-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes hero-copy-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .hero:focus-within .hero__copy, .hero:focus-within .hero__foot { animation: none; }
-@media (prefers-reduced-motion: reduce) {
-  .hero__light, .hero__copy, .hero__foot, html.js .hero__fallback { animation: none; }
-  .hero__garden { transition: none; }
-}
+
 /* Векторный режим сохраняет мягкую опору под птицей без карты теней. */
 .hero__garden:has(svg)::before { content: ''; position: absolute; left: 32%; top: 64%; width: 34%; height: 9%; background: radial-gradient(ellipse, #49302720, transparent 70%); transform: rotate(-8deg); }

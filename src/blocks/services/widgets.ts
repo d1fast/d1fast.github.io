@@ -20,10 +20,10 @@ gsap.registerPlugin(DrawSVGPlugin);
 export interface View { w: number; h: number; res: number; k: number; pad: number }
 export interface Widget {
   dwell: number;
-  play(): void;
+  play(done?: () => void): void;
   stop(): void;
   resize?(v: View): void;
-  spin?(): void;
+  spin?(): boolean;
   point?(nx: number, ny: number, touch?: boolean): void;
 }
 export interface WidgetUI {
@@ -161,12 +161,17 @@ function scene(cam: Cam) {
 }
 /** Обёртка для штук на таймлайне GSAP: таймлайн строится при первом показе. rate: во сколько раз сцена идёт
  *  быстрее, чем записана (история та же, смотреть её короче); пункт меню стоит ровно одну сцену. */
-function timed(dwell: number, cam: Cam, build: () => gsap.core.Timeline, rate = RATE): Widget {
-  let tl: gsap.core.Timeline | undefined;
+function timed(cam: Cam, build: () => gsap.core.Timeline, rate = RATE): Widget {
+  let tl: gsap.core.Timeline | undefined, finish: gsap.core.Tween | undefined;
   return {
-    dwell: dwell / rate + 1.2,
-    play() { cam.set(); (tl ??= build().timeScale(rate)).restart(); },
-    stop() { tl?.pause(0); cam.set(); },
+    get dwell() { return (tl?.duration() || 0) / rate + .65; },
+    play(done) {
+      finish?.kill(); cam.set();
+      tl ??= build().timeScale(rate);
+      tl.eventCallback('onComplete', () => { if (done) finish = gsap.delayedCall(.65,done); });
+      tl.restart();
+    },
+    stop() { finish?.kill(); tl?.pause(0); cam.set(); },
     resize(v) { cam.view(v); },
   };
 }
@@ -232,7 +237,7 @@ function sites(root: HTMLElement, ui: WidgetUI): Widget {
   const plusC = { x: P0.x + 94 + 56 + 9, y: P0.y + 112 + 54 + 8 - 100 };
   const cartC = { x: 44 + 240 + 4, y: 5 + 14 + 6 };
   const DETAIL: Box = [126, 12, 186, 140];
-  return timed(7.6, cam, () => scene(cam)
+  return timed(cam, () => scene(cam)
     .set(all, { opacity: 1 }, 0)
     .set([badge, toast, fly], { opacity: 0 }, 0)
     .set([page, thumb], { y: 0 }, 0)
@@ -359,7 +364,7 @@ function dash(root: HTMLElement, ui: WidgetUI): Widget {
   const plus = tx(kpis[0], 50, 5, '+2 400', 8, C.ac);
   // кадры (координаты сцены = координаты окна + (10, 6))
   const CONTENT: Box = [76, 6, 266, 154];
-  return timed(10.6, cam, () => scene(cam)
+  return timed(cam, () => scene(cam)
     .set(all, { opacity: 1 }, 0)
     .set(kv, { a: 0, b: 0, c: 0, onComplete: setK }, 0)
     .fromTo(win, { scaleX: 0.06, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.24, ease: S(4) }, 0)
@@ -495,7 +500,7 @@ function devices(root: HTMLElement, ui: WidgetUI): Widget {
   };
   // кадры: верх телефона (пуш), экран телефона, окно компьютера, карточка снизу
   const PHONE: Box = [58, 4, 100, 162];
-  return timed(8.8, cam, () => {
+  return timed(cam, () => {
     const tl = scene(cam)
       .set(all, { opacity: 1 }, 0)
       .set(app, { clipPath: 'inset(50% 50% 50% 50%)' }, 0)
@@ -573,7 +578,7 @@ function bots(root: HTMLElement, ui: WidgetUI): Widget {
   // кнопка «18:30» в координатах сцены: окно 78, 5; лента +26; центр кнопки 166, 77
   const tx0 = 78 + 166 - 320, ty0 = 5 + 26 + 77 - 186;
   const DONE: Box = [80, 52, 204, 80];
-  return timed(7.4, cam, () => scene(cam)
+  return timed(cam, () => scene(cam)
     .set(all, { opacity: 1 }, 0)
     .set(col, { y: 0 }, 0)
     .set(tb, { textContent: '' }, 0)
@@ -616,11 +621,13 @@ function bots(root: HTMLElement, ui: WidgetUI): Widget {
 /* ---------- 5. 3D-витрина: купе с выбором цвета ---------- */
 function product(root: HTMLElement): Widget {
   let view: Widget | undefined, pending: Promise<void> | undefined, active = false;
-  let size: View | undefined;
+  let size: View | undefined, finish: gsap.core.Tween | undefined;
   root.innerHTML = `<div class="svc-product-fallback" aria-hidden="true"><svg viewBox="0 0 400 220"><ellipse cx="200" cy="173" rx="155" ry="17" fill="#19050e"/><path d="M48 132 72 108 128 100 168 67h91l48 41 42 15 9 33H42Z" fill="#F06A93"/><path d="m144 100 29-26h80l32 30Z" fill="#202a2d"/><path d="M46 143h310v16H46Z" fill="#84334d"/><g fill="#160f15" stroke="#b6c3c0" stroke-width="8"><circle cx="112" cy="155" r="27"/><circle cx="298" cy="155" r="27"/></g><path d="m55 120 24-6-8 12H49m276 4 23 6 3 10h-22" fill="#eaf5d6"/></svg></div>`;
   return {
     dwell: 10.5,
-    play() {
+    play(done) {
+      finish?.kill();
+      if (done) finish = gsap.delayedCall(10.5,done);
       active = true;
       if (view) { view.play(); return; }
       pending ??= import('./product').then(({ createProduct }) => {
@@ -629,7 +636,7 @@ function product(root: HTMLElement): Widget {
         if (active) view.play();
       }).catch(() => { /* Изображение машины остаётся при недоступном WebGL. */ });
     },
-    stop() { active = false; view?.stop(); },
+    stop() { finish?.kill(); active = false; view?.stop(); },
     resize(v) { size = v; view?.resize?.(v); },
     point(x, y, touch) { view?.point?.(x, y, touch); },
   };
@@ -706,7 +713,9 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
   const bx = 26 + 202 - 330, by = 6 + 87 - 186, cpx = 26 + 150 + 40 - 330, cpy = 6 + 20 + 97 - 186;
   const intro = [win, wc, title, ...sub, btn];
   const onTick = () => { cam.apply(); draw(); };
-  let auto: gsap.core.Timeline | undefined, user: gsap.core.Timeline | undefined;
+  let auto: gsap.core.Timeline | undefined, user: gsap.core.Timeline | undefined, finish: gsap.core.Tween | undefined;
+  let completed: (() => void) | undefined;
+  const finishScene = () => { finish?.kill(); if (completed) finish = gsap.delayedCall(.65,completed); };
   const buildAuto = () => gsap.timeline({ paused: true, onUpdate: onTick })
     .set(cam.s, cam.at(cam.b), 0)
     .set(all, { opacity: 1 }, 0)
@@ -745,23 +754,24 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
     gsap.set(cur, { opacity: 0, scale: 1 });
   };
   return {
-    dwell: 9.1 / RATE + 1.2,
-    play() { reset(); cam.set(); (auto ??= buildAuto()).restart(); },
-    stop() { reset(); auto?.pause(0); wh.a = 0; cam.set(); },
+    get dwell() { return user ? user.duration() + .65 : (auto?.duration() || 8.15) / RATE + .65; },
+    play(done) { finish?.kill(); completed = done; reset(); cam.set(); (auto ??= buildAuto()).eventCallback('onComplete',finishScene).restart(); },
+    stop() { finish?.kill(); completed = undefined; reset(); auto?.pause(0); wh.a = 0; cam.set(); },
     resize(v) {
       cam.view(v);
       draw();
     },
     // человек сам крутит колесо: от текущего кадра, без скачков
     spin() {
-      if (spinning) return;
+      if (spinning) return false;
+      finish?.kill();
       auto?.pause();
       user?.kill();
       const i = Math.floor(Math.random() * 6);
       setPrize(i);
       wh.a %= TAU;
       spinning = true;
-      user = gsap.timeline({ onUpdate: onTick })
+      user = gsap.timeline({ onUpdate: onTick, onComplete: finishScene })
         .set(all, { opacity: 1 }, 0)
         .set(intro, { opacity: 1, scale: 1, scaleY: 1, y: 0 }, 0)
         .set(wh, { flash: 0 }, 0)
@@ -777,6 +787,7 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
         .to(cam.s, cam.go(PRIZE, 1.1), 3.2)
         .fromTo(card, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' }, 3.35)
         .fromTo(code, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: S(6) }, 4.15);
+      return true;
     },
   };
 }

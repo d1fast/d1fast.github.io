@@ -1,222 +1,55 @@
 <!doctype html>
-<!--
-  Демо для блока «Работы»: сайт кофейни «Пена» (концепт). Первый экран с фотографией бариста,
-  меню с вкладками, своя обжарка, адрес на схеме. Страница не входит в сайт: из неё записываются видео и кадры
-  (scripts/record-works.mjs). Без параметров — компьютер 1104×621 (пишется с плотностью 1,45 → 1600×900),
-  ?m=1 — телефон 390×844. ?t=секунды ставит сцену на момент времени, window.__seek(t) — то же из скрипта записи.
--->
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<title>Пена · кофейня</title>
-<link rel="icon" href="data:,">
-<style>
-@font-face { font-family: 'Golos Text'; font-weight: 400 900; src: url(/public/fonts/golos-cyr.woff2) format('woff2'); unicode-range: U+0400-045F, U+2116; }
-@font-face { font-family: 'Golos Text'; font-weight: 400 900; src: url(/public/fonts/golos-lat.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
-@font-face { font-family: 'Roboto Flex'; font-weight: 400 700; font-stretch: 100% 151%; src: url(/public/fonts/roboto-flex-cyr.woff2) format('woff2'); unicode-range: U+0400-045F, U+2116; }
-@font-face { font-family: 'Roboto Flex'; font-weight: 400 700; font-stretch: 100% 151%; src: url(/public/fonts/roboto-flex-lat.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
-:root { --sage: #DCE4D2; --sage-2: #CBD6BE; --ink: #1D2A21; --ink-2: #44524A; --clay: #D4562D; --cream: #FAF9F4; --coffee: #5B3321; --line: rgb(29 42 33 / .16); }
-* { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
-body { width: 1104px; height: 621px; overflow: hidden; background: var(--sage); color: var(--ink); font: 400 15px/1.5 'Golos Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-body.m { width: 390px; height: 844px; }
-.disp { font-family: 'Roboto Flex', sans-serif; font-stretch: 135%; font-weight: 700; letter-spacing: -.02em; }
-.page { will-change: transform; }
-.wrap { width: min(1000px, 100% - 64px); margin: 0 auto; }
-.m .wrap { width: calc(100% - 36px); }
-
-/* шапка */
-.head { position: absolute; z-index: 5; left: 0; right: 0; top: 0; height: 64px; display: flex; align-items: center; background: var(--sage); }
-.head .wrap { display: flex; align-items: center; gap: 28px; }
-.logo { display: flex; align-items: center; gap: 8px; font-size: 24px; letter-spacing: -.03em; }
-.logo i { width: 22px; height: 22px; border-radius: 50%; background: var(--coffee); box-shadow: inset 0 0 0 4px var(--cream); outline: 1.5px solid var(--ink); }
-.nav { display: flex; gap: 22px; margin-left: auto; font-weight: 500; font-size: 14px; }
-.m .nav { display: none; }
-.pill { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 20px; background: var(--ink); color: var(--cream); font-weight: 600; font-size: 14px; }
-.m .head .pill { margin-left: auto; height: 36px; padding: 0 14px; font-size: 13px; }
-.pill.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
-
-/* первый экран */
-.hero { position: relative; height: 621px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
-.m .hero { height: 844px; grid-template-columns: 1fr; grid-template-rows: 1fr auto; align-items: end; padding-bottom: 36px; }
-.hero h1 { margin: 0; font-size: 62px; line-height: .98; }
-.m .hero h1 { font-size: 40px; }
-.hero .ln { display: block; overflow: hidden; padding-bottom: .06em; }
-.hero .ln span { display: block; }
-.hero h1 em { font-style: normal; color: var(--clay); }
-.hero p { max-width: 34ch; margin: 22px 0 26px; color: var(--ink-2); font-size: 16px; }
-.m .hero p { margin: 14px 0 18px; font-size: 15px; }
-.btns { display: flex; gap: 10px; }
-.hours { position: absolute; left: 0; bottom: 26px; display: flex; gap: 22px; font-size: 13px; color: var(--ink-2); }
-.hours b { color: var(--ink); font-weight: 600; }
-.m .hours { display: none; }
-.art { position: relative; height: 100%; }
-.m .art { order: -1; height: 440px; }
-.cup { position: absolute; left: 50%; top: 50%; width: 470px; height: 470px; margin: -235px 0 0 -235px; overflow: visible; }
-.m .cup { width: 340px; height: 340px; margin: -160px 0 0 -170px; }
-
-.coffee-photo { position: absolute; inset: 105px 0 95px 20px; margin: 0; }
-.coffee-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 48% center; border-radius: 180px 180px 12px 12px; }
-.coffee-photo figcaption { position: absolute; bottom: 18px; left: 18px; right: 18px; color: #fff; font-size: 12px; padding: 9px 12px; background: #1D2A2188; backdrop-filter: blur(8px); border-radius: 6px; }
-.m .coffee-photo { inset: 70px 26px 12px; }
-.bean .band { background-image: linear-gradient(#0004,#0009), url(images/beans.webp); background-size: cover; }
-.item .dot { overflow: hidden; }
-.item .dot { font-size: 13px; font-weight: 600; }
-.menu-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 18px; }
-.menu-photo { width: 100%; height: 100%; max-height: 340px; min-height: 180px; object-fit: cover; border-radius: 16px; }
-.m .menu-layout { grid-template-columns: 1fr; gap: 14px; }
-.m .menu-photo { height: 130px; min-height: 0; object-position: center 42%; }
-/* меню */
-.sec { padding: 70px 0 60px; }
-.m .sec { padding: 48px 0 40px; }
-.sec h2 { margin: 0 0 22px; font-size: 44px; line-height: 1; }
-.m .sec h2 { font-size: 32px; }
-.tabs { display: flex; gap: 8px; margin-bottom: 22px; }
-.tab { height: 36px; padding: 0 16px; border-radius: 18px; display: inline-flex; align-items: center; font-weight: 500; font-size: 14px; box-shadow: inset 0 0 0 1.5px var(--line); }
-.tab.on { background: var(--ink); color: var(--cream); box-shadow: none; }
-.menu { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.m .menu { grid-template-columns: 1fr; gap: 8px; }
-.item { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; padding: 14px 16px; border-radius: 16px; background: var(--cream); }
-.item b { display: block; font-weight: 600; font-size: 15.5px; }
-.item small { color: var(--ink-2); font-size: 13px; }
-.item .pr { font-weight: 600; font-variant-numeric: tabular-nums; }
-.dot { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
-.dot svg { width: 40px; height: 40px; }
-
-/* обжарка */
-.beans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.m .beans { grid-template-columns: 1fr; }
-.bean { border-radius: 20px; overflow: hidden; background: var(--cream); }
-.bean .band { height: 92px; display: flex; align-items: flex-end; padding: 14px 16px; color: var(--cream); font-size: 26px; }
-.bean .body { padding: 14px 16px 18px; }
-.bean .notes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.bean .notes span { padding: 3px 10px; border-radius: 12px; background: var(--sage); font-size: 12.5px; }
-.bean small { color: var(--ink-2); font-size: 13px; }
-
-/* адрес */
-.find { display: grid; grid-template-columns: 1fr 1.3fr; gap: 26px; align-items: center; }
-.m .find { grid-template-columns: 1fr; }
-.find h2 { margin-bottom: 14px; }
-.find p { margin: 0 0 6px; color: var(--ink-2); }
-.find p b { color: var(--ink); }
-.map { position: relative; height: 300px; border-radius: 20px; overflow: hidden; background: #E8EDE1; }
-.map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.foot { padding: 26px 0 40px; display: flex; justify-content: space-between; color: var(--ink-2); font-size: 13px; border-top: 1px solid var(--line); }
-</style>
-</head>
-<body>
-<div class="head"><div class="wrap">
-  <span class="logo disp"><i></i>пена</span>
-  <nav class="nav"><span>Меню</span><span>Обжарка</span><span>Адрес</span></nav>
-  <span class="pill" data-order>Заказать заранее</span>
-</div></div>
-
-<div class="page" data-page>
-  <section class="hero wrap">
-    <div class="copy">
-      <h1 class="disp"><span class="ln"><span>Кофе, ради</span></span><span class="ln"><span>которого встают</span></span><span class="ln"><span><em>пораньше</em></span></span></h1>
-      <p data-rise>Обжариваем зерно сами по вторникам. Закажите заранее и&nbsp;заберите без очереди.</p>
-      <div class="btns" data-rise><span class="pill">Заказать заранее</span><span class="pill ghost">Меню</span></div>
-    </div>
-    <div class="art">
-      <figure class="coffee-photo" data-coffee-photo>
-        <img src="images/intro.webp" alt="Бариста готовит кофе за стойкой" />
-        <figcaption>Хороший день начинается здесь.</figcaption>
-      </figure>
-    </div>
-    <div class="hours"><span><b>8:00–22:00</b> каждый день</span><span><b>ул. Садовая, 14</b> у метро</span></div>
-  </section>
-
-  <section class="sec wrap" data-menu-sec>
-    <h2 class="disp">Меню</h2>
-    <div class="tabs"><span class="tab on" data-tab="0">Кофе</span><span class="tab" data-tab="1">Альтернатива</span><span class="tab" data-tab="2">Десерты</span></div>
-    <div class="menu-layout"><img class="menu-photo" data-menu-photo src="images/drinks.webp" alt="Кофе и выпечка в кофейне" /><div class="menu" data-menu></div></div>
-  </section>
-
-  <section class="sec wrap" data-beans-sec>
-    <h2 class="disp">Своя обжарка</h2>
-    <div class="beans">
-      <div class="bean" data-bean><div class="band disp" style="background:#7A3B22">Эфиопия</div><div class="body"><small>Иргачеффе, мытая обработка</small><div class="notes"><span>бергамот</span><span>персик</span><span>жасмин</span></div></div></div>
-      <div class="bean" data-bean><div class="band disp" style="background:#3E5A3E">Колумбия</div><div class="body"><small>Уила, натуральная обработка</small><div class="notes"><span>карамель</span><span>вишня</span><span>какао</span></div></div></div>
-      <div class="bean" data-bean><div class="band disp" style="background:#B8582E">Бразилия</div><div class="body"><small>Серрадо, для эспрессо</small><div class="notes"><span>орех</span><span>шоколад</span><span>сладкий финиш</span></div></div></div>
-    </div>
-  </section>
-
-  <section class="sec wrap" data-find-sec>
-    <div class="find">
-      <div><h2 class="disp">Заходите</h2><p><b>ул. Садовая, 14</b>, три минуты от метро</p><p>Каждый день с 8:00 до 22:00</p><p style="margin-top:16px"><span class="pill">Проложить маршрут</span></p></div>
-      <div class="map">
-        <svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice">
-          <rect width="600" height="300" fill="#E5EBDC"/>
-          <path d="M-20 210 C120 190 260 230 620 160" stroke="#FDFCF8" stroke-width="26" fill="none"/>
-          <path d="M140 -20 L210 320" stroke="#FDFCF8" stroke-width="20" fill="none"/>
-          <path d="M380 -20 C360 90 420 200 400 320" stroke="#FDFCF8" stroke-width="16" fill="none"/>
-          <path d="M-20 70 L620 110" stroke="#FDFCF8" stroke-width="12" fill="none"/>
-          <rect x="230" y="120" width="120" height="60" rx="8" fill="#CFDABF"/>
-          <rect x="430" y="30" width="140" height="60" rx="8" fill="#CFDABF"/>
-          <rect x="30" y="100" width="90" height="70" rx="8" fill="#CFDABF"/>
-          <circle cx="470" cy="220" r="44" fill="#BFD0AE"/>
-          <g data-pin transform="translate(300 152)"><circle r="26" fill="#D4562D" opacity=".18" data-pulse/><path d="M0 0 C-14 -16 -18 -24 -18 -32 A18 18 0 0 1 18 -32 C18 -24 14 -16 0 0 Z" fill="#D4562D"/><circle cy="-32" r="7" fill="#FAF9F4"/></g>
-        </svg>
-      </div>
-    </div>
-  </section>
-  <div class="wrap foot"><span>пена · кофейня и обжарка</span><span>@pena.coffee</span></div>
-</div>
-
-<script src="/node_modules/gsap/dist/gsap.min.js"></script>
-<script>
-const M = new URLSearchParams(location.search).has('m');
-if (M) document.body.classList.add('m');
-const q = (s) => document.querySelector(s), qa = (s) => [...document.querySelectorAll(s)];
-const MENU = [
-  [['Эспрессо', 'Бразилия, двойной', '160', 'cup', '#F2D9C7'], ['Капучино', 'с плотной пеной', '240', 'cup', '#E7DCC9'], ['Флэт уайт', 'двойной эспрессо', '260', 'cup', '#DCE4D2'], ['Раф лавандовый', 'на сливках', '320', 'cup', '#E3DDEC']],
-  [['Воронка V60', 'Эфиопия, 250 мл', '330', 'glass', '#F2D9C7'], ['Колд брю', 'настаиваем 18 часов', '290', 'glass', '#D9E4EC'], ['Аэропресс', 'Колумбия', '310', 'glass', '#DCE4D2'], ['Тоник эспрессо', 'с апельсином', '340', 'glass', '#F6E3C2']],
-  [['Круассан', 'на сливочном масле', '190', 'cake', '#F6E3C2'], ['Чизкейк', 'баскский', '310', 'cake', '#F2D9C7'], ['Морковный торт', 'с крем-чизом', '290', 'cake', '#E7DCC9'], ['Синнабон', 'с кардамоном', '230', 'cake', '#DCE4D2']],
+<!-- Концепт кофейни «Пена». Медиа для портфолио записываются через window.__seek(t). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Пена · кофе по соседству</title><link rel="icon" href="data:,"><style>
+@font-face{font-family:Golos;src:url(/public/fonts/golos-cyr.woff2);font-weight:400 900;unicode-range:U+0400-045F,U+2116}
+@font-face{font-family:Golos;src:url(/public/fonts/golos-lat.woff2);font-weight:400 900;unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:Playfair;src:url(/public/fonts/playfair-cyr.woff2);font-weight:400 900;unicode-range:U+0400-045F,U+2116}
+@font-face{font-family:Playfair;src:url(/public/fonts/playfair-lat.woff2);font-weight:400 900;unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:Playfair;src:url(/public/fonts/playfair-cyr-italic.woff2);font-weight:400 900;font-style:italic;unicode-range:U+0400-045F,U+2116}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;overflow-anchor:none}body{position:relative}body{width:1104px;height:621px;overflow:hidden;background:#fff;color:#20231f;font:400 14px/1.5 Golos,Arial,sans-serif;-webkit-font-smoothing:antialiased}body.m{width:390px;height:844px}a{color:inherit;text-decoration:none}button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}a:focus-visible,button:focus-visible{outline:2px solid #945039;outline-offset:5px}.page{will-change:transform}.arrow{display:inline-block;width:15px;height:15px;vertical-align:-3px;margin-left:4px;fill:none;stroke:currentColor;stroke-width:1.3}.wrap{width:calc(100% - 64px);margin-inline:auto}.serif{font-family:Playfair,Georgia,serif}.head{position:absolute;inset:0 0 auto;z-index:5;height:58px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 32px}.head__links{display:flex;gap:24px;font-size:12px}.wordmark{font:600 italic 33px/1 Playfair,Georgia,serif;letter-spacing:-.08em}.head .wordmark{position:absolute;left:50%;transform:translateX(-50%)}.head__visit{font-size:12px;border-bottom:1px solid;padding-bottom:2px}.m .head{height:64px;padding:0 20px}.m .head__links a:not(:first-child){display:none}.m .head__visit{font-size:11px}
+.hero{height:621px;position:relative;overflow:hidden;color:#fff}.hero__photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 53%}.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(#0001,#0002 40%,#0008)}.hero__center{position:absolute;z-index:1;inset:58px 0 40px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}.hero__center small{font-size:11px;letter-spacing:.14em;text-transform:uppercase}.hero h1{font:600 italic 168px/.98 Playfair,Georgia,serif;letter-spacing:-.08em;margin:2px 0 22px;padding-right:.09em}.hero__center p{font-size:17px;margin:0;font-weight:400}.hero__bottom{position:absolute;z-index:1;bottom:28px;left:32px;right:32px;display:flex;justify-content:space-between;align-items:end;font-size:11px;line-height:1.7}.hero__bottom a{border-bottom:1px solid #fff8;padding-bottom:5px;font-size:13px}.m .hero{height:844px}.m .hero__photo{object-position:52% center}.m .hero h1{font-size:118px}.m .hero__center{inset:64px 0 100px}.m .hero__center p{font-size:15px;max-width:22ch}.m .hero__bottom{left:20px;right:20px;bottom:32px;font-size:10px;gap:30px}.m .hero__bottom a{font-size:12px}
+.section{padding:60px 0 54px}.section h2{margin:0;font:700 49px/1.02 Playfair,Georgia,serif;letter-spacing:-.045em;text-align:center;text-transform:uppercase}.tabs{display:flex;justify-content:center;gap:28px;margin:24px 0 28px}.tab{padding:0 0 6px;opacity:.5;font-size:12px;border-bottom:1px solid transparent}.tab.on{opacity:1;border-bottom-color:currentColor}.menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.drink{margin:0}.drink__photo{height:236px;overflow:hidden;background:#e7e3dc}.drink img{width:100%;height:100%;display:block;object-fit:cover}.drink:first-child img{object-position:50% 74%}.drink__caption{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:14px;align-items:baseline}.drink h3{margin:0;font-size:17px;font-weight:500}.drink small{display:block;color:#777d74;font-size:11px;margin-top:3px}.drink__price{font-size:13px;white-space:nowrap}.m .wrap{width:calc(100% - 40px)}.m .section{padding:40px 0}.m .section h2{font-size:32px;line-height:1.06}.m .tabs{margin:20px 0 24px}.m .menu{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-right:-20px;padding-right:20px}.m .drink{flex:0 0 78%;scroll-snap-align:start}.m .drink__photo{height:275px}.m .drink h3{font-size:18px}.m .drink__caption{margin-top:13px}
+.story{display:grid;grid-template-columns:1fr 1fr;background:#ece7dd;min-height:540px}.story__photo{width:100%;height:540px;object-fit:cover;object-position:30% center}.story__copy{padding:48px 48px 36px}.story h2{font:600 58px/1.02 Playfair,Georgia,serif;letter-spacing:-.045em;margin:0 0 22px}.story p{font-size:13px;line-height:1.6;max-width:34ch;margin:0 0 20px}.origins{border-top:1px solid #20231f40}.origin{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid #20231f40}.origin b{font-size:13px;font-weight:500}.origin span{font-size:11px;color:#6f746a}.text-link{display:inline-flex;gap:28px;margin-top:20px;padding-bottom:5px;border-bottom:1px solid currentColor;font-size:12px}.m .story{grid-template-columns:1fr}.m .story__photo{height:290px}.m .story__copy{padding:30px 24px}.m .story h2{font-size:48px}.m .story p{font-size:13px}.m .origin{padding:12px 0}
+.find{display:grid;grid-template-columns:1fr 1fr;background:#1c2521;color:#fff;min-height:540px}.find__photo{width:100%;height:540px;object-fit:cover;object-position:44% center}.find__copy{padding:50px 48px;display:flex;flex-direction:column;align-items:start;justify-content:center}.find h2{font:500 58px/1.02 Playfair,Georgia,serif;letter-spacing:-.04em;margin:0 0 30px}.find p{margin:0 0 9px;font-size:15px}.find small{font-size:12px;color:#d4d9cf}.find .text-link{margin-top:25px}.foot{display:flex;align-items:center;justify-content:space-between;padding:28px 32px;background:#1c2521;color:#fff;border-top:1px solid #ffffff30;font-size:11px}.foot .wordmark{font-size:28px}.m .find{grid-template-columns:1fr}.m .find__photo{height:330px}.m .find__copy{padding:32px 24px 44px}.m .find h2{font-size:48px;margin-bottom:22px}.m .foot{padding:24px}
+</style></head><body>
+<header class="head"><nav class="head__links"><a href="#menu" data-jump="menu">Меню</a><a href="#beans" data-jump="beans">Кофе домой</a></nav><a class="wordmark" href="#top" data-jump="top">пена</a><a class="head__visit" href="#find" data-jump="find">Заходите в гости <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M6 5h13v13"/></svg></a></header>
+<main class="page" data-page>
+<section class="hero" id="top"><img class="hero__photo" src="images/space.webp" alt="Светлая кофейня с растениями, деревянными столами и большой стойкой"/><div class="hero__center"><small>Кофейня по соседству</small><h1>пена</h1><p>Кофе. Люди. Хороший день.</p></div><div class="hero__bottom"><span>Садовая, 14<br>Ежедневно, 08:00–22:00</span><a href="#menu" data-jump="menu">Что будем пить? <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v17m-6-6 6 6 6-6"/></svg></a></div></section>
+<section class="section wrap" id="menu" data-menu-sec><h2>Все встречи<br>начинаются с кофе.</h2><div class="tabs"><button class="tab on" type="button" data-tab="0">Кофе каждый день</button><button class="tab" type="button" data-tab="1">По сезону</button></div><div class="menu" data-menu></div></section>
+<section class="story" id="beans" data-beans-sec><img class="story__photo" src="images/beans.webp" alt="Обжаренные кофейные зёрна крупным планом"/><div class="story__copy"><h2>С собой.<br>И домой.</h2><p>Тот самый кофе можно забрать в зёрнах. Подберём под ваш вкус и помелем для турки, воронки или кофемашины.</p><div class="origins"><div class="origin" data-bean><b>Бразилия</b><span>орех, какао, карамель</span></div><div class="origin" data-bean><b>Колумбия</b><span>красные ягоды, шоколад</span></div><div class="origin" data-bean><b>Эфиопия</b><span>бергамот, персик, жасмин</span></div></div><a class="text-link" href="#find" data-jump="find">Поможем выбрать <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M6 5h13v13"/></svg></a></div></section>
+<section class="find" id="find" data-find-sec><img class="find__photo" src="images/street.webp" alt="Кофе у большого окна, столик среди зелёных растений"/><div class="find__copy"><h2>Есть место<br>для тебя.</h2><p>Садовая, 14</p><small>Три минуты от метро<br>Каждый день с 08:00 до 22:00</small><a class="text-link" href="#menu" data-jump="menu">Выбрать кофе <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M6 5h13v13"/></svg></a></div></section>
+<footer class="foot"><span class="wordmark">пена</span><span>Кофейня по соседству</span></footer></main>
+<script src="/node_modules/gsap/dist/gsap.min.js"></script><script>
+const params=new URLSearchParams(location.search),M=params.has('m')||innerWidth<600;if(M)document.body.classList.add('m');
+const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)],page=q('[data-page]'),menu=q('[data-menu]');
+const MENU=[
+ [['Флэт уайт','Двойной эспрессо, молоко','260','latte'],['Айс латте','Лёд, молоко, эспрессо','290','iced'],['Фильтр','Новое зерно каждый месяц','220','filter']],
+ [['Латте с халвой','Ореховый, мягкий, согревающий','340','latte'],['Цитрусовый колд брю','Холодный кофе и апельсин','320','iced'],['Пряный фильтр','Корица, кардамон, апельсин','280','filter']]
 ];
-const menu = q('[data-menu]');
-const fillMenu = (k) => { q('[data-menu-photo]').src = `images/${k === 2 ? 'pastry' : 'drinks'}.webp`; menu.innerHTML = MENU[k].map(([n, s, p, ic, c], i) => `<div class="item"><span class="dot" style="background:${c}">${String(i + 1).padStart(2, '0')}</span><span><b>${n}</b><small>${s}</small></span><span class="pr">${p}&nbsp;р.</span></div>`).join(''); };
+let activeTab=-1;
+function fillMenu(k){if(activeTab===k)return;activeTab=k;qa('[data-tab]').forEach((b,i)=>{b.classList.toggle('on',i===k);b.setAttribute('aria-pressed',String(i===k))});menu.innerHTML=MENU[k].map(([name,desc,price,img])=>`<article class="drink"><div class="drink__photo"><img src="images/${img}.webp" alt="${name}"/></div><div class="drink__caption"><div><h3>${name}</h3><small>${desc}</small></div><span class="drink__price">${price} ₽</span></div></article>`).join('')}
 fillMenu(0);
-
-const page = q('[data-page]');
-const H = innerHeight;
-const sec = (s) => q(s).offsetTop;
-const tl = gsap.timeline({ paused: true });
-function build() {
-// 0. первый экран: строки заголовка снизу, чашка опускается на блюдце, пена расходится сердцем
-tl.from('.head', { y: -20, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.1);
-tl.from('.hero .ln span', { yPercent: 105, duration: 0.9, ease: 'expo.out', stagger: 0.1 }, 0.2);
-tl.from('[data-rise]', { y: 18, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.1 }, 0.6);
-tl.from('.hours', { opacity: 0, duration: 0.6 }, 1);
-tl.from('[data-coffee-photo]', { y: 24, opacity: 0, duration: 1.2, ease: 'power3.out' }, 0.3);
-// 3.6 прокрутка к меню, позиции поднимаются; вкладка «Альтернатива», затем «Десерты»
-const toY = (y, at, d = 1.1) => tl.to(page, { y: () => -y(), duration: d, ease: 'power3.inOut' }, at);
-tl.call(() => {}, [], 3.4);
-toY(() => sec('[data-menu-sec]') - (M ? 70 : 40), 3.6);
-tl.from('[data-menu-sec] h2', { y: 24, opacity: 0, duration: 0.6, ease: 'expo.out' }, 4.2);
-tl.from('.tab', { y: 14, opacity: 0, duration: 0.5, ease: 'expo.out', stagger: 0.06 }, 4.3);
-tl.fromTo(menu, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out' }, 4.45);
-const tabTo = (k, at) => {
-  tl.to(menu, { opacity: 0, y: -10, duration: 0.2, ease: 'power2.in' }, at);
-  tl.call(() => { qa('.tab').forEach((t, j) => t.classList.toggle('on', j === k)); fillMenu(k); }, [], at + 0.2);
-  tl.call(() => { qa('.tab').forEach((t, j) => t.classList.toggle('on', j === (k ? k - 1 : 0))); fillMenu(k ? k - 1 : 0); }, [], at + 0.19); // при перемотке назад
-  tl.fromTo(menu, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'expo.out', immediateRender: false }, at + 0.21);
-};
-tabTo(1, 6.0);
-tabTo(2, 7.5);
-// 9.0 своя обжарка
-toY(() => sec('[data-beans-sec]') - (M ? 70 : 40), 9.0);
-tl.from('[data-bean]', { y: 40, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.1 }, 9.6);
-// 11.6 адрес и метка на схеме
-toY(() => sec('[data-find-sec]') - (M ? 70 : 60), 11.6);
-tl.from('[data-pin]', { y: -60, opacity: 0, duration: 0.6, ease: 'bounce.out' }, 12.4);
-tl.fromTo('[data-pulse]', { attr: { r: 10 }, opacity: 0.5 }, { attr: { r: 46 }, opacity: 0, duration: 1.2, repeat: 1, ease: 'power2.out' }, 13.0);
-tl.set({}, {}, 15.2);
+const tl=gsap.timeline({paused:true});
+function build(){
+ tl.from('.head',{opacity:0,y:-12,duration:.6,ease:'sine.out'},0);
+ tl.fromTo('.hero__photo',{scale:1.055},{scale:1,duration:3.5,ease:'sine.out'},0);
+ tl.from('.hero__center > *',{opacity:0,y:15,duration:.9,stagger:.13,ease:'sine.out'},.3);
+ tl.from('.hero__bottom',{opacity:0,duration:.7},1.0);
+ const scroll=(selector,at)=>tl.to(page,{y:()=>-q(selector).offsetTop+(M?78:72),duration:1.05,ease:'power2.inOut'},at);
+ scroll('[data-menu-sec]',3.6);
+ tl.fromTo('[data-menu-sec] h2',{y:20,opacity:0},{y:0,opacity:1,duration:.65,ease:'sine.out',immediateRender:false},4.05);
+ tl.fromTo('.tabs',{opacity:0},{opacity:1,duration:.5,immediateRender:false},4.15);
+ tl.fromTo(menu,{y:16,opacity:0},{y:0,opacity:1,duration:.65,ease:'sine.out',immediateRender:false},4.25);
+ for(const at of [6,7.5])tl.to(menu,{opacity:.2,duration:.18},at).to(menu,{opacity:1,duration:.42},at+.19);
+ scroll('[data-beans-sec]',9);
+ tl.fromTo('.story__copy',{opacity:0,y:20},{opacity:1,y:0,duration:.8,ease:'sine.out',immediateRender:false},9.55);
+ scroll('[data-find-sec]',11.6);
+ tl.fromTo('.find__copy',{opacity:0,y:20},{opacity:1,y:0,duration:.8,ease:'sine.out',immediateRender:false},12.2);
+ tl.set({}, {},15.2);
 }
-window.__seek = (t) => { tl.seek(t, false); return true; };
-const t0 = new URLSearchParams(location.search).get('t');
-// позиции разделов зависят от шрифтов: таймлайн собирается, когда они загружены
-document.fonts.ready.then(() => { build(); window.__dur = tl.duration(); if (t0) tl.seek(+t0, false); else tl.play(); window.__ready = true; });
-</script>
-</body>
-</html>
+function seek(t){fillMenu(t>=6.18&&t<7.68?1:0);tl.seek(t,false);return true}
+window.__seek=seek;
+qa('[data-tab]').forEach((button,k)=>button.addEventListener('click',()=>{tl.pause();fillMenu(k);gsap.fromTo(menu,{opacity:.35,y:8},{opacity:1,y:0,duration:.4})}));
+qa('[data-jump]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();tl.pause();const id=a.dataset.jump;gsap.to(page,{y:()=>id==='top'?0:-document.getElementById(id).offsetTop+72,duration:1,ease:'power2.inOut'})}));
+Promise.all([document.fonts.ready,...qa('img').map(img=>img.decode().catch(()=>{})),...['latte','iced','filter'].map(name=>{const img=new Image;img.src=`images/${name}.webp`;return img.decode().catch(()=>{})})]).then(()=>{build();window.__dur=tl.duration();window.__ready=true;if(params.has('t'))seek(+params.get('t'));else{tl.eventCallback('onUpdate',()=>fillMenu(tl.time()>=6.18&&tl.time()<7.68?1:0));tl.play()}});
+</script></body></html>

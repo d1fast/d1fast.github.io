@@ -5,7 +5,7 @@ import {
 } from 'three';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 
-export interface Garden { start(restart?: boolean): void; stop(): void; rest(): void; notice(): void }
+export interface Garden { start(restart?: boolean): void; stop(): void; notice(): void }
 type Point = [number, number, number];
 const clamp = (x: number) => Math.max(0, Math.min(1, x));
 const ease = (a: number, b: number, t: number) => { const p = clamp((t-a)/(b-a)); return p*p*(3-2*p); };
@@ -97,11 +97,12 @@ export function createGarden(host: HTMLElement): Garden {
     });
     return {stem,leaves,a};
   });
+  let floor: Mesh | undefined;
   if (webgl) {
-    const floor = new Mesh(new PlaneGeometry(24,24),new ShadowMaterial({opacity:.12}));
+    floor = new Mesh(new PlaneGeometry(24,24),new ShadowMaterial({opacity:.12}));
     floor.rotation.x = -Math.PI/2; floor.position.y = -.018; floor.receiveShadow = true; scene.add(floor);
   }
-  let active = false, frame = 0, last = 0, time = 3, attention = 0, reduced = false;
+  let active = false, frame = 0, last = 0, time = 3, attention = 0;
   const pose = (t: number,dt = 0) => {
     const land = ease(0,1.95,t), fold = ease(1.0,2.5,t), idle = ease(2.3,3.7,t);
     bird.position.set(1.7*(1-land),-.55+.9*(1-land)+Math.sin(land*Math.PI)*.2,0);
@@ -115,15 +116,16 @@ export function createGarden(host: HTMLElement): Garden {
       const flying = -.08+Math.sin(t*11)*.6;
       wing.rotation.x = -side*(flying*(1-fold)+(.58+Math.sin(t*.95+i*.5)*.018)*fold);
     });
-    const glance = ease(4.4,5.3,t)*(1-ease(6.3,7.4,t));
-    const down = ease(8.1,9,t)*(1-ease(10.2,11.3,t));
-    neck.rotation.z = idle*(Math.sin(t*.6)*.025+down*.09);
-    head.rotation.y = idle*(Math.sin(t*.55)*.07-glance*.35-attention*.25);
-    head.rotation.z = idle*(Math.sin(t*.9)*.025+down*.1);
-    tail.rotation.y = Math.sin(t*.8)*.045*idle;
+    const cycle = t % 15;
+    const glance = ease(4.4,5.3,cycle)*(1-ease(6.3,7.4,cycle));
+    const down = ease(8.1,9,cycle)*(1-ease(10.2,11.3,cycle));
+    neck.rotation.z = idle*(Math.sin(t*.6)*.045+down*.12);
+    head.rotation.y = idle*(Math.sin(t*.55)*.17-glance*.35-attention*.25);
+    head.rotation.z = idle*(Math.sin(t*.9)*.06+down*.14);
+    tail.rotation.y = Math.sin(t*.8)*.07*idle;
     plants.forEach(({stem,leaves},i) => {
-      stem.rotation.z = Math.sin(t*.65+i*.9)*.025+Math.sin(t*1.15+i)*.007;
-      leaves.forEach((leaf,n) => leaf.rotation.x = Math.sin(t*.75+i+n*.7)*.065);
+      stem.rotation.z = Math.sin(t*.65+i*.9)*.045+Math.sin(t*1.15+i)*.012;
+      leaves.forEach((leaf,n) => leaf.rotation.x = Math.sin(t*.75+i+n*.7)*.10);
     });
     attention *= Math.exp(-dt*1.6);
   };
@@ -145,18 +147,22 @@ export function createGarden(host: HTMLElement): Garden {
     const aspect = w/h, half = aspect < 1 ? 2.5 : 2.35;
     camera.left = -half*aspect; camera.right = half*aspect; camera.top = half; camera.bottom = -half;
     camera.updateProjectionMatrix();
-    pose(reduced ? 6 : time); draw();
+    pose(time); draw();
   };
   new ResizeObserver(resize).observe(host);
   pose(6); resize();
   if (webgl) webgl.domElement.addEventListener('webglcontextlost',(e) => {
-    e.preventDefault(); active = false; cancelAnimationFrame(frame);
-    host.closest('[data-hero]')?.classList.remove('has-garden');
+    e.preventDefault();
+    const old = webgl; webgl = undefined;
+    old?.domElement.remove(); old?.dispose();
+    if (floor) floor.visible = false;
+    const svg = new SVGRenderer(); svg.setQuality('high'); svg.setPrecision(2);
+    svg.domElement.classList.add('hero__renderer'); svg.domElement.setAttribute('aria-hidden','true');
+    renderer = svg; host.append(svg.domElement); resize();
   });
   return {
-    start(restart = false) { if (restart) time = 0; if (active) return; active = true; reduced = false; last = 0; frame = requestAnimationFrame(render); },
+    start(restart = false) { if (restart) time = 0; if (active) return; active = true; last = 0; frame = requestAnimationFrame(render); },
     stop() { active = false; cancelAnimationFrame(frame); last = 0; },
-    rest() { active = false; cancelAnimationFrame(frame); reduced = true; pose(6); draw(); },
     notice() { attention = 1; },
   };
 }

@@ -8,15 +8,8 @@ gsap.registerPlugin(ScrambleTextPlugin);
 // мигание: 0,1,0,1… и в конце 1
 const blink = (n: number) => (p: number) => (p >= 1 ? 1 : Math.floor(p * n) % 2);
 
-/**
- * Что делаю: меню из игры. Пункт выбирается наведением, фокусом, тапом или стрелками. Полоса
- * выделения ездит по списку, треугольник прыгает, экранчик в окне диалога «переключает канал»
- * на живую штуку пункта, имя перемешивается, описание печатается. Если ничего не трогать,
- * меню само перебирает пункты; полоска в квадратике пункта показывает, сколько осталось.
- * Перебор стоит на паузе, пока мышь над меню или окном, пока фокус с клавиатуры внутри
- * и ещё 9 секунд после любого действия человека. Дошёл до последнего пункта, а человек ничего не выбирал сам:
- * блок шлёт block:done, и сцена переходит к следующему.
- */
+/** Что делаю: сцена закончилась, немного держим результат и открываем следующий пункт.
+ * Наведение выбирает пункт, но не останавливает показ. Повторный щелчок запускает сцену заново. */
 export function init(root: HTMLElement) {
   const q = gsap.utils.selector(root);
   const one = <T extends HTMLElement = HTMLElement>(s: string) => q<T>(s)[0] as T;
@@ -60,7 +53,6 @@ export function init(root: HTMLElement) {
   let on = false;
   // человек в этот заход что-то выбирал сам: когда меню дойдёт до конца, сцена сама дальше не листает
   let touched = false;
-  let ready = false; // вход отыграл, можно листать самому
   let lastSel = 0;
   let intent: ReturnType<typeof setTimeout> | undefined;
 
@@ -108,7 +100,8 @@ export function init(root: HTMLElement) {
     if (shown >= 0) { widgets[shown].stop(); slots[shown].classList.remove('is-shown'); }
     shown = i;
     slots[i].classList.add('is-shown');
-    widgets[i].play();
+    widgets[i].play(() => advance(i));
+    arm();
   };
   let sw: gsap.core.Timeline | undefined;
   // Смена канала через короткое затухание. Сцены сами не гасят свой последний кадр.
@@ -134,38 +127,35 @@ export function init(root: HTMLElement) {
     gsap.to(typed, { n: s.length, duration: Math.min(1.1, 0.25 + s.length * 0.016), ease: 'none', delay, onUpdate: () => { dtext.textContent = s.slice(0, Math.round(typed.n)); } });
   };
 
-  /* ---------- сам себя листает ---------- */
+  /* ---------- показ до конца, затем следующий пункт ---------- */
   let prog: gsap.core.Tween | undefined;
-  let hoverMenu = false, hoverDialog = false, kbd = false, heldUntil = 0;
-  let holdCall: gsap.core.Tween | undefined;
-  const running = () => on && ready && !hoverMenu && !hoverDialog && !kbd && performance.now() >= heldUntil;
-  const sync = () => { if (prog) { if (running()) prog.resume(); else prog.pause(); } };
+  let hoverMenu = false;
+  let finishedWhileHidden: number | undefined;
   const arm = () => {
     prog?.kill();
-    pipFill.forEach((b) => gsap.set(b, { scaleX: 0 }));
-    // последний пункт досмотрели и ничего не трогали: сцена переходит к следующему блоку
-    prog = gsap.fromTo(pipFill[current], { scaleX: 0 }, { scaleX: 1, duration: widgets[current].dwell, ease: 'none', paused: true, onComplete: () => {
-      if (current === total - 1 && !touched) { root.dispatchEvent(new CustomEvent('block:done')); return; }
-      select(current + 1);
-    } });
-    sync();
+    pipFill.forEach((b) => gsap.set(b,{scaleX:0}));
+    prog = gsap.to(pipFill[current],{scaleX:1,duration:widgets[current].dwell,ease:'none'});
   };
-  const hold = (ms = 9000) => {
-    heldUntil = performance.now() + ms;
-    holdCall?.kill();
-    holdCall = gsap.delayedCall(ms / 1000 + 0.05, sync);
-    sync();
+  const advance = (finished: number) => {
+    if (!on || shown !== finished || current !== finished) return;
+    if (document.hidden) { finishedWhileHidden = finished; return; }
+    if (current === total-1 && !touched) { root.dispatchEvent(new CustomEvent('block:done')); return; }
+    select(current+1);
   };
+
+  document.addEventListener('visibilitychange',() => {
+    if (!document.hidden && finishedWhileHidden !== undefined) { const i = finishedWhileHidden; finishedWhileHidden = undefined; advance(i); }
+  });
 
   // подтверждение: щелчок по уже выбранному пункту, как кнопка «A»
   const confirm = () => {
     gsap.fromTo([band, inv], { opacity: 1 }, { opacity: 1, duration: 0.3, ease: blink(6) });
-    if (shown === current) widgets[current].play();
+    if (shown === current) { const i = current; widgets[i].play(() => advance(i)); arm(); }
   };
 
   function select(i: number, user = false) {
     i = (i + total) % total;
-    if (user) { hold(); touched = true; }
+    if (user) touched = true;
     if (i === current) { if (user && on) confirm(); return; }
     current = i;
     lastSel = performance.now();
@@ -175,7 +165,6 @@ export function init(root: HTMLElement) {
     if (on) channel(i);
     sayName(i);
     typeText(i, 0.12);
-    if (ready) arm();
   }
 
   /* ---------- ввод ---------- */
@@ -195,9 +184,9 @@ export function init(root: HTMLElement) {
     b.addEventListener('pointerenter', aim);
     b.addEventListener('pointermove', aim);
     b.addEventListener('pointerleave', () => { clearTimeout(intent); aimed = -1; });
-    b.addEventListener('focus', () => { if (!on) return; if (i !== current) select(i, true); else hold(); });
+    b.addEventListener('focus', () => { if (!on) return; if (i !== current) select(i, true); });
     // щелчок по только что выбранному (наведением или фокусом этого же нажатия) не считается подтверждением
-    b.addEventListener('click', () => { clearTimeout(intent); if (i === current && performance.now() - lastSel < 350) { hold(); return; } select(i, true); });
+    b.addEventListener('click', () => { clearTimeout(intent); if (i === current && performance.now() - lastSel < 350) { return; } select(i, true); });
   });
   menu.addEventListener('keydown', (e) => {
     const k = e.key;
@@ -229,32 +218,17 @@ export function init(root: HTMLElement) {
     btns[to % total].focus({ preventScroll: true });
   });
 
-  // наведение считается, когда курсор двигается над меню или окном уже после входа в блок
-  const hov = (el: HTMLElement, set: (v: boolean) => void, get: () => boolean) => {
-    el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && mouseArm.armed && !get()) { set(true); sync(); } });
-    el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { set(false); sync(); } });
-  };
-  hov(menu, (v) => { hoverMenu = v; menu.classList.toggle('is-hover', v); }, () => hoverMenu);
-  hov(dialog, (v) => { hoverDialog = v; }, () => hoverDialog);
-  // фокус с клавиатуры внутри меню или окна ставит перебор на паузу (WCAG 2.2.2)
-  root.addEventListener('focusin', (e) => {
-    const t = e.target as HTMLElement;
-    kbd = (menu.contains(t) || dialog.contains(t)) && t.matches(':focus-visible');
-    sync();
-  });
-  root.addEventListener('focusout', (e) => {
-    const to = e.relatedTarget as HTMLElement | null;
-    if (!to || !(menu.contains(to) || dialog.contains(to))) { kbd = false; sync(); }
-  });
+  menu.addEventListener('pointermove',(e) => { if (e.pointerType === 'mouse' && mouseArm.armed) { hoverMenu = true; menu.classList.add('is-hover'); } });
+  menu.addEventListener('pointerleave',() => { hoverMenu = false; menu.classList.remove('is-hover'); });
 
   // колесо скидок: тап, клик, пробел или Enter на фокусе крутят колесо. click, а не pointerdown:
   // свайп по экранчику листает блоки и колесо не трогает
-  if (hit && PROMO >= 0) hit.addEventListener('click', () => { widgets[PROMO].spin?.(); hold(12000); touched = true; });
+  if (hit && PROMO >= 0) hit.addEventListener('click', () => { if (widgets[PROMO].spin?.()) arm(); touched = true; });
   // 3D смотрит на указатель; на тачскрине тап меняет цвет кузова
   if (PRODUCT >= 0) {
     const pt = (e: PointerEvent) => { const r = screen.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
     screen.addEventListener('pointermove', (e) => { if (shown === PRODUCT && e.pointerType === 'mouse') { const [x, y] = pt(e); widgets[PRODUCT].point?.(x, y); } });
-    screen.addEventListener('pointerdown', (e) => { if (shown === PRODUCT && e.pointerType !== 'mouse') { const [x, y] = pt(e); widgets[PRODUCT].point?.(x, y, true); hold(); touched = true; } });
+    screen.addEventListener('pointerdown', (e) => { if (shown === PRODUCT && e.pointerType !== 'mouse') { const [x, y] = pt(e); widgets[PRODUCT].point?.(x, y, true); touched = true; } });
   }
 
   const reflow = () => { measure(); place(current, true); };
@@ -288,13 +262,13 @@ export function init(root: HTMLElement) {
     .fromTo(pips, { scale: 0 }, { scale: 1, duration: 0.18, ease: 'steps(3)', stagger: 0.04 }, 0.95)
     .fromTo([next, hint], { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'steps(3)' }, 1.15)
     .call(() => { sayName(current); typeText(current, 0.1); }, [], 0.9)
-    .call(() => { ready = true; arm(); }, [], 1.5);
+    ;
 
   const enter = () => {
-    on = true; ready = false; touched = false;
+    on = true; touched = false; finishedWhileHidden = undefined;
     // курсор, оставшийся над меню после перелистывания, перебор не останавливает
     mouseArm.reset();
-    hoverMenu = false; hoverDialog = false;
+    hoverMenu = false;
     menu.classList.remove('is-hover');
     current = 0;
     mark(0);
@@ -306,7 +280,7 @@ export function init(root: HTMLElement) {
     entry.restart();
   };
   const leave = () => {
-    on = false; ready = false;
+    on = false; finishedWhileHidden = undefined;
     clearTimeout(intent);
     title.reset();
     entry.pause(0);
@@ -317,7 +291,6 @@ export function init(root: HTMLElement) {
     slots.forEach((s) => s.classList.remove('is-shown'));
     shown = -1;
     prog?.kill(); prog = undefined;
-    holdCall?.kill(); heldUntil = 0; kbd = false;
     gsap.killTweensOf([dname, typed, mkPop]);
     gsap.set(mkPop, { scaleX: 1, scaleY: 1 });
     pipFill.forEach((b) => gsap.set(b, { scaleX: 0 }));
