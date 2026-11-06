@@ -215,7 +215,7 @@ export function init(root: HTMLElement) {
   const manHide = () => { gsap.killTweensOf(manArm); to(man, { opacity: 0, duration: 0.25, ease: 'power1.in' }); };
   const unhideMarks = () => marks.forEach((m) => { m.style.fillOpacity = ''; });
 
-  /* лупа: всегда идёт своим маршрутом от вопроса к вопросу по замкнутой кривой и встаёт так, что вопрос в центре стекла */
+  /* Лупа проходит вопросы один раз и остаётся над последним до смены шага. */
   const L = { s: 0, k: 0 };
   const SN = LENS_STOPS.length;
   // центростремительная кривая Катмулла — Рома через стоянки: без петель и выбросов за поля рисунка
@@ -301,7 +301,7 @@ export function init(root: HTMLElement) {
   let ticking = false;
   const tick = (on: boolean) => { if (on && !ticking) gsap.ticker.add(lensRender); if (!on && ticking) gsap.ticker.remove(lensRender); ticking = on; };
   const stay = (i: number) => ((i + 1) % SN === MAN_I ? MAN_HOLD : HOLD); // стоянка после перехода i
-  /** запускает обход и возвращает, через сколько секунд первый круг дойдёт до последнего вопроса */
+  /** Запускает один проход. Его длительность задаёт время первого шага. */
   function lensShow(delay: number) {
     lensOn = true;
     L.s = 0; L.k = 0;
@@ -310,10 +310,13 @@ export function init(root: HTMLElement) {
     tick(true);
     to(lens, { opacity: 1, duration: 0.3, delay });
     to(L, { k: 1, duration: 0.8, ease: 'power2.inOut', delay });
-    // обход: переход с мягким разгоном и торможением, стоянка над вопросом; круг замкнут, повтор без рывка
-    const walk = tl({ delay: delay + 0.8 + HOLD, repeat: -1 });
-    SEG.forEach((d, i) => { walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' }); walk.to({}, { duration: stay(i) }); });
-    return delay + 0.8 + HOLD + SEG.slice(0, SN - 2).reduce((a, d, i) => a + d + stay(i), 0) + SEG[SN - 2];
+    const lead = delay + 0.8 + HOLD;
+    const walk = tl({ delay: lead });
+    SEG.slice(0, SN - 1).forEach((d, i) => {
+      walk.to(L, { s: i + 1, duration: d, ease: 'sine.inOut' });
+      walk.to({}, { duration: stay(i) });
+    });
+    return lead + walk.duration();
   }
   function lensHide() {
     swearOff(true);

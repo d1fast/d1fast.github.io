@@ -34,7 +34,8 @@ try {
       await h1.waitFor({ state: 'visible' });
       assert.ok((await h1.innerText()).length > 10);
       await page.waitForTimeout(3600);
-      await page.locator('.hero.has-sculpture').waitFor();
+      await page.locator('.hero.has-garden').waitFor();
+      assert.equal(await page.locator('.site-header__name').count(), 0);
       assert.equal(await page.locator('.hero__eyebrow').count(), 0);
       const frame = await page.locator('.hero__primary').boundingBox();
       assert.ok(frame.y + frame.height <= viewport.height + 1, 'Переход к работам должен быть виден сразу');
@@ -49,6 +50,10 @@ try {
       await page.locator(`#${id}.is-current`).waitFor();
       await page.waitForTimeout(id === 'contacts' ? 11000 : 2200);
       if (id === 'services') {
+        await page.locator('[data-services-btn]').nth(4).click();
+        await page.locator('[data-svc-w=product].has-product').waitFor();
+        await page.waitForTimeout(1500);
+        await page.screenshot({ path: `shots/product-${name}.png` });
         await page.locator('[data-services-btn]').last().click();
         await page.waitForTimeout(1100);
         assert.ok(await page.locator('.svc-wheel').isVisible());
@@ -76,7 +81,7 @@ try {
         await page.locator('[data-works-dot="2"]').click();
         await page.waitForTimeout(1900);
         assert.equal(await page.locator('[data-works-proj="2"]').isVisible(), true);
-        assert.ok(await page.locator('[data-works-proj="2"] .works__concept').isVisible());
+        assert.equal(await page.locator('.works__meta').count(), 0);
       }
       if (id === 'process') {
         await page.locator('[data-process-btn]').last().click();
@@ -99,7 +104,8 @@ try {
       console.log(`${name}: ${id} OK`);
     }
     // Переход по настоящим ссылкам после завершения шторки.
-    await page.locator('.site-header__name').click();
+    if (name === 'mobile') await page.keyboard.press('Home');
+    else await page.locator('[data-dot=top]').click();
     await page.locator('#top.is-current').waitFor();
     await page.locator('.stage-fx').waitFor({ state: 'hidden' });
     await page.locator('.hero__primary').click();

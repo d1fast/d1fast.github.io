@@ -52,7 +52,7 @@ export function init(root: HTMLElement) {
   try { ui = JSON.parse(root.dataset.svcUi || '{}'); } catch { ui = {} as WidgetUI; }
   const widgets = buildWidgets(slots, ui);
   const PROMO = slots.findIndex((s) => s.dataset.svcW === 'promo');
-  const CUBE = slots.findIndex((s) => s.dataset.svcW === 'cube');
+  const PRODUCT = slots.findIndex((s) => s.dataset.svcW === 'product');
   const chars = /[а-яё]/i.test(names.join('')) ? 'абвгдежзиклмнопрстуфхцчшэюя' : 'abcdefghijklmnopqrstuvwxyz';
 
   let current = 0;
@@ -111,7 +111,7 @@ export function init(root: HTMLElement) {
     widgets[i].play();
   };
   let sw: gsap.core.Timeline | undefined;
-  // смена канала: картинка схлопывается в полоску, вспышка, раскрывается уже новая
+  // Смена канала через короткое затухание. Сцены сами не гасят свой последний кадр.
   const channel = (i: number) => {
     sw?.kill();
     sw = gsap.timeline()
@@ -250,11 +250,11 @@ export function init(root: HTMLElement) {
   // колесо скидок: тап, клик, пробел или Enter на фокусе крутят колесо. click, а не pointerdown:
   // свайп по экранчику листает блоки и колесо не трогает
   if (hit && PROMO >= 0) hit.addEventListener('click', () => { widgets[PROMO].spin?.(); hold(12000); touched = true; });
-  // 3D смотрит на указатель; на тачскрине тап толкает куб
-  if (CUBE >= 0) {
+  // 3D смотрит на указатель; на тачскрине тап меняет цвет кузова
+  if (PRODUCT >= 0) {
     const pt = (e: PointerEvent) => { const r = screen.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
-    screen.addEventListener('pointermove', (e) => { if (shown === CUBE && e.pointerType === 'mouse') { const [x, y] = pt(e); widgets[CUBE].point?.(x, y); } });
-    screen.addEventListener('pointerdown', (e) => { if (shown === CUBE && e.pointerType !== 'mouse') { const [x, y] = pt(e); widgets[CUBE].point?.(x, y, true); hold(); touched = true; } });
+    screen.addEventListener('pointermove', (e) => { if (shown === PRODUCT && e.pointerType === 'mouse') { const [x, y] = pt(e); widgets[PRODUCT].point?.(x, y); } });
+    screen.addEventListener('pointerdown', (e) => { if (shown === PRODUCT && e.pointerType !== 'mouse') { const [x, y] = pt(e); widgets[PRODUCT].point?.(x, y, true); hold(); touched = true; } });
   }
 
   const reflow = () => { measure(); place(current, true); };

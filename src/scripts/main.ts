@@ -28,17 +28,23 @@ function ensureBlock(root: HTMLElement) {
 function initBlocks() {
   const roots = [...document.querySelectorAll<HTMLElement>('[data-block]:not([data-block="hero"])')];
   if (!roots.length) return;
-  // Текущий блок сразу, остальные по одному в свободное время браузера.
+  // Текущий блок сразу. Готовим только соседний, чтобы скрытые 3D-сцены не мешали заставке.
   roots.filter((r) => r.classList.contains('is-current')).forEach(ensureBlock);
   const idle = (cb: () => void) => ('requestIdleCallback' in window ? (window as any).requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 600));
-  const queue = () => { let i = 0; const next = () => { if (i < roots.length) ensureBlock(roots[i++]).then(() => idle(next)); }; idle(next); };
+  const prepareNext = (root?: HTMLElement) => {
+    const next = roots[root ? roots.indexOf(root) + 1 : 0];
+    if (next) idle(() => { void ensureBlock(next); });
+  };
+  roots.forEach((root) => root.addEventListener('block:enter', () => {
+    setTimeout(() => { if (root.classList.contains('is-current')) prepareNext(root); }, 1400);
+  }));
   const hero = document.querySelector<HTMLElement>('[data-hero]');
   if (document.documentElement.classList.contains('stage-on') && hero?.classList.contains('is-current')) {
     let started = false;
-    const go = () => { if (!started) { started = true; queue(); } };
+    const go = () => { if (!started) { started = true; prepareNext(); } };
     document.addEventListener('hero:settled', go, { once: true });
     setTimeout(go, 20000);
-  } else queue();
+  } else prepareNext(roots.find((r) => r.classList.contains('is-current')));
   if (!document.documentElement.classList.contains('stage-on')) {
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); ensureBlock(e.target as HTMLElement); }

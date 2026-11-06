@@ -106,13 +106,13 @@ export function init(root: HTMLElement) {
     const last = lb[lb.length - 1];
     const x0 = Math.min(...lb.map((b) => b.l)) + fs * 0.12, x1 = Math.max(...lb.map((b) => b.r)) - fs * 0.3;
     const y = last.t + last.h * 0.8;
-    // Подлёт по дуге, мягкая волна под подписью и уход вверх.
-    const S: Pt = [-70, y + fs * 0.55], A: Pt = [x0, y], B: Pt = [x1, y];
+    // У соседних кривых общая горизонтальная касательная. Нос самолёта не скачет на стыках.
+    const S: Pt = [-70, y + fs * 0.55], A: Pt = [x0, y + fs * .1], B: Pt = [x1, y - fs * .2];
     const E: Pt = [W + 140, Math.max(top + 20, y - fs * 1.4)];
     const f = (p: Pt) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
     const entry = `M ${f(S)} C ${f([S[0] + (A[0] - S[0]) * 0.55, S[1]])}, ${f([A[0] - Math.min(180, (A[0] - S[0]) * 0.45), A[1]])}, ${f(A)}`;
     const dx = E[0] - B[0];
-    const d = `${entry} C ${f([x0 + (x1 - x0) * .32, y - fs * .48])}, ${f([x0 + (x1 - x0) * .68, y + fs * .38])}, ${f(B)} C ${f([B[0] + dx * .4, B[1] - fs * .3])}, ${f([B[0] + dx * .72, E[1]])}, ${f(E)}`;
+    const d = `${entry} C ${f([x0 + (x1 - x0) * .34, A[1]])}, ${f([x0 + (x1 - x0) * .66, B[1]])}, ${f(B)} C ${f([B[0] + dx * .4, B[1]])}, ${f([B[0] + dx * .72, E[1]])}, ${f(E)}`;
     ruler.setAttribute('d', entry);
     const a0 = ruler.getTotalLength();
     ruler.setAttribute('d', d.slice(0, d.lastIndexOf(' C ')));
@@ -235,8 +235,8 @@ export function init(root: HTMLElement) {
     opened = then;
     if (!routes.write.len) { setTitle(true); leadOn = true; lead.play(0); swashed = true; swashIn.play(0); openSoon(0.3); later = gsap.delayedCall(1, idle); return; }
     // спокойно, с мягким стартом и уходом: видно, что самолётик пишет заголовок
-    const dur = gsap.utils.clamp(2.2, 3.8, routes.write.len / 360);
-    takeOff(routes.write, dur, 'sine.inOut', () => {
+    const dur = gsap.utils.clamp(3, 4.8, routes.write.len / 280);
+    takeOff(routes.write, dur, 'none', () => {
       setTitle(true);
       if (!leadOn) { leadOn = true; lead.play(0); }
       if (!swashed) { swashed = true; swashIn.play(0); }

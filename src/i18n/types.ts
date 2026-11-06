@@ -11,7 +11,7 @@ export interface Dict {
   hero: {
     name: string; nick: string; h1: string;
     title: [string, string];
-    sub: string; ctaContact: string; ctaWorks: string;
+    sub: string; ctaContact: string; ctaWorks: string; scroll: string;
   };
   services: { title: string; items: { title: string; text: string }[] };
   /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера;

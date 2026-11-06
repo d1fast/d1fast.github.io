@@ -11,8 +11,8 @@ import { gsap } from 'gsap';
  * и приглушены. Пока цилиндр поворачивается, камера немного отъезжает и возвращается: поворот ощущается
  * как движение настоящего барабана, а не смена слайдов.
  * pos: положение цилиндра в панелях (дробное во время жеста); передняя работа = round(pos) по модулю числа работ.
- * Кадр видео в текстуру переносится, когда у ролика сменилось время (не только по requestVideoFrameCallback:
- * Safari не зовёт его у ролика, который сам на странице не виден). Кадр рисуется, только пока что-то движется.
+ * Текстура обновляется по requestVideoFrameCallback. Для браузеров, не вызывающих его у скрытого видео,
+ * остаётся проверка времени с частотой ролика. Неподвижная сцена не перерисовывается.
  */
 export interface Ring {
   /** vertical: вертикальная раскладка блока (телефон стоя): передняя панель крупнее и строго по центру */
@@ -59,15 +59,15 @@ void main() {
   gl_FragColor = vec4(c, a * (1.0 - smoothstep(0.0, 0.42, vUv.y)) * 0.17);
 }`;
 
-export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement; videos: HTMLVideoElement[]; posters: string[] }): Ring {
+export async function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement; videos: HTMLVideoElement[]; posters: string[] }): Promise<Ring> {
   const { canvas, area, videos, posters } = opts;
   const N = Math.max(1, posters.length);
   const S = N >= 9 ? N : N * Math.ceil(9 / N);
   const STEP = (Math.PI * 2) / S, PHI = STEP * 0.9, R = 1, H = (R * PHI * 9) / 16;
   const mod = (a: number, n: number) => ((a % n) + n) % n;
 
-  const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'default' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  // Края сглаживаются в шейдере. MSAA здесь только увеличивал работу видеокарты.
+  const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power' });
   renderer.setClearColor(0x000000, 0);
   // цвета кадров идут как есть, без перевода туда и обратно: видео и постеры выглядят точно как файлы
   renderer.outputColorSpace = LinearSRGBColorSpace;
@@ -79,12 +79,29 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
   /* ---------- картинки: постеры и видео ---------- */
   const loader = new TextureLoader();
   let dirty = true;
-  const prep = <T extends Texture>(t: T) => { t.colorSpace = NoColorSpace; t.minFilter = LinearFilter; t.generateMipmaps = false; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; };
+  const prep = <T extends Texture>(t: T) => { t.colorSpace = NoColorSpace; t.minFilter = LinearFilter; t.generateMipmaps = false; t.anisotropy = Math.min(2, renderer.capabilities.getMaxAnisotropy()); return t; };
   const posterTex = posters.map((src) => prep(loader.load(src, () => { dirty = true; })));
   const videoTex = videos.map((v) => prep(new Texture(v)));
   const ready = videos.map(() => false);
   const shot = videos.map(() => -1); // время кадра, который уже в текстуре
-  videos.forEach((v, k) => v.addEventListener('playing', () => { ready[k] = true; dirty = true; }));
+  const newFrame = videos.map(() => false);
+  const frameAt = videos.map(() => 0);
+  const frameCallbacks = videos.map(() => 0);
+  const watchFrame = (k: number) => {
+    const v = videos[k];
+    if (typeof v.requestVideoFrameCallback !== 'function') return;
+    frameCallbacks[k] = v.requestVideoFrameCallback(() => {
+      newFrame[k] = true;
+      frameAt[k] = performance.now();
+      frameCallbacks[k] = 0;
+      if (running && liveK === k) watchFrame(k);
+    });
+  };
+  const cancelFrames = () => videos.forEach((v, k) => {
+    if (frameCallbacks[k]) v.cancelVideoFrameCallback(frameCallbacks[k]);
+    frameCallbacks[k] = 0;
+  });
+  videos.forEach((v, k) => v.addEventListener('playing', () => { ready[k] = true; apply(); }));
 
   /* ---------- панели ---------- */
   const GAP = H * 0.035; // зазор между панелью и её отражением
@@ -92,7 +109,7 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
     const a = i * STEP;
     const uniforms = { map: { value: posterTex[i % N] }, uDim: { value: 1 }, uHas: { value: 1 } };
     const mat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, uniforms });
-    const geo = new CylinderGeometry(R, R, H, 64, 1, true, a - PHI / 2, PHI);
+    const geo = new CylinderGeometry(R, R, H, 32, 1, true, a - PHI / 2, PHI);
     const mesh = new Mesh(geo, mat);
     ring.add(mesh);
     // отражение: та же геометрия, отражённая вниз; у отражённой грани обход обратный, поэтому обе стороны
@@ -114,6 +131,8 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
     vert = vertical;
     const r = canvas.getBoundingClientRect(), a = area.getBoundingClientRect();
     W = Math.max(1, r.width); Hc = Math.max(1, r.height);
+    // Не больше 1.4 млн пикселей даже на Retina: это фоновые панели, а не полноэкранная игра.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25, Math.sqrt(1_400_000 / (W * Hc))));
     renderer.setSize(W, Hc, false);
     camera.aspect = W / Hc;
     const chord = 2 * R * Math.sin(PHI / 2);
@@ -141,6 +160,7 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
     panels.forEach((p, i) => {
       // насколько панель далеко от передней, в панелях: 0 спереди, 1 у соседей
       const off = Math.abs(mod(i - st.pos + S / 2, S) - S / 2);
+      p.mesh.visible = p.rmesh.visible = off < 2.15;
       p.mat.uniforms.uDim.value = Math.min(1, off);
       // передняя самая крупная, соседние чуть мельче: панель сжимается к своей середине на поверхности цилиндра
       const sc = 1 - (vert ? 0.04 : 0.1) * Math.min(1, off);
@@ -158,35 +178,43 @@ export function createRing(opts: { canvas: HTMLCanvasElement; area: HTMLElement;
   };
   apply();
 
-  let running = false;
+  let running = false, renderedAt = 0;
   const render = () => {
+    const now = performance.now();
+    if (now - renderedAt < 1000 / 30) return;
     const v = liveK != null ? videos[liveK] : null;
     // ролик идёт, даже если событие playing потерялось: кадр есть и время меняется
     if (v && liveK != null && !ready[liveK] && !v.paused && v.readyState >= 2) { ready[liveK] = true; apply(); }
     const playing = !!v && liveK != null && ready[liveK] && !v.paused;
-    // новый кадр ролика переносится в текстуру, только когда у ролика сменилось время
-    if (playing && v.currentTime !== shot[liveK!]) { shot[liveK!] = v.currentTime; videoTex[liveK!].needsUpdate = true; dirty = true; }
+    // Safari может не присылать callback у скрытого видео. Тогда проверяем время с частотой ролика.
+    const fresh = playing && (newFrame[liveK!] || (now - frameAt[liveK!] > 250 && Math.floor(v.currentTime * 30) !== shot[liveK!]));
+    if (fresh) { shot[liveK!] = Math.floor(v.currentTime * 30); newFrame[liveK!] = false; videoTex[liveK!].needsUpdate = true; dirty = true; }
     if (!(dirty || gsap.isTweening(st))) return;
     if (gsap.isTweening(st)) apply();
     renderer.render(scene, camera);
+    renderedAt = now;
     dirty = false;
   };
 
   let spinning: gsap.core.Tween | null = null;
+  layout();
+  // Компиляция до открытия раздела, без блокировки первого кадра, если драйвер это поддерживает.
+  await renderer.compileAsync(scene, camera);
   return {
     layout,
     get pos() { return st.pos; },
-    start() { if (running) return; running = true; dirty = true; gsap.ticker.add(render); },
-    stop() { if (!running) return; running = false; gsap.ticker.remove(render); },
+    start() { if (running) return; running = true; dirty = true; renderedAt = 0; if (liveK != null) watchFrame(liveK); gsap.ticker.add(render); },
+    stop() { running = false; cancelFrames(); gsap.ticker.remove(render); },
     set(pos) { spinning?.kill(); st.pos = pos; apply(); },
     spin(to, dur = 1.6, ease = 'power2.inOut') {
       spinning?.kill();
       spinning = gsap.to(st, { pos: to, duration: dur, ease, onUpdate: apply, onComplete: apply });
       return spinning;
     },
-    live(k) { liveK = k; if (k != null) ready[k] = ready[k] && !videos[k].paused; apply(); },
+    live(k) { cancelFrames(); liveK = k; if (k != null) { ready[k] = ready[k] && !videos[k].paused; newFrame[k] = true; if (running) watchFrame(k); } apply(); },
     dispose() {
       gsap.ticker.remove(render);
+      cancelFrames();
       spinning?.kill();
       panels.forEach((p) => { p.mesh.geometry.dispose(); p.mat.dispose(); p.rmat.dispose(); });
       [...posterTex, ...videoTex].forEach((t) => t.dispose());

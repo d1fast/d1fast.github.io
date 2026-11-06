@@ -27,6 +27,7 @@ export const ru: Dict = {
     sub: 'Сайты, приложения, боты и 3D.',
     ctaContact: 'Обсудить проект',
     ctaWorks: 'Смотреть работы',
+    scroll: 'Листайте, дальше интереснее',
   },
 
   services: {

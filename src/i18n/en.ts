@@ -27,6 +27,7 @@ export const en: Dict = {
     sub: 'Websites, apps, bots and 3D.',
     ctaContact: 'Discuss a project',
     ctaWorks: 'Explore my work',
+    scroll: 'Scroll to explore',
   },
 
   services: {

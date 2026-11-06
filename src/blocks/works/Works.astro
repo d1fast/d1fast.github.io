@@ -65,7 +65,7 @@ const arrow = (dir: 'l' | 'r') => `<svg viewBox="0 0 24 24" aria-hidden="true"><
       ))}
       <div class="works__flat" data-works-flat>
         {items.map((it, k) => (
-          <video class:list={['works__vid', { 'is-on': k === 0 }]} muted playsinline disablepictureinpicture preload={k === 0 ? 'metadata' : 'none'}
+          <video class:list={['works__vid', { 'is-on': k === 0 }]} muted playsinline disablepictureinpicture preload="none"
             poster={it.video.poster} width="1600" height="900" aria-label={`${d.works.video}: ${it.w.title}`} data-works-video={k}>
             <source src={it.video.webm} type="video/webm" />
             <source src={it.video.mp4} type="video/mp4" />
@@ -85,7 +85,6 @@ const arrow = (dir: 'l' | 'r') => `<svg viewBox="0 0 24 24" aria-hidden="true"><
           <p class="works__sub" data-works-part>{it.w.subtitle}</p>
           <p class="works__sum" data-works-part>{it.w.summary}</p>
           {it.w.page && <a class="works__case" href={`${base}${lang === 'en' ? '/en' : ''}/work/${it.slug}/`}>{d.works.open} ↗</a>}
-          <p class="works__meta" data-works-part><span>{it.w.year}</span><span>{it.w.stack.join(', ')}</span>{it.w.concept && <span class="works__concept">{d.works.concept}</span>}</p>
         </div>
       ))}
       <div class="works__nav" data-works-nav>

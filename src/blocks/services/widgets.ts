@@ -7,10 +7,10 @@ gsap.registerPlugin(DrawSVGPlugin);
  * Живые штуки в экранчике окна диалога, по одной на пункт меню. Играет только показанная:
  * play() запускает её с начала, stop() останавливает и возвращает в исходное состояние.
  * DOM-штуки рисуются на «сцене» 360×170 и масштабируются целиком (--k на трубке экрана),
- * 3D рисуется в canvas низкого разрешения с крупными пикселями на весь экран.
+ * 3D-витрина загружается при первом выборе своего пункта.
  *
  * Камера. В каждой сцене работает «оператор»: кадр наезжает на то, что сейчас происходит,
- * переходит к следующему месту и в конце отъезжает на общий план. Общий план вписывает содержимое
+ * держит общий план, затем приближает значимый результат. Общий план вписывает содержимое
  * сцены в экранчик с одним и тем же отступом от рамки (--scr-pad), поэтому все сцены стоят ровно.
  * Сила наезда зависит от того, насколько мелко сцена видна: на телефоне мелкий текст сцены
  * вырастает до 16–26 px, на большом экране камера лишь чуть подаётся к месту действия. В DOM
@@ -105,7 +105,6 @@ const fitS = (v: View, b: Box) => Math.min((v.w - 2 * v.pad) / b[2], (v.h - v.re
 const wideF = (w: number) => Math.min(1, Math.max(0, (w - 400) / 120));
 /** Общий план остаётся узнаваемым и во время приближения. */
 const capS = (s0: number, w: number) => s0 * (1.8 - 0.72 * wideF(w));
-const tight = (_w: number) => 1;
 
 class Cam {
   // кадр: центр и логарифм размеров прямоугольника сцены, который надо показать
@@ -123,8 +122,6 @@ class Cam {
   home(duration = 0.9): gsap.TweenVars { return this.go(this.b, duration); }
   set(r: Box = this.b) { Object.assign(this.s, this.at(r)); this.apply(); }
   view(v: View) { this.v = v; this.apply(); }
-  /** самый крупный масштаб, до которого доедет камера (для разрешения canvas) */
-  get smax() { return this.v.w ? capS(fitS(this.v, this.b), this.v.w) : 2; }
   apply = () => {
     const { w: W, h, res, k: K, pad } = this.v;
     const H = h - res;
@@ -132,8 +129,6 @@ class Cam {
     // кадр вписан в видимую часть с тем же отступом, что и общий план; не мельче общего плана и не крупнее предела
     const s0 = fitS(this.v, this.b);
     let s = Math.min((W - 2 * pad) / Math.exp(this.s.lw), (H - 2 * pad) / Math.exp(this.s.lh));
-    // на телефоне наезд теснее, но общий план остаётся общим: чем ближе кадр, тем сильнее поджимается
-    s *= 1 + (tight(W) - 1) * Math.min(1, Math.max(0, (s / s0 - 1) / 0.5));
     s = Math.min(capS(s0, W), Math.max(s0, s));
     // центр кадра не уводит камеру дальше содержимого с отступом
     const [bx, by, bw, bh] = this.b, m = pad / s;
@@ -159,9 +154,9 @@ function stage(root: HTMLElement, bounds?: Box) {
   return { all, cam: new Cam(layer, bounds) };
 }
 
-/** Таймлайн сцены: по кругу, камера обновляется на каждом кадре. */
-function scene(cam: Cam, repeatDelay = 0.25) {
-  return gsap.timeline({ paused: true, repeat: -1, repeatDelay, onUpdate: cam.apply })
+/** Сцена проигрывается один раз и держит последний кадр до смены пункта. */
+function scene(cam: Cam) {
+  return gsap.timeline({ paused: true, onUpdate: cam.apply })
     .set(cam.s, cam.at(cam.b), 0);
 }
 /** Обёртка для штук на таймлайне GSAP: таймлайн строится при первом показе. rate: во сколько раз сцена идёт
@@ -169,7 +164,7 @@ function scene(cam: Cam, repeatDelay = 0.25) {
 function timed(dwell: number, cam: Cam, build: () => gsap.core.Timeline, rate = RATE): Widget {
   let tl: gsap.core.Timeline | undefined;
   return {
-    dwell: dwell / rate,
+    dwell: dwell / rate + 1.2,
     play() { cam.set(); (tl ??= build().timeScale(rate)).restart(); },
     stop() { tl?.pause(0); cam.set(); },
     resize(v) { cam.view(v); },
@@ -236,7 +231,7 @@ function sites(root: HTMLElement, ui: WidgetUI): Widget {
   const ctaC = { x: P0.x + 16 + 31, y: P0.y + 60 + 8 };
   const plusC = { x: P0.x + 94 + 56 + 9, y: P0.y + 112 + 54 + 8 - 100 };
   const cartC = { x: 44 + 240 + 4, y: 5 + 14 + 6 };
-  const HERO: Box = [46, 34, 268, 92], CTA: Box = [52, 60, 236, 60], CARDS: Box = [46, 40, 268, 92], NAV: Box = [196, 14, 120, 66];
+  const DETAIL: Box = [126, 12, 186, 140];
   return timed(7.6, cam, () => scene(cam)
     .set(all, { opacity: 1 }, 0)
     .set([badge, toast, fly], { opacity: 0 }, 0)
@@ -246,7 +241,6 @@ function sites(root: HTMLElement, ui: WidgetUI): Widget {
     .fromTo(lights, { opacity: 0 }, { opacity: 1, duration: 0.1, ease: S(1), stagger: 0.06 }, 0.2)
     .fromTo([logo, brand, ...links, cartI], { opacity: 0, y: -4 }, { opacity: 1, y: 0, duration: 0.16, ease: S(2), stagger: 0.04 }, 0.28)
     .fromTo(hero, { scaleY: 0 }, { scaleY: 1, transformOrigin: '50% 0%', duration: 0.3, ease: S(5) }, 0.36)
-    .to(cam.s, cam.go(HERO), 0.4)
     .fromTo(h1, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.32, ease: S(8), stagger: 0.12 }, 0.6)
     .fromTo(sub, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: S(2) }, 0.95)
     .fromTo(cta, { scale: 0 }, { scale: 1, duration: 0.3, ease: 'back.out(3)' }, 1.05)
@@ -254,7 +248,6 @@ function sites(root: HTMLElement, ui: WidgetUI): Widget {
     .fromTo(sun, { y: 14 }, { y: 0, duration: 0.5, ease: S(6) }, 1.0)
     .fromTo([secT, ...cards.map((c) => c.c)], { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.24, ease: S(3), stagger: 0.08 }, 1.2)
     // 1. курсор подходит к «Заказать», кнопка проседает, волна, всплывает «Заявка отправлена»
-    .to(cam.s, cam.go(CTA, 0.8), 1.45)
     .fromTo(cur, { x: 0, y: 0, opacity: 0 }, { x: ctaC.x - 330, y: ctaC.y - 180, opacity: 1, duration: 0.75, ease: 'power2.inOut' }, 1.5)
     .to(cur, { scale: 0.8, duration: 0.1, ease: S(1), yoyo: true, repeat: 1 }, 2.3)
     .to(cta, { y: 2, backgroundColor: C.fg, duration: 0.08, ease: S(1) }, 2.32)
@@ -266,7 +259,7 @@ function sites(root: HTMLElement, ui: WidgetUI): Widget {
     // 2. страница листается к товарам
     .to(cur, { x: plusC.x - 330 + 30, y: plusC.y - 180 + 30, duration: 0.5, ease: 'power2.inOut' }, 3.5)
     .to([page, thumb], { y: (i) => (i === 0 ? -100 : 66), duration: 0.8, ease: 'power2.inOut' }, 3.65)
-    .to(cam.s, cam.go(CARDS, 0.8), 3.65)
+    .to(cam.s, cam.go(DETAIL, 1.2), 3.65)
     // 3. «+» у второй карточки: кнопка проседает, точка летит в корзину, на значке «1»
     .to(cur, { x: plusC.x - 330, y: plusC.y - 180, duration: 0.45, ease: 'power2.inOut' }, 4.45)
     .to(cur, { scale: 0.8, duration: 0.1, ease: S(1), yoyo: true, repeat: 1 }, 4.95)
@@ -274,16 +267,13 @@ function sites(root: HTMLElement, ui: WidgetUI): Widget {
     .to(cards[1].plus, { y: 0, backgroundColor: C.ac, duration: 0.12, ease: S(2) }, 5.15)
     .fromTo(wave2.r, wave2.from, { scaleX: 1, scaleY: 1, opacity: 0, duration: 0.45, ease: S(5), immediateRender: false }, 4.99)
     .fromTo(cards[1].c, { y: 0 }, { y: -3, duration: 0.12, ease: S(2), yoyo: true, repeat: 1, immediateRender: false }, 5.0)
-    .to(cam.s, cam.go(NAV, 0.7), 5.05)
     .fromTo(fly, { x: plusC.x - 3, y: plusC.y - 3, opacity: 1 }, { x: cartC.x + 2, y: cartC.y - 2, duration: 0.55, ease: 'power2.in', immediateRender: false }, 5.05)
     .set(fly, { opacity: 0 }, 5.6)
     .fromTo(badge, { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 1, duration: 0.35, ease: 'back.out(3)', immediateRender: false }, 5.6)
     .fromTo(cartI, { y: 0 }, { y: -2, duration: 0.1, ease: S(1), yoyo: true, repeat: 1, immediateRender: false }, 5.6)
-    // общий план, страница наверх, курсор уходит
+    // Курсор уходит, готовая страница остаётся видимой
     .to(cur, { x: 40, y: 30, opacity: 0, duration: 0.5, ease: 'power2.in' }, 5.9)
-    .to(cam.s, cam.home(), 6.15)
-    .to([page, thumb], { y: 0, duration: 0.6, ease: 'power2.inOut' }, 6.2)
-    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 7.25));
+    );
 }
 
 /* ---------- 2. Веб-приложения: панель с меню, цифрами, графиком, таблицей и уведомлением ---------- */
@@ -368,7 +358,7 @@ function dash(root: HTMLElement, ui: WidgetUI): Widget {
   // выручка подросла: «+2 400» всплывает на месте процента роста
   const plus = tx(kpis[0], 50, 5, '+2 400', 8, C.ac);
   // кадры (координаты сцены = координаты окна + (10, 6))
-  const SIDE: Box = [6, 28, 76, 74], KPI: Box = [78, 8, 184, 48], CHART: Box = [78, 52, 180, 66], TOAST: Box = [202, 8, 146, 34], TABLE: Box = [78, 114, 172, 50], ROW: Box = [80, 118, 172, 22], KPI1: Box = [80, 10, 92, 40];
+  const CONTENT: Box = [76, 6, 266, 154];
   return timed(10.6, cam, () => scene(cam)
     .set(all, { opacity: 1 }, 0)
     .set(kv, { a: 0, b: 0, c: 0, onComplete: setK }, 0)
@@ -384,48 +374,39 @@ function dash(root: HTMLElement, ui: WidgetUI): Widget {
     .fromTo([paid, paidTick, plus], { opacity: 0 }, { opacity: 0, duration: 0.01 }, 0)
     .fromTo(fresh.p, { opacity: 1, x: 0 }, { opacity: 1, x: 0, duration: 0.01 }, 0)
     // 1. меню: выделение съезжает на первый пункт
-    .to(cam.s, cam.go(SIDE), 0.5)
     .fromTo(band, { y: 48 }, { y: 0, duration: 0.6, ease: 'power3.inOut' }, 0.85)
     .fromTo(nav[0][0], { backgroundColor: C.dim }, { backgroundColor: C.ac, duration: 0.05, ease: S(1) }, 1.4)
     .fromTo(nav[0][1], { color: C.fg }, { color: C.ac, duration: 0.05, ease: S(1) }, 1.4)
     // 2. цифры бегут
-    .to(cam.s, cam.go(KPI), 1.65)
+    .to(cam.s, cam.go(CONTENT, 1.2), 1.65)
     .to(kv, { a: 84250, b: 1284, c: 3.8, duration: 1.0, ease: 'power2.out', onUpdate: setK }, 1.85)
     .fromTo(ups, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.2, ease: S(2), stagger: 0.1 }, 2.7)
     // 3. график рисуется, столбики растут
-    .to(cam.s, cam.go(CHART), 3.0)
     .to(areaW.w, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'none' }, 3.25)
     .fromTo(line, { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.9, ease: 'none' }, 3.25)
     .to(dot, { scale: 1, duration: 0.2, ease: 'back.out(3)' }, 4.15)
     .to(wb, { scaleY: 1, duration: 0.35, ease: S(6), stagger: 0.06 }, 3.3)
     // 4. приходит заказ: уведомление крупно, колокольчик дрожит
-    .to(cam.s, cam.go(TOAST), 4.4)
     .to(toast, { x: 0, duration: 0.45, ease: 'power3.out' }, 4.55)
     .fromTo(bell, { x: 0 }, { x: -1, duration: 0.07, ease: S(1), yoyo: true, repeat: 5 }, 5.0)
     // 5. заказ встаёт первой строкой таблицы со статусом «новый»
-    .to(cam.s, cam.go(TABLE), 5.55)
     .to(toast, { x: 150, duration: 0.35, ease: 'power2.in' }, 5.6)
     .fromTo(old.map((o) => o.r), { y: 0 }, { y: 12, duration: 0.4, ease: 'power2.inOut' }, 5.85)
     .fromTo(fresh.r, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }, 6.0)
     // 6. приходит оплата: второе уведомление, статус плавно меняется на «оплачен» с галочкой
-    .to(cam.s, cam.go(TOAST), 6.55)
     .to(toast2, { x: 0, duration: 0.45, ease: 'power3.out' }, 6.7)
     .fromTo(coin, { scale: 0 }, { scale: 1, duration: 0.3, ease: 'back.out(3)' }, 7.0)
-    .to(cam.s, cam.go(ROW), 7.55)
     .to(toast2, { x: 150, duration: 0.35, ease: 'power2.in' }, 7.6)
     .to(fresh.p, { opacity: 0, x: -8, duration: 0.25, ease: 'power2.in' }, 7.95)
     .fromTo(paid, { opacity: 0, x: 10 }, { opacity: 1, x: 0, duration: 0.4, ease: 'back.out(2)', immediateRender: false }, 8.1)
     .fromTo(paidTick, { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(3)', immediateRender: false }, 8.35)
     // 7. выручка выросла на сумму заказа
-    .to(cam.s, cam.go(KPI1), 8.7)
     .to(ups[0], { opacity: 0, duration: 0.15 }, 8.9)
     .fromTo(plus, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', immediateRender: false }, 8.95)
     .to(kv, { a: 86650, b: 1285, duration: 0.6, ease: 'power2.out', onUpdate: setK }, 9.0)
     .to(plus, { opacity: 0, duration: 0.25 }, 9.75)
     .to(ups[0], { opacity: 1, duration: 0.2 }, 9.95)
-    // общий план
-    .to(cam.s, cam.home(), 9.6)
-    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 10.3), 1.6);
+    );
 }
 
 /* ---------- 3. Приложения: на телефоне приходит пуш «Курьер выехал», по нажатию открывается приложение
@@ -513,7 +494,7 @@ function devices(root: HTMLElement, ui: WidgetUI): Widget {
     etaN.textContent = String(Math.max(1, Math.ceil(8 * (1 - go.p))));
   };
   // кадры: верх телефона (пуш), экран телефона, окно компьютера, карточка снизу
-  const PUSH: Box = [64, 36, 90, 56], PHONE: Box = [58, 4, 100, 162], SHEET: Box = [62, 96, 92, 64], PC: Box = [184, 30, 166, 96];
+  const PHONE: Box = [58, 4, 100, 162];
   return timed(8.8, cam, () => {
     const tl = scene(cam)
       .set(all, { opacity: 1 }, 0)
@@ -526,34 +507,29 @@ function devices(root: HTMLElement, ui: WidgetUI): Widget {
       .fromTo(ph, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out' }, 0)
       .fromTo(pc, { scaleY: 0.08, opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.24, ease: S(4) }, 0.15)
       // 1. пуш на экране блокировки, его нажимают, приложение раскрывается из уведомления
-      .to(cam.s, cam.go(PUSH), 0.35)
+      .to(cam.s, cam.go(PHONE, 1.2), 0.4)
       .fromTo(push, { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.6)', immediateRender: false }, 0.6)
       .fromTo(tapP.r, tapP.from, { scaleX: 1, scaleY: 1, opacity: 0, duration: 0.42, ease: S(5), immediateRender: false }, 1.45)
       .to(push, { scale: 0.96, duration: 0.08, ease: S(1), yoyo: true, repeat: 1 }, 1.45)
       .to(app, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.45, ease: 'power3.inOut' }, 1.65)
       // 2. карта: курьер едет, время тает, снизу карточка курьера
-      .to(cam.s, cam.go(PHONE, 0.7), 1.75)
       .fromTo(eta, { scale: 0 }, { scale: 1, transformOrigin: '0% 50%', duration: 0.3, ease: 'back.out(2.4)' }, 2.0)
       .to(go, { p: 1, duration: 3.2, ease: 'sine.inOut', onUpdate: putCar }, 2.1)
       .to(sheet, { y: 0, duration: 0.45, ease: 'power3.out' }, 2.5)
       // 3. на компьютере тот же заказ едет вместе с курьером
-      .to(cam.s, cam.go(PC, 0.7), 3.3)
       // 4. доставлено: на телефоне галочка и звёзды, на компьютере статус меняется
-      .to(cam.s, cam.go(SHEET, 0.7), 4.6)
       .to(who, { opacity: 0, duration: 0.2 }, 5.25)
       .to(done, { opacity: 1, duration: 0.25 }, 5.35)
       .fromTo(dTick, { scale: 0 }, { scale: 1, duration: 0.3, ease: 'back.out(3)' }, 5.4)
       .to(stars, { opacity: 1, scale: 1.2, duration: 0.12, ease: S(1), stagger: 0.12 }, 5.9)
       .to(stars, { scale: 1, duration: 0.15, ease: S(1), stagger: 0.12 }, 6.02)
       .fromTo(tapS.r, tapS.from, { scaleX: 1, scaleY: 1, opacity: 0, duration: 0.4, ease: S(5), immediateRender: false }, 6.38)
-      .to(cam.s, cam.go(PC, 0.7), 6.6)
       .to(stWay, { opacity: 0, x: -6, duration: 0.2 }, 6.95)
       .fromTo(stDone, { opacity: 0, x: 8 }, { opacity: 1, x: 0, duration: 0.35, ease: 'back.out(2)', immediateRender: false }, 7.05)
       .to(prog, { opacity: 0, duration: 0.15 }, 7.15)
       .to(rated, { opacity: 1, duration: 0.25, ease: S(2) }, 7.25)
       // общий план
-      .to(cam.s, cam.home(), 7.6)
-      .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 8.45);
+      .to(cam.s, cam.home(1.2), 6.6);
     void call;
     return tl;
   });
@@ -596,7 +572,7 @@ function bots(root: HTMLElement, ui: WidgetUI): Widget {
   const cur = cursor(all, 320, 186);
   // кнопка «18:30» в координатах сцены: окно 78, 5; лента +26; центр кнопки 166, 77
   const tx0 = 78 + 166 - 320, ty0 = 5 + 26 + 77 - 186;
-  const INPUT: Box = [80, 128, 172, 40], ME: Box = [150, 28, 132, 50], REPLY: Box = [80, 60, 204, 66], KEY: Box = [196, 84, 92, 48], DONE: Box = [80, 86, 204, 46];
+  const DONE: Box = [80, 52, 204, 80];
   return timed(7.4, cam, () => scene(cam)
     .set(all, { opacity: 1 }, 0)
     .set(col, { y: 0 }, 0)
@@ -607,21 +583,18 @@ function bots(root: HTMLElement, ui: WidgetUI): Widget {
     .fromTo(win, { scaleY: 0.08, opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.24, ease: S(4) }, 0)
     .fromTo([me, typing, bot1, ...keys, bot2], { opacity: 0 }, { opacity: 0, duration: 0.01 }, 0)
     // 1. в поле печатается сообщение
-    .to(cam.s, cam.go(INPUT), 0.3)
     .to(ph, { opacity: 0, duration: 0.05 }, 0.6)
     .fromTo(ty, { n: 0 }, { n: ui.ask.length, duration: 0.85, ease: S(ui.ask.length), immediateRender: false, onUpdate: () => { tb.textContent = ui.ask.slice(0, Math.round(ty.n)); } }, 0.62)
     .to(send, { scale: 0.86, duration: 0.07, ease: S(1), yoyo: true, repeat: 1 }, 1.6)
-    // 2. отправили: пузырь вверху, камера за ним
+    // 2. отправили: сообщение появляется в ленте
     .set(tb, { textContent: '' }, 1.72)
     .set(ph, { opacity: 1 }, 1.72)
     .fromTo(me, { scale: 0.4, opacity: 0, transformOrigin: '100% 100%' }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2.4)', immediateRender: false }, 1.72)
-    .to(cam.s, cam.go(ME, 0.7), 1.68)
     // 3. бот печатает и отвечает кнопками со временем
     .to(st1, { opacity: 0, duration: 0.01 }, 2.35)
     .to(st2, { opacity: 1, duration: 0.01 }, 2.35)
     .fromTo(typing, { scale: 0.4, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.24, ease: 'back.out(2.4)', immediateRender: false }, 2.4)
     .fromTo(dots, { y: 0 }, { y: -3, duration: 0.14, ease: S(1), stagger: { each: 0.1, repeat: 3, yoyo: true } }, 2.55)
-    .to(cam.s, cam.go(REPLY), 2.45)
     .to(typing, { opacity: 0, duration: 0.05, ease: S(1) }, 3.25)
     .to(st2, { opacity: 0, duration: 0.01 }, 3.25)
     .to(st1, { opacity: 1, duration: 0.01 }, 3.25)
@@ -629,284 +602,36 @@ function bots(root: HTMLElement, ui: WidgetUI): Widget {
     .fromTo(keys, { y: 8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.2, ease: S(3), stagger: 0.1, immediateRender: false }, 3.45)
     // 4. выбирают 18:30
     .fromTo(cur, { x: 0, y: 0, opacity: 0 }, { x: tx0, y: ty0, opacity: 1, duration: 0.6, ease: 'power2.inOut' }, 3.75)
-    .to(cam.s, cam.go(KEY, 0.7), 3.85)
     .to(cur, { scale: 0.78, duration: 0.08, ease: S(1), yoyo: true, repeat: 1 }, 4.4)
     .fromTo(keys[2], { backgroundColor: 'rgba(0,0,0,0)', color: C.fg }, { backgroundColor: C.ac, color: C.s0, duration: 0.05, ease: S(1) }, 4.42)
     .fromTo(wave.r, wave.from, { scaleX: 1, scaleY: 1, opacity: 0, duration: 0.42, ease: S(5), immediateRender: false }, 4.42)
     .to(cur, { x: tx0 + 60, y: ty0 + 70, opacity: 0, duration: 0.6, ease: 'power2.in' }, 4.7)
     // 5. лента сдвигается, бот подтверждает запись
     .to(col, { y: -30, duration: 0.5, ease: 'power2.inOut' }, 4.85)
-    .to(cam.s, cam.go(DONE, 0.7), 4.9)
+    .to(cam.s, cam.go(DONE, 1.1), 4.9)
     .fromTo(bot2, { scale: 0.4, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2.4)', immediateRender: false }, 5.15)
-    // общий план
-    .to(cam.s, cam.home(), 6.05)
-    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 7.05));
+    );
 }
 
-/* ---------- canvas с крупными пикселями ---------- */
-const rgba = (hex: string) => { const n = parseInt(hex.slice(1), 16); return ((255 << 24) | ((n & 255) << 16) | (n & 0xff00) | (n >> 16)) >>> 0; };
-const P = Object.fromEntries(Object.entries(C).map(([k, v]) => [k, rgba(v)])) as Record<keyof typeof C, number>;
-/** смесь двух цветов буфера (ABGR) */
-const mixC = (a: number, b: number, t: number) => {
-  if (t <= 0) return a;
-  if (t >= 1) return b;
-  const m = (s: number) => Math.round(((a >>> s) & 255) + ((((b >>> s) & 255) - ((a >>> s) & 255)) * t));
-  return ((255 << 24) | (m(16) << 16) | (m(8) << 8) | m(0)) >>> 0;
-};
-
-class Pix {
-  cv: HTMLCanvasElement; ctx: CanvasRenderingContext2D; w = 0; h = 0; img!: ImageData; buf!: Uint32Array;
-  rows: (H: number) => number;
-  constructor(parent: HTMLElement, rows: (H: number) => number) {
-    this.rows = rows;
-    this.cv = document.createElement('canvas');
-    this.cv.className = 'svc-cv';
-    this.cv.setAttribute('aria-hidden', 'true');
-    parent.appendChild(this.cv);
-    this.ctx = this.cv.getContext('2d')!;
-  }
-  /** ширина в пикселях подстраивается под пропорции экрана, высота постоянная */
-  fit() {
-    const p = this.cv.parentElement!;
-    const W = p.offsetWidth, H = p.offsetHeight;
-    if (!W || !H) return;
-    const h = Math.round(this.rows(H));
-    const w = Math.max(80, Math.round((h * W) / H));
-    if (w === this.w && h === this.h) return;
-    this.w = w; this.h = h; this.cv.width = w; this.cv.height = h;
-    this.img = this.ctx.createImageData(w, h);
-    this.buf = new Uint32Array(this.img.data.buffer);
-  }
-  clear(c: number) { this.buf.fill(c); }
-  px(x: number, y: number, c: number) { x |= 0; y |= 0; if (x >= 0 && y >= 0 && x < this.w && y < this.h) this.buf[y * this.w + x] = c; }
-  rect(x: number, y: number, w: number, h: number, c: number) {
-    const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y)), x1 = Math.min(this.w, Math.round(x + w)), y1 = Math.min(this.h, Math.round(y + h));
-    for (let yy = y0; yy < y1; yy++) this.buf.fill(c, yy * this.w + x0, yy * this.w + Math.max(x0, x1));
-  }
-  line(x0: number, y0: number, x1: number, y1: number, c: number) {
-    // отрезок обрезается по краям буфера (Лианга-Барски): при наезде концы уходят далеко за экран
-    const dx0 = x1 - x0, dy0 = y1 - y0;
-    let t0 = 0, t1 = 1;
-    for (const [p, q] of [[-dx0, x0 + 1], [dx0, this.w - x0], [-dy0, y0 + 1], [dy0, this.h - y0]]) {
-      if (p === 0) { if (q < 0) return; continue; }
-      const r = q / p;
-      if (p < 0) { if (r > t1) return; if (r > t0) t0 = r; } else { if (r < t0) return; if (r < t1) t1 = r; }
-    }
-    [x0, y0, x1, y1] = [x0 + t0 * dx0, y0 + t0 * dy0, x0 + t1 * dx0, y0 + t1 * dy0];
-    x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
-    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-    let err = dx + dy, n = 0;
-    for (;;) {
-      this.px(x0, y0, c);
-      if ((x0 === x1 && y0 === y1) || ++n > 2000) break;
-      const e2 = 2 * err;
-      if (e2 >= dy) { err += dy; x0 += sx; }
-      if (e2 <= dx) { err += dx; y0 += sy; }
-    }
-  }
-  /** выпуклый многоугольник построчно; цвет строки задаёт функция (для «перекраски» снизу вверх) */
-  poly(pts: number[][], col: (y: number) => number) {
-    let y0 = Infinity, y1 = -Infinity;
-    for (const p of pts) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
-    const ya = Math.max(0, Math.ceil(y0 - 0.5)), yb = Math.min(this.h - 1, Math.floor(y1 - 0.5));
-    for (let y = ya; y <= yb; y++) {
-      const sy = y + 0.5;
-      let xl = Infinity, xr = -Infinity;
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[i], b = pts[(i + 1) % pts.length];
-        if ((a[1] <= sy && b[1] > sy) || (b[1] <= sy && a[1] > sy)) {
-          const x = a[0] + ((sy - a[1]) / (b[1] - a[1])) * (b[0] - a[0]);
-          if (x < xl) xl = x;
-          if (x > xr) xr = x;
-        }
-      }
-      const x0 = Math.max(0, Math.round(xl)), x1 = Math.min(this.w, Math.round(xr));
-      if (x1 > x0) this.buf.fill(col(y), y * this.w + x0, y * this.w + x1);
-    }
-  }
-  sprite(rows: string[], x: number, y: number, pal: Record<string, number>, s = 1) {
-    for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) { const c = pal[rows[j][i]]; if (c) this.rect(x + i * s, y + j * s, s, s, c); }
-  }
-  flush() { if (this.w) this.ctx.putImageData(this.img, 0, 0); }
-}
-
-function loop(tick: (dt: number, t: number) => void) {
-  let raf = 0, last = 0;
-  const f = (t: number) => { const dt = Math.min(0.05, (t - last) / 1000); last = t; tick(dt, t / 1000); raf = requestAnimationFrame(f); };
+/* ---------- 5. 3D-витрина: купе с выбором цвета ---------- */
+function product(root: HTMLElement): Widget {
+  let view: Widget | undefined, pending: Promise<void> | undefined, active = false;
+  let size: View | undefined;
+  root.innerHTML = `<div class="svc-product-fallback" aria-hidden="true"><svg viewBox="0 0 400 220"><ellipse cx="200" cy="173" rx="155" ry="17" fill="#19050e"/><path d="M48 132 72 108 128 100 168 67h91l48 41 42 15 9 33H42Z" fill="#F06A93"/><path d="m144 100 29-26h80l32 30Z" fill="#202a2d"/><path d="M46 143h310v16H46Z" fill="#84334d"/><g fill="#160f15" stroke="#b6c3c0" stroke-width="8"><circle cx="112" cy="155" r="27"/><circle cx="298" cy="155" r="27"/></g><path d="m55 120 24-6-8 12H49m276 4 23 6 3 10h-22" fill="#eaf5d6"/></svg></div>`;
   return {
-    start() { cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(f); },
-    stop() { cancelAnimationFrame(raf); raf = 0; },
-  };
-}
-
-/* ---------- 5. 3D: витрина-конфигуратор. Предмет крутится над сеточным полом, справа палитра
-   и формы; курсор выбирает цвет (предмет перекрашивается снизу вверх) и форму (куб тянется в пирамиду) ---------- */
-// материалы: светлая, средняя и тёмная грань, рёбра, рамка на гранях
-const MATS = [
-  [P.pk, P.pkMid, P.pkDim, P.ac],
-  [P.ac, P.fg, P.fgDark, P.s1],
-  [P.plum, P.s2, P.s1, P.pk],
-];
-const SW = [P.pk, P.fg, P.plum];
-const I_CUBE = ['xxxxx', 'x...x', 'x...x', 'x...x', 'xxxxx'];
-const I_PYR = ['..x..', '.x.x.', '.x.x.', 'x...x', 'xxxxx'];
-
-function cube(root: HTMLElement): Widget {
-  // пиксель около 3 css-px на ПК и около 2 на телефоне
-  const pc = new Pix(root, (H) => Math.min(130, Math.max(64, H / (H > 260 ? 3.2 : 2.2))));
-  const V0: number[][] = [];
-  for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) V0.push([x, y, z]);
-  // грани обходом по периметру; у пирамиды верхние 4 вершины стянуты в одну
-  const F = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]];
-  const TOP = new Set([0, 1, 4, 5]);
-  const L = (() => { const v = [-0.45, -0.8, -0.4]; const n = Math.hypot(...v); return v.map((a) => a / n); })();
-  let ay = 0.6, tx = 0, ty = 0, cx = 0, cy = 0, spin = 0, phase = 0, time = 0, K = 1, Wc = 360;
-  // состояние, которым управляет таймлайн: камера, перекраска, форма, нажатие
-  const st = { u: 0.5, v: 0.5, q: 0, wipe: 0, morph: 0, tap: 0, sel: 0, ui: 0 };
-  let mat = 0, next = 1, shape = 0, shapeTo = 1, tapAt = 0;
-  const draw = (dt: number) => {
-    time += dt; phase = (phase + dt * 1.1) % 1;
-    spin *= Math.exp(-2.2 * dt);
-    ay += dt * (0.75 + spin);
-    cx += (tx - cx) * Math.min(1, dt * 4); cy += (ty - cy) * Math.min(1, dt * 4);
-    const W = pc.w, H = pc.h; if (!W) return;
-    // камера: наезд и центр кадра, кадр не выходит за края мира
-    const z = 1 + st.q * (Math.min(2.2 + 0.6 * (1 - wideF(Wc)), capS(K, Wc) / K) - 1);
-    const hw = W / 2 / z, hh = H / 2 / z;
-    const ox = Math.min(W - hw, Math.max(hw, st.u * W)), oy = Math.min(H - hh, Math.max(hh, st.v * H));
-    const X = (x: number) => (x - ox) * z + W / 2, Y = (y: number) => (y - oy) * z + H / 2;
-    const f = H * 0.95, hor = Math.round(H * 0.47), zObj = 4.6, floorY = 1.75;
-    const mx = W * 0.44;
-    pc.clear(P.s0);
-    // солнце на горизонте, полосами
-    const sr = H * 0.2, sxc = W * 0.7;
-    const r = sr * z;
-    for (let y = -Math.round(r); y <= 0; y++) {
-      const half = Math.sqrt(r * r - y * y);
-      const yy = Math.round(Y(hor)) + y;
-      if (y > -r * 0.55 && (y + 40) % 3 === 0) continue;
-      pc.rect(X(sxc) - half, yy, half * 2 + 1, 1, y < -r * 0.5 ? P.pk : P.pkDim);
-    }
-    // пол: линии бегут к зрителю; у горизонта сплошная дымка, чтобы дальние линии не рябили
-    const sy = (zz: number) => hor + (floorY * f) / zz;
-    const fog = Math.max(3, Math.round(H * 0.07));
-    const zFar = (floorY * f) / fog;
-    for (let k = 0; k < 9; k++) {
-      const zz = 2.2 + (k + 1 - phase) * 1.5;
-      if (zz < zFar) pc.rect(0, Y(sy(zz)), W, 1, zz < 6 ? P.pk : P.pkDim);
-    }
-    for (let x = -14; x <= 14; x += 2) pc.line(X(mx + (x * f) / 2.2), Y(sy(2.2)), X(mx + (x * f) / zFar), Y(hor + fog), P.pkDim);
-    pc.rect(0, Y(hor), W, fog * z, P.s1);
-    pc.rect(0, Y(hor), W, 1, P.pkDim);
-    // подиум: тень и кольцо
-    const shy = sy(zObj), shw = (f * 1.25) / zObj;
-    for (let j = -3; j <= 3; j++) { const w = shw * Math.sqrt(1 - (j * j) / 16) * z; pc.rect(X(mx) - w, Y(shy) + j * z, w * 2, Math.max(1, z), j === -3 || j === 3 ? P.s2 : P.s1); }
-    // предмет: вершины куба, верх тянется в вершину пирамиды
-    const m = shape + (shapeTo - shape) * st.morph;
-    const V = V0.map((v, i) => (TOP.has(i) ? [v[0] * (1 - m), -1 - 0.25 * m, v[2] * (1 - m)] : v));
-    const ry = ay + cx, rx = 0.42 + Math.sin(time * 0.7) * 0.08 + cy;
-    const cyc = Math.cos(ry), syn = Math.sin(ry), cxc = Math.cos(rx), sxn = Math.sin(rx);
-    const bob = Math.sin(time * 1.6) * 0.08 - 0.35, s = 0.95;
-    const view = V.map((v) => {
-      const x1 = v[0] * s * cyc + v[2] * s * syn, z1 = -v[0] * s * syn + v[2] * s * cyc;
-      const y1 = v[1] * s * cxc - z1 * sxn, z2 = v[1] * s * sxn + z1 * cxc;
-      return [x1, y1 + bob, zObj + z2];
-    });
-    const scr = view.map((p) => [X(mx + (p[0] * f) / p[2]), Y(hor - H * 0.05 + (p[1] * f) / p[2])]);
-    // перекраска: все грани разом плавно переходят из цвета в цвет (раньше цвет полз снизу вверх и грани
-    // выглядели недорисованными)
-    const A = MATS[mat], B = MATS[next];
-    const col = (k: number) => mixC(A[k], B[k], st.wipe);
-    const cen = view.reduce((a, p) => [a[0] + p[0] / 8, a[1] + p[1] / 8, a[2] + p[2] / 8], [0, 0, 0]);
-    const edges: number[][][] = [];
-    for (const fc of F) {
-      const q = fc.map((i) => view[i]);
-      const fcen = q.reduce((a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4, a[2] + p[2] / 4], [0, 0, 0]);
-      // нормаль по диагоналям: работает и для вырожденной грани пирамиды
-      const d1 = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]], d2 = [q[3][0] - q[1][0], q[3][1] - q[1][1], q[3][2] - q[1][2]];
-      let n = [d1[1] * d2[2] - d1[2] * d2[1], d1[2] * d2[0] - d1[0] * d2[2], d1[0] * d2[1] - d1[1] * d2[0]];
-      const nl = Math.hypot(n[0], n[1], n[2]);
-      if (nl < 1e-4) continue;
-      n = n.map((a) => a / nl);
-      if (n[0] * (fcen[0] - cen[0]) + n[1] * (fcen[1] - cen[1]) + n[2] * (fcen[2] - cen[2]) < 0) n = n.map((a) => -a);
-      if (n[0] * fcen[0] + n[1] * fcen[1] + n[2] * fcen[2] >= 0) continue; // грань смотрит от камеры
-      const b = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
-      const sh = b > 0.5 ? 0 : b > 0 ? 1 : 2;
-      const pts = fc.map((i) => scr[i]);
-      const c = col(sh);
-      pc.poly(pts, () => c);
-      edges.push(pts);
-    }
-    // рёбра поверх всех граней сразу: швы между гранями закрыты, контур целый на каждом кадре
-    const ce = col(3);
-    for (const pts of edges) for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i + 1) % pts.length];
-      pc.line(a[0], a[1], b[0], b[1], ce);
-    }
-    // палитра справа: три цвета и две формы, выбранное в рамке
-    const pz = Math.max(1, Math.round(z));
-    const px0 = W - 13, py0 = Math.round(H * 0.2);
-    const slots = [0, 1, 2, 3.6, 4.6].map((k) => py0 + Math.round(k * 9));
-    pc.rect(X(px0 - 3), Y(py0 - 4), 14 * z, (slots[4] + 11 - py0 + 4) * z, P.s1);
-    slots.forEach((yy, k) => {
-      const xx = X(px0), y0 = Y(yy);
-      if (k < 3) pc.rect(xx, y0, 6 * z, 6 * z, SW[k]);
-      else pc.sprite(k === 3 ? I_CUBE : I_PYR, xx + 0.5 * z, y0 + 0.5 * z, { x: P.fg }, z);
-    });
-    const selC = st.sel, selS = 3 + (st.ui ? 1 : 0);
-    for (const k of [selC, selS]) {
-      const xx = X(px0 - 2), y0 = Y(slots[k] - 2), w = 10 * z;
-      pc.rect(xx, y0, w, pz, P.ac); pc.rect(xx, y0 + w - pz, w, pz, P.ac); pc.rect(xx, y0, pz, w, P.ac); pc.rect(xx + w - pz, y0, pz, w, P.ac);
-    }
-    // нажатие: квадрат расходится от выбранной ячейки
-    if (st.tap > 0 && st.tap < 1) {
-      const e = (2 + st.tap * 6) * z, xx = X(px0 + 3), y0 = Y(slots[tapAt] + 3);
-      const c = st.tap < 0.5 ? P.ac : P.fg;
-      pc.rect(xx - e, y0 - e, e * 2, pz, c); pc.rect(xx - e, y0 + e, e * 2 + pz, pz, c); pc.rect(xx - e, y0 - e, pz, e * 2, c); pc.rect(xx + e, y0 - e, pz, e * 2, c);
-    }
-    pc.flush();
-  };
-  const lp = loop((dt) => draw(dt));
-  // кадры: общий, палитра, предмет
-  const shot = (u: number, v: number, q: number, d = 0.8) => ({ u, v, q, duration: d, ease: 'power2.inOut' });
-  const PANEL = () => shot((pc.w - 8) / Math.max(1, pc.w), 0.42, 1, 0.75);
-  const OBJ = () => shot(0.44, 0.36, 0.45);
-  let tl: gsap.core.Timeline | undefined;
-  const press = (k: number) => { tapAt = k; };
-  const build = () => {
-    const t = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 0.1 })
-      .set(st, { u: 0.5, v: 0.5, q: 0, wipe: 0, morph: 0, tap: 0 }, 0)
-      // цвет
-      .to(st, PANEL(), 0.7)
-      .call(() => { next = (mat + 1) % 3; press(next); }, [], 1.45)
-      .fromTo(st, { tap: 0 }, { tap: 1, duration: 0.4, ease: 'none', immediateRender: false }, 1.45)
-      .call(() => { st.sel = next; }, [], 1.5)
-      .to(st, OBJ(), 1.75)
-      .fromTo(st, { wipe: 0 }, { wipe: 1, duration: 0.6, ease: 'power1.inOut', immediateRender: false }, 2.15)
-      .call(() => { mat = next; st.wipe = 0; }, [], 2.96)
-      // форма
-      .to(st, PANEL(), 3.4)
-      .call(() => { shapeTo = 1 - shape; press(3 + shapeTo); }, [], 4.1)
-      .fromTo(st, { tap: 0 }, { tap: 1, duration: 0.4, ease: 'none', immediateRender: false }, 4.1)
-      .call(() => { st.ui = shapeTo; }, [], 4.15)
-      .to(st, OBJ(), 4.4)
-      .fromTo(st, { morph: 0 }, { morph: 1, duration: 0.9, ease: 'back.inOut(1.6)', immediateRender: false }, 4.85)
-      .call(() => { shape = shapeTo; st.morph = 0; }, [], 5.76)
-      // общий план
-      .to(st, shot(0.5, 0.5, 0, 0.9), 6.0);
-    return t.timeScale(RATE);
-  };
-  return {
-    dwell: 7.4 / RATE,
+    dwell: 10.5,
     play() {
-      pc.fit(); time = 0; spin = 1.6;
-      mat = 0; next = 1; shape = 0; shapeTo = 1; Object.assign(st, { sel: 0, ui: 0 });
-      (tl ??= build()).invalidate().restart();
-      lp.start();
+      active = true;
+      if (view) { view.play(); return; }
+      pending ??= import('./product').then(({ createProduct }) => {
+        view = createProduct(root);
+        if (size) view.resize?.(size);
+        if (active) view.play();
+      }).catch(() => { /* Изображение машины остаётся при недоступном WebGL. */ });
     },
-    stop() { lp.stop(); tl?.pause(0); tx = ty = cx = cy = 0; },
-    resize(v) { K = v.k; Wc = v.w; pc.fit(); },
-    point(nx, ny, touch) { tx = (nx - 0.5) * 1.3; ty = (ny - 0.5) * 0.9; if (touch) spin += 3; },
+    stop() { active = false; view?.stop(); },
+    resize(v) { size = v; view?.resize?.(v); },
+    point(x, y, touch) { view?.point?.(x, y, touch); },
   };
 }
 
@@ -976,13 +701,13 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
   const setPrize = (i: number) => { wh.win = i; big.textContent = `−${LAB[i]}%`; code.textContent = `SALE${LAB[i]}`; };
   const target = (from: number, i: number, turns: number) => { const t = -(i + 0.5) * SEC; return from + turns * TAU + ((((t - from) % TAU) + TAU) % TAU); };
   // кадры (сцена = окно + (26, 6))
-  const BTN: Box = [172, 26, 150, 88], WHEEL: Box = [34, 20, 136, 136], PRIZE: Box = [160, 20, 174, 122];
+  const PRIZE: Box = [160, 20, 174, 122];
   // кнопка «Крутить»: центр 154+48, 74+13 в окне
   const bx = 26 + 202 - 330, by = 6 + 87 - 186, cpx = 26 + 150 + 40 - 330, cpy = 6 + 20 + 97 - 186;
   const intro = [win, wc, title, ...sub, btn];
   const onTick = () => { cam.apply(); draw(); };
   let auto: gsap.core.Timeline | undefined, user: gsap.core.Timeline | undefined;
-  const buildAuto = () => gsap.timeline({ paused: true, repeat: -1, repeatDelay: 0.25, onUpdate: onTick })
+  const buildAuto = () => gsap.timeline({ paused: true, onUpdate: onTick })
     .set(cam.s, cam.at(cam.b), 0)
     .set(all, { opacity: 1 }, 0)
     .set(wh, { a: 0, flash: 0 }, 0)
@@ -993,35 +718,26 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
     .fromTo(win, { scaleY: 0.08, opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.24, ease: S(4) }, 0)
     .fromTo(wc, { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, 0.25)
     .fromTo([title, ...sub, btn], { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.16, ease: S(2), stagger: 0.07 }, 0.35)
-    // 0. сначала колесо крупно: видно, какие скидки на секторах
-    .to(cam.s, cam.go(WHEEL, 0.7), 0.6)
-    // 1. курсор жмёт «Крутить»
-    .to(cam.s, cam.go(BTN, 0.7), 1.75)
+        // 1. курсор жмёт «Крутить»
     .fromTo(cur, { x: 0, y: 0, opacity: 0 }, { x: bx, y: by, opacity: 1, duration: 0.6, ease: 'power2.inOut' }, 1.85)
     .to(cur, { scale: 0.8, duration: 0.08, ease: S(1), yoyo: true, repeat: 1 }, 2.47)
     .fromTo(btn, { y: 0 }, { y: 2, duration: 0.08, ease: S(1), yoyo: true, repeat: 1, immediateRender: false }, 2.49)
-    // 2. колесо крутится и тормозит, камера смотрит на стрелку
-    .to(cam.s, cam.go(WHEEL), 2.65)
+    // 2. колесо крутится и тормозит на общем плане
     .to(cur, { x: bx + 40, y: by + 60, opacity: 0, duration: 0.5, ease: 'power2.in' }, 2.75)
     .call(() => { spinning = true; }, [], 2.7)
     .fromTo(wh, { a: 0 }, { a: target(0, 4, 4), duration: 2.8, ease: 'power3.out', immediateRender: false }, 2.7)
     .call(() => { spinning = false; }, [], 5.45)
-    .to(cam.s, cam.go(WHEEL), 4.55)
     .fromTo(wh, { flash: 0 }, { flash: 1, duration: 0.6, ease: 'none', immediateRender: false }, 5.45)
     // 3. выпадает промокод
-    .to(cam.s, cam.go(PRIZE), 5.85)
+    .to(cam.s, cam.go(PRIZE, 1.1), 5.85)
     .fromTo(card, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)', immediateRender: false }, 6.0)
-    // 4. камера опускается к коду, он проявляется, его копируют
-    .to(cam.s, cam.go(PRIZE, 0.8), 6.65)
+    // 4. промокод проявляется в том же кадре, его копируют
     .fromTo(code, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: S(6), immediateRender: false }, 6.75)
     .fromTo(cur, { x: cpx + 30, y: cpy + 50, opacity: 0 }, { x: cpx, y: cpy, opacity: 1, duration: 0.5, ease: 'power2.out', immediateRender: false }, 6.8)
     .to(cur, { scale: 0.8, duration: 0.08, ease: S(1), yoyo: true, repeat: 1 }, 7.35)
     .set(copyA, { opacity: 0 }, 7.4)
     .fromTo(copyB, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out', immediateRender: false }, 7.4)
     .to(cur, { x: cpx + 40, y: cpy + 60, opacity: 0, duration: 0.5, ease: 'power2.in' }, 7.65)
-    // общий план
-    .to(cam.s, cam.home(), 7.75)
-    .to(all, { opacity: 0, duration: 0.24, ease: S(3) }, 8.7)
     .timeScale(RATE);
   const reset = () => {
     user?.kill(); user = undefined; spinning = false;
@@ -1029,7 +745,7 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
     gsap.set(cur, { opacity: 0, scale: 1 });
   };
   return {
-    dwell: 9.1 / RATE,
+    dwell: 9.1 / RATE + 1.2,
     play() { reset(); cam.set(); (auto ??= buildAuto()).restart(); },
     stop() { reset(); auto?.pause(0); wh.a = 0; cam.set(); },
     resize(v) {
@@ -1054,23 +770,20 @@ function promo(root: HTMLElement, ui: WidgetUI): Widget {
         .set(copyA, { opacity: 1 }, 0.15)
         .set(copyB, { opacity: 0 }, 0.15)
         .to(btn, { y: 2, duration: 0.08, ease: S(1), yoyo: true, repeat: 1 }, 0)
-        .to(cam.s, cam.go(WHEEL, 0.7), 0.05)
+        .to(cam.s, cam.home(.9), 0.05)
         .to(wh, { a: target(wh.a, i, 4), duration: 2.6, ease: 'power3.out' }, 0.1)
         .call(() => { spinning = false; }, [], 2.7)
-        .to(cam.s, cam.go(WHEEL), 1.95)
         .to(wh, { flash: 1, duration: 0.6, ease: 'none' }, 2.75)
-        .to(cam.s, cam.go(PRIZE), 3.2)
+        .to(cam.s, cam.go(PRIZE, 1.1), 3.2)
         .fromTo(card, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' }, 3.35)
-        .to(cam.s, cam.go(PRIZE, 0.8), 4.0)
-        .fromTo(code, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: S(6) }, 4.15)
-        .to(cam.s, cam.home(), 5.2);
+        .fromTo(code, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: S(6) }, 4.15);
     },
   };
 }
 
 export function buildWidgets(slots: HTMLElement[], ui: WidgetUI): Widget[] {
   const map: Record<string, (r: HTMLElement) => Widget> = {
-    sites: (r) => sites(r, ui), dash: (r) => dash(r, ui), devices: (r) => devices(r, ui), bots: (r) => bots(r, ui), cube, promo: (r) => promo(r, ui),
+    sites: (r) => sites(r, ui), dash: (r) => dash(r, ui), devices: (r) => devices(r, ui), bots: (r) => bots(r, ui), product, promo: (r) => promo(r, ui),
   };
   return slots.map((s) => map[s.dataset.svcW || '']?.(s) ?? { dwell: 4, play() {}, stop() {} });
 }

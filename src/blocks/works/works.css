@@ -69,8 +69,6 @@ html.has-cursor .works__ring { cursor: none; }
   --name-st: 151; --name-min: 26; letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance; }
 .works__sub { max-width: 30ch; font: 500 clamp(14px, min(1.15vw, 2.2vh), 18px)/1.4 var(--font-body); text-wrap: pretty; }
 .works__sum { max-width: 38ch; font: 400 clamp(13px, min(1vw, 1.9vh), 15.5px)/1.5 var(--font-body); color: color-mix(in oklab, var(--fg) 72%, var(--bg)); text-wrap: pretty; }
-.works__meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 400 12.5px/1.4 var(--font-mono); color: var(--works-muted); }
-.works__concept { padding: 0 8px; border: 1px solid var(--works-line); border-radius: 999px; }
 .works__count { font: 500 13px/1 var(--font-mono); letter-spacing: .06em; color: var(--works-muted); }
 .works__count b { color: var(--fg); font-weight: 600; }
 
@@ -104,7 +102,7 @@ html.has-cursor .works__ring { cursor: none; }
 @media (max-height: 480px) and (min-aspect-ratio: 1/1) {
   .works__inner { padding-top: calc(var(--header-h) + 8px); padding-bottom: 12px; }
   .works__title { font-size: 12px; }
-  .works__sum, .works__meta { display: none; }
+  .works__sum { display: none; }
   .works__card { gap: 8px; }
   .works__nav { padding-top: 4px; }
 }
@@ -127,10 +125,8 @@ html.has-cursor .works__ring { cursor: none; }
   .works__name { font-size: clamp(24px, min(8vw, 4.6dvh), 56px); font-stretch: 125%; --name-st: 125; --name-min: 22; white-space: nowrap; text-wrap: nowrap; }
   .works__sub { max-width: none; font-size: clamp(14px, 2.2vw, 18px); }
   .works__sum { max-width: none; font-size: clamp(13px, 1.9vw, 16px); }
-  .works__meta { display: none; }
   .works__yours { font-size: 14px; }
 }
-@media (max-aspect-ratio: 4/5) and (min-height: 760px) { .works__meta { display: flex; } }
 @media (max-aspect-ratio: 4/5) and (max-height: 700px) { .works__sum { display: none; } }
 
 .works__mobile { display: none; }
@@ -145,7 +141,6 @@ html.has-cursor .works__ring { cursor: none; }
   .works__ring { cursor: auto; min-height: 260px; }
   .works__card { gap: 10px; }
   .works__sum { display: none; }
-  .works__meta { display: flex; font-size: 10px; gap: 4px 10px; }
   .works__proj { gap: 7px; }
   .works__inner { row-gap: 8px; }
   .works__field { opacity: .45; }

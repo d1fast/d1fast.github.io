@@ -12,9 +12,6 @@
 /* Шапка: цвета следуют за текущим блоком */
 .site-header { position: fixed; inset: 0 0 auto 0; z-index: 50; display: flex; align-items: center; gap: 24px; height: var(--header-h); padding-left: var(--pad-l); padding-right: var(--pad-r); font: 500 13px/1 var(--font-mono); letter-spacing: .02em; color: var(--fg); background: var(--bg); }
 .site-header a { color: inherit; }
-/* имя: на месте знака сайта, некрупно, тем же шрифтом, что и меню */
-.site-header__name { font-weight: 600; letter-spacing: .01em; white-space: nowrap; padding-block: 12px; margin-block: -12px; transition: opacity var(--dur-base) var(--ease-out); }
-@media (hover: hover) and (pointer: fine) { .site-header__name:hover { opacity: .7; } }
 .site-header__nav { display: flex; gap: 22px; margin-left: auto; }
 .site-header__nav a { position: relative; padding: 6px 0; text-transform: lowercase; }
 /* в английском меню строчные набраны в разметке, местоимение I остаётся заглавным */
@@ -25,6 +22,10 @@
 @media (max-width: 760px) { .site-header__nav { display: none; } .site-header__lang { margin-left: auto; } }
 /* на главной блоки не прокручиваются под шапкой: шапка прозрачная, фон блока идёт до самого верха без шва */
 html.stage-on .site-header, html.js.stage:not(.stage-on) .site-header { background: transparent; }
+
+/* Подвал: подпись слева, ссылка на политику справа. */
+.site-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 20px var(--pad-r) max(24px, var(--safe-b)) var(--pad-l); font: 500 12px/1.5 var(--font-mono); color: var(--fg); }
+.site-footer__policy { text-decoration: underline; text-underline-offset: 3px; padding-block: 12px; margin-block: -12px; }
 
 /* Кейс */
 .case { padding-top: var(--header-h); }

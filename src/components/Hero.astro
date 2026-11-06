@@ -6,24 +6,31 @@ const { lang } = Astro.props;
 const d = t(lang);
 ---
 <section class="block hero" id="top" data-theme="hero" data-block="hero" data-hero>
-  <div class="hero__art" aria-hidden="true" data-hero-art>
-    <img class="hero__fallback" src={`${import.meta.env.BASE_URL}art/hero-knot.webp`} alt="" width="1000" height="720" fetchpriority="high" />
-    <canvas class="hero__canvas" data-hero-canvas></canvas>
+  <div class="hero__light" aria-hidden="true"></div>
+  <div class="hero__art" aria-hidden="true">
+    <img class="hero__fallback" src={`${import.meta.env.BASE_URL}art/paper-garden.svg`} alt="" width="1200" height="900" />
+    <div class="hero__garden" data-hero-garden></div>
   </div>
   <div class="container hero__inner">
-    <h1 class="hero__title" aria-label={d.hero.title.join(' ')}>
-      <span class="hero__word hero__word--first">{d.hero.title[0]}</span>
-      <span class="hero__word hero__word--last">{d.hero.title[1]}</span>
-    </h1>
-    <div class="hero__foot">
+    <div class="hero__copy">
+      <h1 class="hero__title" aria-label={d.hero.title.join(' ')}>
+        <span class="hero__word hero__word--first">{d.hero.title[0]}</span>
+        <span class="hero__word hero__word--last">{d.hero.title[1]}</span>
+      </h1>
       <p class="hero__sub">{d.hero.sub}</p>
+    </div>
+    <div class="hero__foot">
       <div class="hero__cta">
         <a class="hero__primary" href="#works">
           <span>{d.hero.ctaWorks}</span>
-          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M10 68 68 10 M10 10h58v58" /></svg>
+          <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 26 26 6 M7 6h19v19" /></svg>
         </a>
         <a class="hero__secondary" href="#contacts">{d.hero.ctaContact}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" /></svg></a>
       </div>
+      <a class="hero__scroll" href="#services" data-hero-scroll>
+        <span>{d.hero.scroll}</span>
+        <span class="hero__scroll-icon" aria-hidden="true"><svg viewBox="0 0 20 36"><path d="M10 2v28m-6-6 6 6 6-6" /></svg></span>
+      </a>
     </div>
   </div>
 </section>

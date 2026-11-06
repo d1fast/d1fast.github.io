@@ -9,8 +9,6 @@ import type { Ring } from './ring3d';
  * Фон блока = неподвижная наклонная плоскость из скриншотов всех работ. Без WebGL: плоское окно с видео,
  * переключение теми же стрелками и номерами.
  */
-const PERIOD = 3; // узор плоскости повторяется каждые 3 столбца
-const ROWS = 6; // рядов в кадре плоскости (лишние отсекаются замером)
 const VERT = '(max-aspect-ratio: 4/5), (max-width: 760px) and (orientation: portrait)'; // вертикальная раскладка (works.css)
 const STUCK = 9; // видео не запустилось (режим энергосбережения): через столько секунд следующая работа
 const RATE = 1; // обычная скорость: действия в демо должны успевать читаться
@@ -46,46 +44,28 @@ export function init(root: HTMLElement) {
   const tiles: Tile[] = JSON.parse(plane.dataset.worksTiles || '[]');
   const deskT = tiles.filter((t) => !t.portrait), phoneT = tiles.filter((t) => t.portrait);
   let builtV = vert.matches, builtW = 0;
-  /** Собирает тайлы: щедрая сетка рамок, потом остаются только видимые в позе покоя (узлов и картинок столько, сколько видно). */
+  /** Небольшая фиксированная сетка. Без сотни замеров и декодирования невидимых картинок. */
   const build = () => {
     const v = vert.matches, W = root.clientWidth || innerWidth;
     builtV = v; builtW = W;
-    const tw = Math.round(v ? gsap.utils.clamp(130, W > 600 ? 250 : 170, W * 0.4) : gsap.utils.clamp(240, 380, W * 0.23));
-    const g = Math.round(tw * 0.06), step = tw + g;
-    const box = v ? 7 : 9;
-    plane.style.setProperty('--pw', `${box * step - g}px`);
-    plane.style.setProperty('--ph', `${Math.round(6 * (0.69 * tw + g) - g)}px`);
-    const deskH = Math.round((tw * 9) / 16), phoneW = Math.round(tw * 0.5), phoneH = Math.round(phoneW / 0.4621);
-    const all: { el: HTMLElement; src: string }[] = [];
+    const cols = v ? 3 : 6, rows = 3;
+    const tw = Math.round(v ? Math.max(160, W * .42) : Math.min(380, Math.max(240, W * .25)));
+    const gap = Math.round(tw * .06), th = Math.round(tw * .64);
+    plane.style.setProperty('--pw', `${cols * (tw + gap)}px`);
+    plane.style.setProperty('--ph', `${rows * (th + gap)}px`);
     const frag = document.createDocumentFragment();
-    for (let c = -PERIOD; c < box + 2; c++) {
-      const k = ((c % PERIOD) + PERIOD) % PERIOD;
-      const top = Math.round((1 - k) * 0.33 * tw);
-      const put = (r: number, y: number) => {
-        const tall = phoneT.length > 0 && (((k + r) % 4) + 4) % 4 === 1;
-        const t = tall ? phoneT[(((k + r + c) % phoneT.length) + phoneT.length) % phoneT.length] : deskT[(((k * 3 + r + c) % deskT.length) + deskT.length) % deskT.length];
-        const h = tall ? phoneH : deskH;
-        if (t) {
-          const el = document.createElement('span');
-          el.className = 'works__tile';
-          el.style.cssText = `left:${c * step + (tall && k % 2 ? tw - phoneW : 0)}px;top:${y}px;width:${tall ? phoneW : tw}px;height:${h}px`;
-          frag.append(el);
-          all.push({ el, src: t.src });
-        }
-        return h;
-      };
-      for (let r = 0, y = top; r < ROWS; r++) y += put(r, y) + g;
-      for (let r = -1, y = top; r >= -2; r--) { const tall = phoneT.length > 0 && (((k + r) % 4) + 4) % 4 === 1; y -= (tall ? phoneH : deskH) + g; put(r, y); }
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+      const tall = (c + r) % 4 === 1 && phoneT.length > 0;
+      const source = tall ? phoneT : deskT;
+      const t = source[(c + r * 2) % source.length];
+      if (!t) continue;
+      const tile = document.createElement('span'); tile.className = 'works__tile';
+      tile.style.cssText = `left:${c * (tw + gap)}px;top:${r * (th + gap) + (c % 3 - 1) * th * .25}px;width:${tall ? th * .46 : tw}px;height:${th}px`;
+      const img = document.createElement('img');
+      img.alt = ''; img.decoding = 'async'; img.draggable = false; img.loading = 'lazy'; img.src = t.src;
+      tile.append(img); frag.append(tile);
     }
     strip.replaceChildren(frag);
-    const r0 = root.getBoundingClientRect(), m = 28;
-    for (const { el, src } of all) {
-      const r = el.getBoundingClientRect();
-      if (!(r.right > r0.left - m && r.left < r0.right + m && r.bottom > r0.top - m && r.top < r0.bottom + m)) { el.remove(); continue; }
-      const img = document.createElement('img');
-      img.alt = ''; img.decoding = 'async'; img.draggable = false; img.loading = 'lazy'; img.src = src;
-      el.append(img);
-    }
   };
 
   /* ---------- название: слово не переносится, ширина и кегль подгоняются ---------- */
@@ -135,9 +115,7 @@ export function init(root: HTMLElement) {
     ring?.live(k);
     // страховка: видео застряло или не грузится
     stuckT = window.setTimeout(() => { if (active && auto && !holds.size && (v.paused || v.readyState < 2)) autoNext(); }, STUCK * 1000);
-    // следующее видео заранее узнаёт длительность и первый кадр
-    const nv = videos[mod(k + 1, N)];
-    if (nv && nv.preload === 'none') nv.preload = 'metadata';
+
   };
 
   /** карточка и номера под передней работой. Видна всегда ровно одна работа: прежняя смена сначала
@@ -337,24 +315,21 @@ export function init(root: HTMLElement) {
     intro.reset(); cardIn.reset();
     names.forEach((n) => n?.reset());
   });
-  document.addEventListener('visibilitychange', () => { if (!active) return; if (document.hidden) videos[k]?.pause(); else playFront(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!active) return;
+    if (document.hidden) { videos[k]?.pause(); ring?.stop(); }
+    else { if (!vert.matches) ring?.start(); playFront(); }
+  });
 
-  // цилиндр: WebGL проверяется заранее, модуль с three.js грузится только если он есть
-  const glOk = (() => {
-    if (vert.matches) return false;
-    const c = document.createElement('canvas');
-    const g = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
-    g?.getExtension('WEBGL_lose_context')?.loseContext();
-    return !!g;
-  })();
-  // пока модуль цилиндра грузится, плоское окно с видео не показывается: иначе оно мелькнуло бы перед цилиндром
+  // Не создавать дополнительный пробный WebGL-контекст: ошибки обрабатывает сам renderer.
+  const glOk = !vert.matches;
   if (glOk) root.classList.add('will-gl');
   const ready = (async () => {
     build();
     if (!glOk) return;
     try {
       const { createRing } = await import('./ring3d');
-      ring = createRing({ canvas, area, videos, posters: info.map((i) => i.poster) });
+      ring = await createRing({ canvas, area, videos, posters: info.map((i) => i.poster) });
       root.classList.add('is-gl');
       ring.set(0);
       ring.layout(vert.matches);
