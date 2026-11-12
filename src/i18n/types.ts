@@ -4,19 +4,20 @@ export interface Dict {
   lang: Lang;
   htmlLang: string;
   meta: { title: string; description: string; ogTitle: string; ogDescription: string };
+  portfolio: {
+    first: string; second: string; intro: string; about: string; contact: string; contactShort: string;
+    selected: string; projectKinds: string[]; preview: string; light: string;
+    aboutFirst: string; aboutSecond: string; aboutText: string[]; process: string; capabilities: string;
+    contactFirst: string; contactSecond: string; contactText: string;
+    home: string; next: string; previous: string; discuss: string; details: string;
+    play: string; pause: string; seek: string; fullscreen: string; backToForm: string;
+  };
   nav: {
     services: string; works: string; process: string; contacts: string;
     langSwitch: string; langSwitchTitle: string; skipToContent: string;
   };
-  hero: {
-    name: string; nick: string; h1: string;
-    title: [string, string];
-    sub: string; ctaContact: string; ctaWorks: string; scroll: string;
-  };
   services: { title: string; items: { title: string; text: string }[] };
-  /** screen: «Экран {n} из {total}» для точек кадров; carousel: роль окна с кадрами для скринридера;
-   *  prev/next: стрелки (кадр назад и дальше, на краях переходят к соседней работе); video: подпись точки видео;
-   *  concept: пометка у придуманных проектов; project: «Работа {n} из {total}» для счётчика */
+  /** Подписи работ и подробной страницы по прямой ссылке. */
   works: { title: string; open: string; year: string; stack: string; screens: string; screen: string; carousel: string;
     prev: string; next: string; video: string; concept: string; project: string; play: string; swipe: string; enlarge: string };
   process: { title: string; steps: { title: string; text: string }[] };

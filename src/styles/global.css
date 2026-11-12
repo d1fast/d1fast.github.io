@@ -1,98 +1,53 @@
-/* Базовые стили. Токены цвета, шрифтов и движения в tokens.css. */
-*,
-*::before,
-*::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: auto; overflow-x: clip; color-scheme: only light; }
-/* Сцена главной (stage.ts): страница не скроллится сама, блоки листаются переходами.
-   Каждый блок ровно в экран; если содержимое выше, блок прокручивается внутри себя. */
-html.stage-on { overflow: hidden; overscroll-behavior: none; }
-html.stage-on body { overflow: hidden; }
-html.stage-on .block { height: 100dvh; min-height: 0; overflow-x: clip; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
-html.stage-on .block::-webkit-scrollbar { display: none; }
-html.stage-on .block > .block__inner { min-height: 100%; }
-/* открыли по ссылке сразу на блок: до запуска сцены содержимое скрыто, иначе мелькнул бы первый экран */
-html.deep:not(.stage-on) main { visibility: hidden; }
-.stage-fx { position: fixed; inset: 0; z-index: 95; width: 100vw; height: 100vh; pointer-events: none; visibility: hidden; }
-.stage-fx.is-on { visibility: visible; }
-/* переход между страницами сайта (кейс, политика) средствами браузера, где он это умеет */
-@view-transition { navigation: auto; }
-body {
-  margin: 0;
-  min-height: 100dvh;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  overflow-x: clip;
-}
-img, video, svg { display: block; max-width: 100%; height: auto; }
-a { color: inherit; text-decoration: none; }
-button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-input, textarea { font: inherit; color: inherit; }
-h1, h2, h3, p, ul, ol, figure, dl, dd { margin: 0; }
-ul, ol { padding: 0; list-style: none; }
-::selection { background: var(--fg); color: var(--bg); }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
-[hidden] { display: none !important; }
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--fg) 35%, transparent); border-radius: 999px; border: 2px solid var(--bg); }
-@supports (scrollbar-color: red blue) { html { scrollbar-color: color-mix(in oklab, var(--fg) 35%, transparent) transparent; } }
-
-.skip-link { position: fixed; left: max(16px, var(--safe-l)); top: -60px; z-index: 100; padding: 10px 14px; background: var(--fg); color: var(--bg); border-radius: 8px; font-weight: 600; }
-.skip-link:focus { top: 16px; }
-/* заголовок блока получает фокус программно при переходе: рамка ему не нужна */
-[tabindex="-1"]:focus { outline: none; }
-.visually-hidden { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-
-.container { width: 100%; max-width: var(--container); margin-inline: auto; padding-left: var(--pad-l); padding-right: var(--pad-r); }
-
-/* Блок: один экран, своя тема и свой фон. */
-.block { position: relative; min-height: 100dvh; background: var(--bg); color: var(--fg); overflow: clip; isolation: isolate; }
-.block__inner { position: relative; z-index: 1; min-height: 100dvh; display: grid; align-content: center; padding-top: calc(var(--header-h) + 24px); padding-bottom: clamp(32px, 6vh, 72px); }
-.block__title { font: 800 clamp(32px, 5.4vw, 88px)/.95 var(--font-display); letter-spacing: -.03em; text-transform: uppercase; text-wrap: balance; }
-@media (max-width: 760px) { .block__inner { padding-top: calc(var(--header-h) + 16px); } }
-/* справа место под точки навигации */
-@media (min-width: 761px) { .block > .container { padding-right: max(var(--pad-r), 64px); } }
-
-/* Появление при входе блока на экран. До срабатывания элемент видим без JS. */
-html.js [data-reveal] { opacity: 0; }
-html.js [data-reveal].is-in { opacity: 1; }
-html.js .split-line { display: block; overflow: clip; }
-html.js .split-line > .split-inner { display: block; will-change: transform; }
-
-/* Навигация по блокам: штрихи справа, активный длиннее и с подписью */
-.dots { position: fixed; right: calc(clamp(10px, 1.6vw, 24px) + var(--safe-r)); top: 50%; z-index: 40; transform: translateY(-50%); display: grid; gap: 4px; color: var(--fg); }
-.dots a { position: relative; display: grid; place-items: center end; width: 36px; height: 22px; }
-.dots a::before { content: ''; width: 12px; height: 2px; background: currentColor; opacity: .4; transition: width .45s var(--ease-out), opacity .2s; }
-.dots a.is-active::before { width: 30px; opacity: 1; }
-.dots a:hover::before { opacity: 1; width: 20px; }
-.dots a.is-active:hover::before { width: 30px; }
-.dots__label { position: absolute; right: 44px; top: 50%; transform: translateY(-50%) translateX(6px); padding: 4px 7px; border-radius: 3px; background: var(--bg); font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .3s var(--ease-out); }
-.dots a:hover .dots__label, .dots a:focus-visible .dots__label { opacity: 1; transform: translateY(-50%) translateX(0); }
-/* на телефоне (и стоя, и боком) точек нет: блоки листаются свайпом, а справа точки наезжали бы на содержимое */
-@media (max-width: 760px), (orientation: landscape) and (max-height: 540px) { .dots { display: none; } }
-
-/* Свой курсор только для мыши: точка и догоняющее её кольцо; цвет инвертирует фон под ним */
-.cursor { display: none; }
-@media (hover: hover) and (pointer: fine) {
-  html.has-cursor, html.has-cursor a, html.has-cursor button, html.has-cursor label, html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor: none; }
-  .cursor { display: block; position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; mix-blend-mode: difference; transition: opacity .25s var(--ease-out); }
-  .cursor__dot, .cursor__ring { position: absolute; left: 0; top: 0; will-change: transform; }
-  .cursor__dot::before, .cursor__ring::before { content: ''; position: absolute; border-radius: 50%; transition: transform .35s var(--ease-out), background-color .25s var(--ease-out), opacity .2s; }
-  .cursor__dot::before { left: -4px; top: -4px; width: 8px; height: 8px; background: #fff; }
-  .cursor__ring::before { left: -18px; top: -18px; width: 36px; height: 36px; border: 1.5px solid #fff; background: rgb(255 255 255 / 0); }
-  .cursor.is-link .cursor__ring::before { transform: scale(1.55); background: rgb(255 255 255 / .14); }
-  .cursor.is-link .cursor__dot::before { transform: scale(0); }
-  .cursor.is-text .cursor__ring::before { transform: scale(.45); }
-  .cursor.is-down .cursor__ring::before { transform: scale(.8); }
-  .cursor.is-link.is-down .cursor__ring::before { transform: scale(1.35); }
-  .cursor.is-hidden { opacity: 0; }
-}
-
-/* Разрезанный текст (SplitText в блоках): маски строк и слов режут по краю, хвосты букв не теряются. */
-.ln-mask, .wd-mask { display: block; padding-bottom: .12em; margin-bottom: -.12em; }
-.wd-mask { display: inline-block; vertical-align: top; white-space: nowrap; }
-.wd, .ch { display: inline-block; will-change: transform; }
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:auto;color-scheme:only light;scrollbar-gutter:stable;overflow-x:clip;background:var(--bg)}
+.is-portfolio{scrollbar-width:none;scrollbar-gutter:auto}
+.is-portfolio::-webkit-scrollbar{display:none}
+body{margin:0;min-height:100svh;background:var(--bg);color:var(--fg);font:400 16px/1.5 var(--font-body);-webkit-font-smoothing:antialiased;overflow-x:clip}
+img,video,svg{display:block;max-width:100%;height:auto}
+a{color:inherit;text-decoration:none}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+button:disabled{cursor:wait;opacity:.55}
+h1,h2,h3,p,ul,ol,figure,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+fieldset{min-inline-size:0;margin:0;padding:0;border:0}
+summary{cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+[hidden]{display:none!important}
+::selection{background:var(--fg);color:var(--cream)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:5px;border-radius:2px}
+[tabindex="-1"]:focus{outline:none}
+.container{width:100%;max-width:var(--container);margin-inline:auto;padding-inline:var(--pad-l) var(--pad-r)}
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip-link{position:fixed;left:20px;top:-70px;z-index:200;padding:12px 20px;background:var(--fg);color:var(--cream);border-radius:6px}
+.skip-link:focus{top:16px}
+.site-header{position:relative;z-index:5;display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:16px;height:var(--header-h);padding-top:var(--safe-top);padding-inline:var(--pad-l) var(--pad-r)}
+.is-portfolio .site-header{position:absolute;inset:0 0 auto}
+.site-header__brand{font-size:29px;line-height:1;font-weight:650;letter-spacing:-.085em;white-space:nowrap}
+.site-header__brand span{display:inline-block;vertical-align:top;margin-left:3px;font-size:21px;font-weight:400;line-height:.7}
+.light-switch{width:44px;height:44px;display:grid;place-items:center;border:1px solid transparent;border-radius:50%;transition:border-color .25s,background .25s}
+.light-switch svg{width:22px;transition:transform 1s var(--ease-out)}
+.light-switch:hover{border-color:var(--line);background:rgb(241 240 223 / .25)}
+.light-switch:hover svg{transform:rotate(70deg)}
+html:not(.is-portfolio) .light-switch{visibility:hidden;pointer-events:none}
+.site-header__nav{display:flex;justify-content:flex-end;align-items:center;gap:clamp(22px,3.4vw,58px);padding-right:clamp(16px,2.5vw,40px)}
+.header-link{padding-block:12px;font-size:14px;position:relative}
+.header-link::after{content:'';position:absolute;left:0;right:0;bottom:8px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease-out)}
+.header-link:hover::after{transform:scaleX(1)}
+.text-button{display:inline-flex;align-items:center;justify-content:space-between;gap:24px;font-size:16px;line-height:1.3;min-height:44px;text-align:left}
+.text-button>span{padding-bottom:3px;border-bottom:1px solid currentColor}
+.text-button svg{width:22px;flex:0 0 22px;transition:transform .4s var(--ease-out)}
+.text-button:hover svg{transform:rotate(45deg) translate(2px,-2px)}
+.header-contact{font-size:14px;gap:12px}
+.header-contact__short{display:none}
+.site-header__lang{display:grid;place-items:center;width:40px;height:44px;font-size:12px;border:1px solid var(--line);border-radius:50%;transition:background .25s}
+.site-header__lang:hover{background:var(--cream)}
+.icon-button{display:inline-grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border:1px solid var(--line);border-radius:50%;transition:background .25s,transform .3s var(--ease-out)}
+.icon-button svg{width:21px}
+.icon-button:hover{background:var(--pear);transform:rotate(4deg)}
+.eyebrow{font-size:12px;font-weight:450;line-height:1.4;letter-spacing:.035em;color:var(--muted)}
+.site-footer{display:flex;justify-content:space-between;gap:20px;padding:32px var(--gutter);font-size:12px;color:var(--muted)}
+.site-footer__policy:hover{text-decoration:underline;text-underline-offset:4px}
+.btn{display:inline-flex;align-items:center;min-height:44px;border-bottom:1px solid currentColor}
+html.has-sheet{overflow:hidden}
+@media(max-width:600px){:root{--header-h:calc(78px + var(--safe-top))}.site-header{grid-template-columns:auto 1fr auto;gap:12px;padding-inline:max(20px,env(safe-area-inset-left,0px)) max(20px,env(safe-area-inset-right,0px))}.site-header__brand{font-size:25px}.light-switch{display:none}.site-header__nav{gap:20px;padding-right:2px}.site-header__nav a{font-size:12px}.header-contact{gap:8px}.header-contact__long{display:none}.header-contact__short{display:inline}.header-contact svg{width:17px;flex-basis:17px}.site-header__lang{width:34px;height:36px;font-size:11px}.site-footer{flex-wrap:wrap;font-size:11px}}

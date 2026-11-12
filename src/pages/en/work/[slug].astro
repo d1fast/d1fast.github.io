@@ -9,6 +9,6 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { slug } = Astro.params;
 ---
-<Base lang="en" path={`/work/${slug}/`} title={`${entry.data.title}: case study. Saveliy Lopatin`} description={entry.data.subtitle} ogImage={entry.data.cover} ogWidth={1280} ogHeight={720} theme="works">
+<Base lang="en" path={`/work/${slug}/`} title={`${entry.data.title}: case study. Saveliy Lopatin`} description={entry.data.subtitle} ogImage={entry.data.cover} ogWidth={1280} ogHeight={720}>
   <Case lang="en" entry={entry} slug={slug} />
 </Base>

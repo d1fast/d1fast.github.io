@@ -8,13 +8,14 @@ const enChrome = {
   title: `404: ${en.notFound.title}`,
   skip: en.nav.skipToContent,
   home: `${base}${langPrefix('en')}/`,
-  nav: [['services', en.nav.services], ['works', en.nav.works], ['process', en.nav.process], ['contacts', en.nav.contacts]],
+  nav: [['about', en.portfolio.about], ['contact', en.portfolio.contact]],
+  contactShort: en.portfolio.contactShort,
   lang: { text: en.nav.langSwitch, title: en.nav.langSwitchTitle, href: `${base}/` },
   copy: '© 2026 Saveliy Lopatin',
   policy: { text: en.contacts.policy, href: `${base}${langPrefix('en')}/policy/` },
 };
 ---
-<Base lang="ru" path="/404/" title={`404: ${ru.notFound.title}`} noindex theme="sun">
+<Base lang="ru" path="/404/" title={`404: ${ru.notFound.title}`} noindex>
   <section class="not-found container" data-lang-switch>
     <p class="not-found__code" aria-hidden="true">404</p>
     <div class="not-found__ru">
@@ -40,7 +41,9 @@ const enChrome = {
       document.querySelector('.not-found__ru')?.setAttribute('hidden', '');
       document.querySelector('.not-found__en')?.removeAttribute('hidden');
       const skip = document.querySelector('.skip-link'); if (skip) skip.textContent = c.skip;
-      document.querySelectorAll<HTMLAnchorElement>('.site-header__nav a').forEach((a, i) => { const n = c.nav[i]; if (n) { a.href = c.home + '#' + n[0]; a.textContent = n[1]; } });
+      document.querySelectorAll<HTMLAnchorElement>('.site-header__nav a').forEach((a, i) => { const n = c.nav[i]; if (n) { a.href = c.home + '#' + n[0]; const label = a.querySelector('.header-contact__long'); if (label) label.textContent = n[1]; else a.textContent = n[1]; } });
+      const short = document.querySelector('.header-contact__short'); if (short) short.textContent = c.contactShort;
+      const brand = document.querySelector<HTMLAnchorElement>('.site-header__brand'); if (brand) brand.href = c.home;
       const nav = document.querySelector('.site-header__nav'); nav?.setAttribute('aria-label', 'Sections');
       const sw = document.querySelector<HTMLAnchorElement>('.site-header__lang');
       if (sw) { sw.textContent = c.lang.text; sw.title = c.lang.title; sw.href = c.lang.href; sw.hreflang = 'ru'; sw.lang = 'ru'; }

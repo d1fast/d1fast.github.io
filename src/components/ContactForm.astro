@@ -1,0 +1,23 @@
+---
+import { t, type Lang } from '../i18n';
+import { site } from '../config';
+import Icon from './Icon.astro';
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang);
+const kinds = { tg: { type: 'text', mode: 'text', auto: 'off' }, email: { type: 'email', mode: 'email', auto: 'email' }, phone: { type: 'tel', mode: 'tel', auto: 'tel' } } as const;
+---
+<form class="letter" data-contact-form data-endpoint={site.formEndpoint} data-lang={lang}
+  data-sending={d.contacts.sending} data-success={d.contacts.success} data-error={d.contacts.error}
+  data-error-consent={d.contacts.errorConsent} data-error-empty={d.contacts.errorEmpty} data-error-contact={d.contacts.errorContact}
+  novalidate aria-label={d.contacts.formTitle}>
+  <div class="letter__field"><label for="cf-name">{d.contacts.nameLabel}</label><input id="cf-name" name="name" type="text" autocomplete="name" maxlength="120" placeholder={d.contacts.namePlaceholder} /></div>
+  <fieldset class="letter__reply"><legend>{d.contacts.replyLabel}</legend><div class="letter__options">{d.contacts.via.map((v, i) => <label><input type="radio" name="via" value={v.id} checked={i === 0} aria-controls={`cf-${v.id}`} /><span>{v.label}</span></label>)}</div>
+    {d.contacts.via.map((v, i) => <div class="letter__contact" data-via={v.id} hidden={i !== 0}>{v.prefix && <span aria-hidden="true">{v.prefix}</span>}<input id={`cf-${v.id}`} name={`c_${v.id}`} data-prefix={v.prefix} type={kinds[v.id].type} inputmode={kinds[v.id].mode} autocomplete={kinds[v.id].auto} maxlength="160" placeholder={v.placeholder} aria-label={v.label} /></div>)}
+  </fieldset>
+  <div class="letter__field"><label for="cf-message">{d.contacts.messageLabel}</label><textarea id="cf-message" name="message" rows="3" maxlength="2000" required placeholder={d.contacts.messagePlaceholder}></textarea></div>
+  <div class="letter__honeypot" aria-hidden="true"><label for="cf-website">Website</label><input id="cf-website" name="website" type="text" tabindex="-1" autocomplete="off" /></div>
+  <label class="letter__consent"><input type="checkbox" name="consent" required /><span>{d.contacts.consent} <a href="#privacy" data-open-view="privacy">{d.contacts.consentLink}</a></span></label>
+  <button class="text-button letter__send" type="submit"><span data-submit-label>{d.contacts.submit}</span><Icon /></button>
+  <p class="letter__status" id="cf-status" data-form-status role="status" aria-live="polite"></p>
+</form>

@@ -2,7 +2,7 @@
 import '../styles/fonts.generated.css';
 import '../styles/tokens.css';
 import '../styles/global.css';
-import '../styles/sections.css';
+import '../styles/pages.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { t, langPrefix, langs, type Lang } from '../i18n';
@@ -18,15 +18,13 @@ interface Props {
   ogWidth?: number;
   ogHeight?: number;
   noindex?: boolean;
-  theme?: string;
-  /** Главная рисует подвал внутри последнего блока. */
+  /** У главной собственный компактный подвал. */
   footer?: boolean;
-  /** Посекционный скролл на главной. */
-  snap?: boolean;
+  /** Главная с общим фоном и окнами. */
+  portfolio?: boolean;
 }
-const { lang, path, noindex = false, theme = 'sun', footer = true, snap = false, ogWidth = 1200, ogHeight = 630 } = Astro.props;
+const { lang, path, noindex = false, footer = true, portfolio = false, ogWidth = 1200, ogHeight = 630 } = Astro.props;
 const d = t(lang);
-const blocks: [string, string][] = [['top', lang === 'ru' ? 'Начало' : 'Start'], ['services', d.nav.services], ['works', d.nav.works], ['process', d.nav.process], ['contacts', d.nav.contacts]];
 const title = Astro.props.title ?? d.meta.title;
 const description = Astro.props.description ?? d.meta.description;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -37,7 +35,7 @@ const ogImage = `${origin}${base}${Astro.props.ogImage ?? (lang === 'en' ? '/og-
 const other = lang === 'ru' ? 'en' : 'ru';
 ---
 <!doctype html>
-<html lang={d.htmlLang} data-theme={snap ? 'hero' : theme} class:list={[{ stage: snap }]}>
+<html lang={d.htmlLang} data-theme="studio" class:list={[{ 'is-portfolio': portfolio }]}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -61,19 +59,18 @@ const other = lang === 'ru' ? 'en' : 'ru';
     <meta property="og:locale" content={lang === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta property="og:locale:alternate" content={other === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content={snap ? '#B6A5C7' : '#FFD43B'} />
-    <link rel="icon" href={`${base}/favicon-16.png?v=3`} sizes="16x16" type="image/png" />
-    <link rel="icon" href={`${base}/favicon-32.png?v=3`} sizes="32x32" type="image/png" />
-    <link rel="icon" href={`${base}/favicon.svg?v=3`} sizes="any" type="image/svg+xml" />
+    <meta name="theme-color" content="#D6E6E3" />
+    <link rel="icon" href={`${base}/favicon-16.png?v=4`} sizes="16x16" type="image/png" />
+    <link rel="icon" href={`${base}/favicon-32.png?v=4`} sizes="32x32" type="image/png" />
+    <link rel="icon" href={`${base}/favicon.svg?v=4`} sizes="any" type="image/svg+xml" />
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="manifest" href={`${base}/site.webmanifest`} />
     <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
     <link rel="preload" href={`${base}/fonts/onest-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />
+    {portfolio && <link rel="preload" href={`${base}/fonts/cormorant-italic-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />}
     <script is:inline>
       document.documentElement.classList.add('js');
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-      // ссылка сразу на блок главной: пока сцена не запустилась, страница в цветах этого блока и без первого экрана
-      (function (el, id) { if (el.classList.contains('stage') && /^(services|works|process|contacts)$/.test(id)) { el.classList.add('deep'); el.setAttribute('data-theme', id); } })(document.documentElement, location.hash.slice(1));
     </script>
     <script type="application/ld+json" set:html={JSON.stringify({
       '@context': 'https://schema.org',
@@ -91,11 +88,6 @@ const other = lang === 'ru' ? 'en' : 'ru';
       <slot />
     </main>
     {footer && <Footer lang={lang} />}
-    {snap && (
-      <nav class="dots" aria-label={lang === 'ru' ? 'Блоки страницы' : 'Page blocks'} data-dots>
-        {blocks.map(([id, label]) => <a href={`#${id}`} data-dot={id}><span class="dots__label">{label}</span></a>)}
-      </nav>
-    )}
     <script src="../scripts/main.ts"></script>
   </body>
 </html>

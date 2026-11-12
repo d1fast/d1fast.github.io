@@ -14,7 +14,8 @@ export function initForm(root: ParentNode = document) {
   const lang = form.dataset.lang || 'ru';
   const status = form.querySelector<HTMLElement>('[data-form-status]')!;
   const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-  const labels = { submit: submit.textContent || '', sending: form.dataset.sending || '', success: form.dataset.success || '', error: form.dataset.error || '', errorConsent: form.dataset.errorConsent || '', errorEmpty: form.dataset.errorEmpty || '', errorContact: form.dataset.errorContact || '' };
+  const submitLabel = submit.querySelector<HTMLElement>('[data-submit-label]') || submit;
+  const labels = { submit: submitLabel.textContent || '', sending: form.dataset.sending || '', success: form.dataset.success || '', error: form.dataset.error || '', errorConsent: form.dataset.errorConsent || '', errorEmpty: form.dataset.errorEmpty || '', errorContact: form.dataset.errorContact || '' };
   const last = { t: 0 };
   let pending: { sig: string; id: string } | null = null;
   let busy = false;
@@ -72,7 +73,7 @@ export function initForm(root: ParentNode = document) {
     if (!pending || pending.sig !== sig) pending = { sig, id: newId() };
     busy = true;
     submit.disabled = true;
-    submit.textContent = labels.sending;
+    submitLabel.textContent = labels.sending;
     show('', '');
     const ctrl = new AbortController();
     const timer = window.setTimeout(() => ctrl.abort(), 20000);
@@ -91,7 +92,7 @@ export function initForm(root: ParentNode = document) {
       clearTimeout(timer);
       busy = false;
       submit.disabled = false;
-      submit.textContent = labels.submit;
+      submitLabel.textContent = labels.submit;
     }
   });
 }

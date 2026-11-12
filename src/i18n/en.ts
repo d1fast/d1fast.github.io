@@ -3,6 +3,25 @@ import type { Dict } from './types';
 export const en: Dict = {
   lang: 'en',
   htmlLang: 'en',
+  portfolio: {
+    first: 'Development', second: 'with character.',
+    intro: 'Websites, apps and bots.\nFrom the first thought to a working product.',
+    about: 'About me', contact: 'Let’s talk', contactShort: 'Let’s talk', selected: 'Selected work',
+    projectKinds: ['Interactive 3D service', 'Telegram bot', 'Coffee shop website'],
+    preview: 'View project', light: 'Change the light',
+    aboutFirst: 'Hello.', aboutSecond: 'I’m Saveliy.',
+    aboutText: [
+      'I build websites, apps, bots and 3D interfaces. I like a clear idea behind the visuals, and products that feel good to use.',
+      'Bring a finished brief or just tell me what you have in mind. We’ll figure out what fits, then start building.',
+    ],
+    process: 'How I work', capabilities: 'What I can help with',
+    contactFirst: 'An idea?', contactSecond: 'Tell me.',
+    contactText: 'A few words about the project, a wish list or a reference you like. That’s enough to start.',
+    home: 'Back home', next: 'Next project', previous: 'Previous project',
+    discuss: 'Let’s make something like this', details: 'A closer look',
+    play: 'Play video', pause: 'Pause video', seek: 'Video position', fullscreen: 'Expand video',
+    backToForm: 'Back to your message',
+  },
   meta: {
     title: 'Saveliy Lopatin (d1fast): websites, apps, bots and 3D',
     description:
@@ -19,17 +38,6 @@ export const en: Dict = {
     langSwitchTitle: 'Переключить на русский',
     skipToContent: 'Skip to content',
   },
-  hero: {
-    name: 'Saveliy Lopatin',
-    nick: 'd1fast',
-    h1: 'Saveliy Lopatin (d1fast): I build websites, apps, bots and 3D',
-    title: ['Ideas', 'come alive.'],
-    sub: 'Websites, apps, bots and 3D.',
-    ctaContact: 'Discuss a project',
-    ctaWorks: 'Explore my work',
-    scroll: 'Scroll to explore',
-  },
-
   services: {
     title: 'What I do',
     items: [
