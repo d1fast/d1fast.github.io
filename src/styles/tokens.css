@@ -1,16 +1,16 @@
 :root {
-  --font-body: 'Onest', Arial, sans-serif;
+  --font-body: 'Manrope', Arial, sans-serif;
   --font-display: var(--font-body);
-  --font-serif: 'Cormorant Garamond', Georgia, serif;
-  --bg: #E9EEE3;
-  --fg: #173E43;
-  --sky: #B8DCE8;
-  --cream: #F1F0DF;
-  --pear: #CDDB92;
-  --muted: #345456;
-  --line: rgb(23 62 67 / .22);
-  --line-strong: rgb(23 62 67 / .45);
-  --focus: #173E43;
+  --font-serif: 'Prata', Georgia, serif;
+  --bg: #E3E9ED;
+  --fg: #4B2935;
+  --sky: #CBD9E2;
+  --cream: #F4EEEB;
+  --accent: #C5A4A7;
+  --muted: #62545E;
+  --line: rgb(75 41 53 / .22);
+  --line-strong: rgb(75 41 53 / .45);
+  --focus: #4B2935;
   --error: #963E2B;
   --gutter: clamp(20px, 4.2vw, 84px);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -18,6 +18,6 @@
   --pad-l: max(var(--gutter), env(safe-area-inset-left, 0px));
   --pad-r: max(var(--gutter), env(safe-area-inset-right, 0px));
   --container: 1600px;
-  --header-h: calc(96px + var(--safe-top));
+  --header-h: 0px;
   --ease-out: cubic-bezier(.22, 1, .36, 1);
 }

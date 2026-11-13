@@ -1,7 +1,7 @@
 import { initForm } from './form';
 import { initPortfolio } from './portfolio';
-import { initLightfield } from './lightfield';
+import { initRibbon } from './ribbon';
 
 initForm();
 initPortfolio();
-initLightfield();
+initRibbon();

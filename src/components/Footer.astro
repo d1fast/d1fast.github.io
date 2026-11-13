@@ -1,12 +1,10 @@
 ---
 import { t, langPrefix, type Lang } from '../i18n';
-import { site } from '../config';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const d = t(lang);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <footer class="site-footer">
-  <p class="site-footer__copy">© {site.year} {lang === 'ru' ? 'Савелий Лопатин' : 'Saveliy Lopatin'}</p>
   <a class="site-footer__policy" href={`${base}${langPrefix(lang)}/policy/`}>{d.contacts.policy}</a>
 </footer>

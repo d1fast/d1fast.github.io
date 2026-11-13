@@ -190,8 +190,8 @@ export function initPortfolio() {
       const enter = () => {
         const box = anchor.getBoundingClientRect();
         image.src = anchor.dataset.preview!;
-        const left = Math.max(16, Math.min(innerWidth - 316, box.x + box.width / 2 - 150));
-        const top = Math.max(110, box.top - 214);
+        const left = Math.max(16, Math.min(innerWidth - 296, box.x + box.width / 2 - 140));
+        const top = Math.max(16, box.top - 218);
         gsap.killTweensOf(preview);
         gsap.set(preview, { left, top });
         gsap.fromTo(preview, { y: 14, rotate: -4, scale: .95, autoAlpha: 0 }, { y: 0, rotate: -2, scale: 1, autoAlpha: 1, duration: .5, ease: 'power3.out' });
@@ -201,8 +201,7 @@ export function initPortfolio() {
       anchor.addEventListener('focus', enter); anchor.addEventListener('blur', leave); anchor.addEventListener('click', leave);
     });
   }
-  gsap.fromTo('.studio__headline>span', { y: 16, opacity: .45 }, { y: 0, opacity: 1, duration: 1, ease: 'power3.out' });
-  gsap.fromTo('.studio__headline em', { y: 28, opacity: .3 }, { y: 0, opacity: 1, duration: 1.25, delay: .1, ease: 'power3.out' });
+  gsap.fromTo('.studio__headline', { y: 12, opacity: .25 }, { y: 0, opacity: 1, duration: 1.2, ease: 'power3.out' });
   // Подгоняем кегль по настоящей ширине букв, в том числе после загрузки кириллицы.
   const fitHeadline = () => {
     const heading = studio.querySelector<HTMLElement>('.studio__headline')!;

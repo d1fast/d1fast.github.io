@@ -28,19 +28,22 @@ try {
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(`${name}: ${e.message}`));
     for (const lang of ['ru', 'en']) {
+      await page.addInitScript(value => { Object.defineProperty(navigator, 'languages', { configurable: true, get: () => [value] }); }, lang);
       const home = base + (lang === 'ru' ? '/' : '/en/');
       const requests = [];
       const record = req => requests.push(req.url());
       page.on('request', record);
       await page.goto(home); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(1300);
       assert.equal(await page.locator('.project-link').count(), 3);
-      assert.equal(await page.locator('.dots,.stage-fx,.block').count(), 0);
+      assert.equal(await page.locator('.site-header,[data-light-shift],.project-link__number,.studio__footer').count(), 0);
+      assert.equal(await page.locator('a[href^="mailto:"]').count(), 0);
+      assert.equal(await page.locator('.contact__email').count(), 0);
       assert.equal(requests.some(url => /\.(mp4|webm)(\?|$)/.test(url)), false, 'Главная не скачивает скрытые видео');
       page.off('request', record);
       const headline = await page.locator('.studio__headline').evaluate(h => [...h.children].map(line => { const r = document.createRange(); r.selectNodeContents(line); const b = r.getBoundingClientRect(); return { left: b.left, right: b.right, viewport: innerWidth }; }));
       for (const line of headline) assert.ok(line.left >= 0 && line.right <= line.viewport, JSON.stringify(line));
       await page.screenshot({ path: `shots/studio-${lang}-${name}.png` });
-      const about = page.locator('.site-header [data-open-view=about]');
+      const about = page.locator('.studio__actions [data-open-view=about]');
       await about.click(); await page.locator('[data-view=about]').waitFor({ state: 'visible' });
       assert.equal(await page.locator('.process-step').count(), 4);
       await page.locator('.process-step summary').nth(1).click();
@@ -83,7 +86,7 @@ try {
       await page.locator('[data-view=work-perfume]').waitFor({ state: 'visible' });
       assert.equal(new URL(page.url()).hash, '#work-perfume');
       await page.goBack(); await page.locator('[data-sheet]').waitFor({ state: 'hidden' });
-      await page.locator('.site-header [data-open-view=contact]').click();
+      await page.locator('.studio__actions [data-open-view=contact]').click();
       const form = page.locator('[data-contact-form]');
       await page.locator('[data-view=contact]').waitFor({ state: 'visible' });
       await form.locator('button[type=submit]').click();
@@ -117,10 +120,11 @@ try {
   const page = await browser.newPage({ viewport: { width: 320, height: 640 } });
   page.on('pageerror', e => errors.push(e.message));
   for (const lang of ['', 'en/']) {
+    await page.addInitScript(value => { Object.defineProperty(navigator, 'languages', { configurable: true, get: () => [value] }); }, lang ? 'en' : 'ru');
     await page.goto(`${base}/${lang}`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(300);
     const right = await page.locator('.studio__headline em').evaluate(el => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().right; });
     assert.ok(right <= 320, `Заголовок ${lang} помещается на 320px: ${right}`);
-    await page.locator('.site-header [data-open-view=contact]').click(); await page.waitForTimeout(700);
+    await page.locator('.studio__actions [data-open-view=contact]').click(); await page.waitForTimeout(700);
     assert.equal(await page.locator('[data-sheet-body]').evaluate(el => el.scrollWidth > el.clientWidth + 1), false, 'У формы нет боковой прокрутки на узком телефоне');
   }
   await page.close();

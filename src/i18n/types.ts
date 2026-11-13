@@ -6,7 +6,7 @@ export interface Dict {
   meta: { title: string; description: string; ogTitle: string; ogDescription: string };
   portfolio: {
     first: string; second: string; intro: string; about: string; contact: string; contactShort: string;
-    selected: string; projectKinds: string[]; preview: string; light: string;
+    selected: string; projectKinds: string[]; preview: string;
     aboutFirst: string; aboutSecond: string; aboutText: string[]; process: string; capabilities: string;
     contactFirst: string; contactSecond: string; contactText: string;
     home: string; next: string; previous: string; discuss: string; details: string;

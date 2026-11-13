@@ -3,15 +3,9 @@ import Base from '../layouts/Base.astro';
 import { t, langPrefix } from '../i18n';
 const ru = t('ru'); const en = t('en');
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-// Английская версия шапки и подвала для адресов /en/...: скрипт ниже подставляет её на месте.
 const enChrome = {
   title: `404: ${en.notFound.title}`,
   skip: en.nav.skipToContent,
-  home: `${base}${langPrefix('en')}/`,
-  nav: [['about', en.portfolio.about], ['contact', en.portfolio.contact]],
-  contactShort: en.portfolio.contactShort,
-  lang: { text: en.nav.langSwitch, title: en.nav.langSwitchTitle, href: `${base}/` },
-  copy: '© 2026 Saveliy Lopatin',
   policy: { text: en.contacts.policy, href: `${base}${langPrefix('en')}/policy/` },
 };
 ---
@@ -31,9 +25,10 @@ const enChrome = {
   </section>
   <script type="application/json" data-en-chrome set:html={JSON.stringify(enChrome)} />
   <script>
-    // Одна страница 404 на оба языка: если адрес начинался с /en/, показываем английский текст,
-    // а шапку, подвал и заголовок вкладки переводим на месте.
-    const en = /\/en(\/|$)/.test(location.pathname);
+    // Язык ошибки тоже зависит от предпочтений браузера, без перехода на несуществующий адрес.
+    const preferred = (navigator.languages?.length ? navigator.languages : [navigator.language])
+      .map(value => value.toLowerCase().split('-')[0]).find(value => value === 'ru' || value === 'en') || 'en';
+    const en = preferred === 'en';
     if (en) {
       const c = JSON.parse(document.querySelector('[data-en-chrome]')?.textContent || '{}');
       document.documentElement.lang = 'en';
@@ -41,13 +36,6 @@ const enChrome = {
       document.querySelector('.not-found__ru')?.setAttribute('hidden', '');
       document.querySelector('.not-found__en')?.removeAttribute('hidden');
       const skip = document.querySelector('.skip-link'); if (skip) skip.textContent = c.skip;
-      document.querySelectorAll<HTMLAnchorElement>('.site-header__nav a').forEach((a, i) => { const n = c.nav[i]; if (n) { a.href = c.home + '#' + n[0]; const label = a.querySelector('.header-contact__long'); if (label) label.textContent = n[1]; else a.textContent = n[1]; } });
-      const short = document.querySelector('.header-contact__short'); if (short) short.textContent = c.contactShort;
-      const brand = document.querySelector<HTMLAnchorElement>('.site-header__brand'); if (brand) brand.href = c.home;
-      const nav = document.querySelector('.site-header__nav'); nav?.setAttribute('aria-label', 'Sections');
-      const sw = document.querySelector<HTMLAnchorElement>('.site-header__lang');
-      if (sw) { sw.textContent = c.lang.text; sw.title = c.lang.title; sw.href = c.lang.href; sw.hreflang = 'ru'; sw.lang = 'ru'; }
-      const copy = document.querySelector('.site-footer__copy'); if (copy) copy.textContent = c.copy;
       const pol = document.querySelector<HTMLAnchorElement>('.site-footer__policy'); if (pol) { pol.textContent = c.policy.text; pol.href = c.policy.href; }
     }
   </script>

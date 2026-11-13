@@ -4,18 +4,18 @@ export const en: Dict = {
   lang: 'en',
   htmlLang: 'en',
   portfolio: {
-    first: 'Development', second: 'with character.',
-    intro: 'Websites, apps and bots.\nFrom the first thought to a working product.',
+    first: 'From idea', second: 'to launch.',
+    intro: 'Websites, apps,\nbots and 3D.',
     about: 'About me', contact: 'Let’s talk', contactShort: 'Let’s talk', selected: 'Selected work',
     projectKinds: ['Interactive 3D service', 'Telegram bot', 'Coffee shop website'],
-    preview: 'View project', light: 'Change the light',
+    preview: 'View project',
     aboutFirst: 'Hello.', aboutSecond: 'I’m Saveliy.',
     aboutText: [
       'I build websites, apps, bots and 3D interfaces. I like a clear idea behind the visuals, and products that feel good to use.',
       'Bring a finished brief or just tell me what you have in mind. We’ll figure out what fits, then start building.',
     ],
     process: 'How I work', capabilities: 'What I can help with',
-    contactFirst: 'An idea?', contactSecond: 'Tell me.',
+    contactFirst: 'What’s', contactSecond: 'the idea?',
     contactText: 'A few words about the project, a wish list or a reference you like. That’s enough to start.',
     home: 'Back home', next: 'Next project', previous: 'Previous project',
     discuss: 'Let’s make something like this', details: 'A closer look',
@@ -108,7 +108,7 @@ export const en: Dict = {
   },
   policy: {
     title: 'Privacy policy',
-    updated: 'Version of 21 October 2026',
+    updated: 'Version of 13 November 2026',
     intro: 'This policy describes how personal data of visitors to d1fast.github.io is processed and protected. It is written in accordance with Russian Federal Law No. 152-FZ of 27 July 2006 “On Personal Data”.',
     sections: [
       { h: 'General provisions', p: [
@@ -116,12 +116,12 @@ export const en: Dict = {
         'The policy applies only to data the user enters into the contact form on this site.',
       ] },
       { h: 'Data controller', p: [
-        'Saveliy Alekseevich Lopatin. Email for personal data requests: saveliylopatin@yandex.ru.',
+        'Saveliy Alekseevich Lopatin. Personal data requests can be sent through the contact form on the home page.',
       ] },
       { h: 'What data is processed', p: [
         'The name or form of address the user provides.',
         'A contact for the reply: a Telegram username, an email address or a phone number.',
-        'The text of the message.',
+        'The text of the message and the form language at the time of submission.',
       ] },
       { h: 'Purposes', p: [
         'To answer the user’s request and discuss the task and terms of work.',
@@ -141,13 +141,14 @@ export const en: Dict = {
       { h: 'User rights', p: [
         'To find out what data about them is processed.',
         'To ask for the data to be corrected, blocked or deleted.',
-        'To withdraw consent by writing to the controller’s email. Such requests are answered within 10 working days.',
+        'To withdraw consent through the contact form on the home page. Include the contact you used before and describe your request. Such requests are answered within 10 working days.',
       ] },
       { h: 'Data protection', p: [
         'Data is transmitted over a secure connection (HTTPS). Only the controller has access to it.',
       ] },
       { h: 'Cookies and analytics', p: [
-        'The site uses no cookies, visit counters or advertising trackers and stores nothing in the browser.',
+        'The site uses no cookies, visit counters or advertising trackers. Form contents and user preferences are not saved in localStorage or sessionStorage.',
+        'The interface language is selected automatically from the browser’s preferred languages. The list is read on your device and is not sent separately to a server. English is used if neither Russian nor English is listed. The form language is included when you send a message.',
       ] },
       { h: 'Final provisions', p: [
         'The controller may update this policy. A new version takes effect when it is published on this page.',

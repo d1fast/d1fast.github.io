@@ -1,44 +1,38 @@
-// Движение не зависит от настройки уменьшения анимаций и доступности WebGL.
+// Настройки движения и графики не превращают главную в неподвижную картинку.
 import assert from 'node:assert/strict';
 import { launchBrowser } from './browser.mjs';
 const base = process.env.CHECK_URL || 'http://127.0.0.1:4322';
 const browser = await launchBrowser(), errors = [];
 try {
   for (const fallback of [false, true]) {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-    if (fallback) await ctx.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function(type, ...args) { return type.startsWith('webgl') ? null : get.call(this, type, ...args); }; });
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'ru-RU', reducedMotion: 'reduce' });
+    await ctx.addInitScript(noCanvas => {
+      const get = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+        return type.startsWith('webgl') || (noCanvas && type === '2d') ? null : get.call(this, type, ...args);
+      };
+    }, fallback);
     const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message));
     await page.goto(base); await page.waitForTimeout(2200);
     assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), true);
-    await page.locator('[data-light-shift]').first().click(); await page.waitForTimeout(1200);
-    await page.addStyleTag({ content: '.studio,.site-header,.project-preview{visibility:hidden!important}' });
-    const field = page.locator('[data-lightfield]');
-    const first = await field.screenshot(); await page.waitForTimeout(1200);
-    assert.equal(first.equals(await field.screenshot()), false, 'Фон движется при reduce');
+    const ribbon = page.locator('[data-ribbon]');
+    assert.equal(await ribbon.evaluate(el => el.classList.contains('is-drawn')), !fallback);
+    const first = await ribbon.screenshot(); await page.waitForTimeout(1400);
+    assert.equal(first.equals(await ribbon.screenshot()), false, 'Лента движется при reduce, даже без WebGL');
     if (!fallback) {
-      assert.equal(await field.evaluate(el => el.classList.contains('has-field')), true);
-      await page.locator('[data-light-canvas]').evaluate(c => c.getContext('webgl').getExtension('WEBGL_lose_context').loseContext());
-      await page.waitForTimeout(1800);
-      assert.equal(await field.evaluate(el => el.classList.contains('has-field')), false);
-      const before = await field.screenshot(); await page.waitForTimeout(1300);
-      assert.equal(before.equals(await field.screenshot()), false, 'CSS-фон продолжает движение после потери контекста');
-    } else {
-      await page.waitForTimeout(11500);
-      assert.equal(await page.locator('[data-sheet]').evaluate(el => el.open), false, 'Главная не открывает окна без действий посетителя');
+      const text = await page.locator('[data-ascii]').textContent(); await page.waitForTimeout(1700);
+      assert.notEqual(await page.locator('[data-ascii]').textContent(), text, 'Символьный эскиз тоже меняется');
     }
-    await page.screenshot({ path: `shots/studio-motion-${fallback ? 'fallback' : 'context-loss'}.png` });
-    console.log(fallback ? 'reduce + WebGL отключён: фон движется, самопроизвольных переходов нет' : 'reduce + потеря WebGL: движение продолжается');
+    assert.equal(await page.locator('[data-sheet]').evaluate(el => el.open), false);
+    await page.screenshot({ path: `shots/ribbon-${fallback ? 'svg' : 'canvas'}.png` });
+    await page.locator('.studio__actions [data-open-view=about]').click();
+    const start = await page.locator('[data-sheet]').evaluate(el => ({ opacity: Number(getComputedStyle(el).opacity), top: el.getBoundingClientRect().top }));
+    await page.waitForTimeout(750);
+    const end = await page.locator('[data-sheet]').evaluate(el => ({ opacity: Number(getComputedStyle(el).opacity), top: el.getBoundingClientRect().top }));
+    assert.ok(start.opacity < .98 && end.opacity > .99 && end.top < start.top, 'Окно плавно появляется целиком');
+    await page.keyboard.press('Escape'); await page.locator('[data-sheet]').waitFor({ state: 'hidden' });
+    console.log(fallback ? 'reduce + Canvas отключён: SVG движется, окна работают' : 'reduce + WebGL отключён: лента и символьный эскиз движутся, окна работают');
     await ctx.close();
   }
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-  page.on('pageerror', e => errors.push(e.message));
-  await page.goto(base); await page.waitForTimeout(1300);
-  await page.locator('.site-header [data-open-view=about]').click();
-  const start = await page.locator('[data-sheet]').evaluate(el => ({ opacity: Number(getComputedStyle(el).opacity), top: el.getBoundingClientRect().top }));
-  await page.waitForTimeout(750);
-  const end = await page.locator('[data-sheet]').evaluate(el => ({ opacity: Number(getComputedStyle(el).opacity), top: el.getBoundingClientRect().top }));
-  assert.ok(start.opacity < .98 && end.opacity > .99 && end.top < start.top, 'Окно целиком плавно появляется, включая фон и рамку');
-  await page.keyboard.press('Escape'); await page.locator('[data-sheet]').waitFor({ state: 'hidden' });
-  await page.close(); console.log('Окно плавно появляется целиком и закрывается по Escape');
   assert.deepEqual(errors, []);
 } finally { await browser.close(); }

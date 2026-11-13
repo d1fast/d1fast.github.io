@@ -1,7 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
 import { t, type Lang } from '../i18n';
-import { site } from '../config';
 import Icon from './Icon.astro';
 import ContactForm from './ContactForm.astro';
 import Policy from './Policy.astro';
@@ -13,25 +12,36 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const works = (await getCollection('work', e => e.id.endsWith('/' + lang) && !e.data.draft)).sort((a, b) => a.data.order - b.data.order);
 const n = (i: number) => String(i + 1).padStart(2, '0');
 ---
-<div class="lightfield" aria-hidden="true" data-lightfield>
-  <div class="lightfield__fallback"><i></i><i></i><i></i></div>
-  <canvas data-light-canvas></canvas><div class="lightfield__grain"></div>
-</div>
+<div class="paper-field" aria-hidden="true"><svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><path d="M-300 930C80 780 200 260 750 90S1470 80 1910-300"/><path d="M-290 953C90 803 210 283 760 113S1480 103 1920-277"/><path d="M1050 1300C970 990 1280 730 1810 650"/></svg></div>
 <div class="studio" data-studio>
   <section class="studio__hero" aria-labelledby="studio-title">
-    <h1 class="studio__headline" id="studio-title"><span>{p.first}</span><em>{p.second}</em></h1>
-    <div class="studio__intro"><button class="studio__spark" type="button" data-light-shift aria-label={p.light} title={p.light}><Icon name="sun" /></button><p>{p.intro}</p></div>
+    <div class="ribbon" aria-hidden="true" data-ribbon>
+      <svg class="ribbon__fallback" viewBox="0 0 800 700"><defs><linearGradient id="silk" x2=".8" y2="1"><stop stop-color="#9daebc"/><stop offset=".35" stop-color="#f4eee9"/><stop offset=".7" stop-color="#c29a9c"/><stop offset="1" stop-color="#8497a7"/></linearGradient></defs><ellipse cx="400" cy="350" rx="340" ry="245" fill="none" stroke="url(#silk)" stroke-width="28" transform="rotate(-22 400 350)"/></svg>
+      <canvas data-ribbon-canvas></canvas>
+    </div>
+    <h1 class="studio__headline" id="studio-title"><span>{p.first}</span>{' '}<em>{p.second}</em></h1>
   </section>
   <nav class="projects" id="works" aria-label={p.selected}>
-    <p class="projects__caption">{p.selected}<span>({n(works.length - 1)})</span></p>
-    <div class="projects__list">{works.map((entry, i) => {
+    <p class="projects__caption">{p.selected}</p>
+    <div class="projects__list">{works.map(entry => {
       const slug = entry.id.split('/')[0], w = entry.data;
       return <a class="project-link" href={`#work-${slug}`} data-open-view={`work-${slug}`} data-preview={base + w.cover} aria-label={`${p.preview}: ${w.title}`}>
-        <span class="project-link__number">{n(i)}</span><span class="project-link__body"><span class="project-link__title">{w.title}</span><span class="project-link__kind">{p.projectKinds[i] || w.subtitle}</span></span><span class="project-link__arrow"><Icon /></span>
+        <span class="project-link__title">{w.title}</span><Icon />
       </a>;
     })}</div>
   </nav>
-  <footer class="studio__footer"><p>{lang === 'ru' ? 'Савелий Лопатин' : 'Saveliy Lopatin'}</p><a href="#privacy" data-open-view="privacy">{d.contacts.policy}</a></footer>
+  <aside class="studio__aside">
+    <pre class="ascii-study" data-ascii aria-hidden="true">{`       /──────/
+    /──       /
+  /─        /─
+ /        /─
+/───────/`}</pre>
+    <p class="studio__intro">{p.intro}</p>
+    <nav class="studio__actions" aria-label={p.about}>
+      <a class="text-button" href="#about" data-open-view="about"><span>{p.about}</span><Icon /></a>
+      <a class="text-button" href="#contact" data-open-view="contact"><span>{p.contact}</span><Icon /></a>
+    </nav>
+  </aside>
 </div>
 <div class="project-preview" aria-hidden="true" data-project-preview><img alt="" width="640" height="360" /><span>{p.preview}<Icon /></span></div>
 <dialog class="sheet" data-sheet aria-labelledby="sheet-label">
@@ -43,12 +53,12 @@ const n = (i: number) => String(i + 1).padStart(2, '0');
         <div class="process-list"><h3 class="eyebrow">{p.process}</h3>{d.process.steps.map((step, i) => <details class="process-step" open={i === 0}><summary><span class="process-step__n">{n(i)}</span><span>{step.title}</span><Icon name="plus" /></summary><div><p>{step.text}</p></div></details>)}</div>
       </section>
       <section class="contact sheet__view" data-view="contact" data-view-label={d.nav.contacts} hidden>
-        <div class="contact__intro"><h2 class="sheet-title"><span>{p.contactFirst}</span><em>{p.contactSecond}</em></h2><p>{p.contactText}</p><a class="contact__email" href={`mailto:${site.email}`}>{site.email}<Icon /></a></div><ContactForm lang={lang} />
+        <div class="contact__intro"><h2 class="sheet-title"><span>{p.contactFirst}</span><em>{p.contactSecond}</em></h2><p>{p.contactText}</p></div><ContactForm lang={lang} />
       </section>
       {works.map((entry, i) => {
         const w = entry.data, slug = entry.id.split('/')[0];
         return <section class="project sheet__view" data-view={`work-${slug}`} data-case-index={i} data-view-label={w.title} hidden>
-          <div class="project__heading"><div><p class="eyebrow">{n(i)} / {n(works.length - 1)}</p><h2>{w.title}</h2></div><p>{w.summary}</p></div>
+          <div class="project__heading"><div><h2>{w.title}</h2></div><p>{w.summary}</p></div>
           {w.video && <div class="player" data-player data-play={p.play} data-pause={p.pause}>
             <video controls muted playsinline preload="none" data-video data-poster={base + w.video.poster} aria-label={`${d.works.video}: ${w.title}`}><source data-src={base + w.video.webm} type="video/webm" /><source data-src={base + w.video.mp4} type="video/mp4" /></video>
             <div class="player__controls" data-video-controls hidden><button class="icon-button player__toggle" type="button" data-video-toggle aria-label={p.play}><Icon name="play" class="player__play" /><Icon name="pause" class="player__pause" /></button><input class="player__seek" type="range" min="0" max="100" step="0.01" value="0" aria-label={p.seek} data-video-seek /><span class="player__time" data-video-time>0:00 / 0:00</span><button class="icon-button" type="button" data-video-expand aria-label={p.fullscreen}><Icon name="expand" /></button></div>
@@ -62,4 +72,4 @@ const n = (i: number) => String(i + 1).padStart(2, '0');
     </div>
   </div>
 </dialog>
-<noscript><div class="studio-fallback container"><section id="about"><h2>{p.about}</h2>{p.aboutText.map(text => <p>{text}</p>)}</section><section id="contact"><h2>{d.nav.contacts}</h2><a href={`mailto:${site.email}`}>{site.email}</a></section>{works.map(entry => <section id={`work-${entry.id.split('/')[0]}`}><h2>{entry.data.title}</h2><p>{entry.data.summary}</p>{entry.data.video && <video controls playsinline preload="none" poster={base + entry.data.video.poster}><source src={base + entry.data.video.mp4} type="video/mp4" /></video>}</section>)}<a href={`${base}${lang === 'en' ? '/en' : ''}/policy/`}>{d.contacts.policy}</a></div></noscript>
+<noscript><div class="studio-fallback container"><section id="about"><h2>{p.about}</h2>{p.aboutText.map(text => <p>{text}</p>)}</section><section id="contact"><h2>{d.nav.contacts}</h2><p>{lang === 'ru' ? 'Для отправки сообщения включите JavaScript в браузере.' : 'Enable JavaScript in your browser to send a message.'}</p></section>{works.map(entry => <section id={`work-${entry.id.split('/')[0]}`}><h2>{entry.data.title}</h2><p>{entry.data.summary}</p>{entry.data.video && <video controls playsinline preload="none" poster={base + entry.data.video.poster}><source src={base + entry.data.video.mp4} type="video/mp4" /></video>}</section>)}<a href={`${base}${lang === 'en' ? '/en' : ''}/policy/`}>{d.contacts.policy}</a></div></noscript>
