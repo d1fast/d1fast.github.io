@@ -1,7 +1,7 @@
 ---
 title: Grill bar bot
 subtitle: Bookings, menu and AI dish picks right in Telegram
-summary: "Table booking and AI dish picks right in Telegram: based on the party and their tastes the bot suggests dishes and wine, books a table and sends a reminder. Fewer calls for the staff."
+summary: "A Telegram bot prototype for a restaurant. The demo shows meal suggestions based on guests’ preferences and table booking in the same chat."
 year: 2026
 order: 2
 concept: true
@@ -14,14 +14,19 @@ video: { mp4: /work/ugli-bot/video.mp4, webm: /work/ugli-bot/video.webm, poster:
 media:
   - src: /work/ugli-bot/ai.webp
     alt: The AI picks dishes and wine for two, one guest does not eat meat
+    caption: "Meal suggestions based on guests’ preferences"
   - src: /work/ugli-bot/booking.webp
     alt: Choosing the day and time with buttons under the message
+    caption: "Choosing a date and time"
   - src: /work/ugli-bot/done.webp
-    alt: The booking is confirmed and the dishes will be ready on arrival
+    alt: Booking confirmation in the chat with the date and time
+    caption: "Booking confirmation in the chat"
   - src: /work/ugli-bot/mobile-hi.webp
     alt: The bot greeting on a phone
+    caption: "Starting the chat on a phone"
     portrait: true
   - src: /work/ugli-bot/mobile-done.webp
     alt: Booking confirmation on a phone
+    caption: "Booking confirmation on a phone"
     portrait: true
 ---

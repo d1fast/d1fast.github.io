@@ -55,7 +55,7 @@ try {
       assert.equal(await about.evaluate(el => el === document.activeElement), true, 'Фокус вернулся на открывшую окно кнопку');
       if (name === 'desktop') {
         await page.locator('.project-link').first().hover(); await page.waitForTimeout(550);
-        assert.equal(await page.locator('[data-project-preview]').isVisible(), true);
+        assert.equal(await page.locator('[data-project-preview],[data-preview],.project-preview').count(), 0, 'Наведением не вызывается предпросмотр');
       }
       for (const [i, slug] of ['perfume', 'ugli-bot', 'pena'].entries()) {
         await page.locator(`.project-link[data-open-view=work-${slug}]`).click();
@@ -113,7 +113,7 @@ try {
     }
     for (const path of ['/policy/', '/en/policy/', '/work/perfume/', '/en/work/perfume/', '/404.html']) {
       const response = await page.goto(base + path); assert.equal(response.status(), 200, path);
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, path);
+      assert.equal(await page.evaluate(() => document.body.scrollWidth > innerWidth + 1), false, path);
     }
     await ctx.close();
   }

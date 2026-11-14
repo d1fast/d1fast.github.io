@@ -1,16 +1,16 @@
 :root {
-  --font-body: 'Manrope', Arial, sans-serif;
+  --font-body: 'Golos Text', Arial, sans-serif;
   --font-display: var(--font-body);
-  --font-serif: 'Prata', Georgia, serif;
-  --bg: #E3E9ED;
-  --fg: #4B2935;
-  --sky: #CBD9E2;
-  --cream: #F4EEEB;
-  --accent: #C5A4A7;
-  --muted: #62545E;
-  --line: rgb(75 41 53 / .22);
-  --line-strong: rgb(75 41 53 / .45);
-  --focus: #4B2935;
+  --font-serif: 'Yeseva One', Georgia, serif;
+  --bg: #96B0BF;
+  --fg: #451F30;
+  --sky: #A8BFCC;
+  --cream: #E6D4CF;
+  --accent: #D6A7A0;
+  --muted: #563A46;
+  --line: rgb(69 31 48 / .25);
+  --line-strong: rgb(69 31 48 / .55);
+  --focus: #451F30;
   --error: #963E2B;
   --gutter: clamp(20px, 4.2vw, 84px);
   --safe-top: env(safe-area-inset-top, 0px);

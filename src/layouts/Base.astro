@@ -66,15 +66,15 @@ const other = lang === 'ru' ? 'en' : 'ru';
     <meta property="og:locale" content={lang === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta property="og:locale:alternate" content={other === 'ru' ? 'ru_RU' : 'en_US'} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#E3E9ED" />
-    <link rel="icon" href={`${base}/favicon-16.png?v=5`} sizes="16x16" type="image/png" />
-    <link rel="icon" href={`${base}/favicon-32.png?v=5`} sizes="32x32" type="image/png" />
-    <link rel="icon" href={`${base}/favicon.svg?v=5`} sizes="any" type="image/svg+xml" />
+    <meta name="theme-color" content="#96B0BF" />
+    <link rel="icon" href={`${base}/favicon-16.png?v=6`} sizes="16x16" type="image/png" />
+    <link rel="icon" href={`${base}/favicon-32.png?v=6`} sizes="32x32" type="image/png" />
+    <link rel="icon" href={`${base}/favicon.svg?v=6`} sizes="any" type="image/svg+xml" />
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="manifest" href={`${base}/site.webmanifest`} />
     <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
-    <link rel="preload" href={`${base}/fonts/manrope-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />
-    {portfolio && <link rel="preload" href={`${base}/fonts/prata-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />}
+    <link rel="preload" href={`${base}/fonts/golos-ui-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />
+    {portfolio && <link rel="preload" href={`${base}/fonts/yeseva-${lang === 'ru' ? 'cyr' : 'lat'}.woff2`} as="font" type="font/woff2" crossorigin />}
     <script is:inline>
       document.documentElement.classList.add('js');
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

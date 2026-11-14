@@ -12,30 +12,24 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const works = (await getCollection('work', e => e.id.endsWith('/' + lang) && !e.data.draft)).sort((a, b) => a.data.order - b.data.order);
 const n = (i: number) => String(i + 1).padStart(2, '0');
 ---
-<div class="paper-field" aria-hidden="true"><svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><path d="M-300 930C80 780 200 260 750 90S1470 80 1910-300"/><path d="M-290 953C90 803 210 283 760 113S1480 103 1920-277"/><path d="M1050 1300C970 990 1280 730 1810 650"/></svg></div>
+<div class="colour-field" aria-hidden="true"><svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="wash" x2="1" y2="1"><stop stop-color="#7395AB"/><stop offset="1" stop-color="#B5C6CD"/></linearGradient></defs><path d="M-200 1100C-140 600 420 1100 900 600S1530 110 1840 260V1200Z" fill="url(#wash)"/></svg></div>
 <div class="studio" data-studio>
   <section class="studio__hero" aria-labelledby="studio-title">
-    <div class="ribbon" aria-hidden="true" data-ribbon>
-      <svg class="ribbon__fallback" viewBox="0 0 800 700"><defs><linearGradient id="silk" x2=".8" y2="1"><stop stop-color="#9daebc"/><stop offset=".35" stop-color="#f4eee9"/><stop offset=".7" stop-color="#c29a9c"/><stop offset="1" stop-color="#8497a7"/></linearGradient></defs><ellipse cx="400" cy="350" rx="340" ry="245" fill="none" stroke="url(#silk)" stroke-width="28" transform="rotate(-22 400 350)"/></svg>
-      <canvas data-ribbon-canvas></canvas>
+    <div class="flourish" aria-hidden="true" data-flourish>
+      <svg viewBox="0 0 800 600"><path class="flourish__stroke" d="M80 458C224 528 386 484 530 472C604 466 665 476 724 450C682 498 615 503 533 493C377 480 224 558 80 458Z"/></svg>
     </div>
     <h1 class="studio__headline" id="studio-title"><span>{p.first}</span>{' '}<em>{p.second}</em></h1>
   </section>
   <nav class="projects" id="works" aria-label={p.selected}>
-    <p class="projects__caption">{p.selected}</p>
+    <h2 class="projects__caption">{p.selected.replace(' ', '\n')}</h2>
     <div class="projects__list">{works.map(entry => {
       const slug = entry.id.split('/')[0], w = entry.data;
-      return <a class="project-link" href={`#work-${slug}`} data-open-view={`work-${slug}`} data-preview={base + w.cover} aria-label={`${p.preview}: ${w.title}`}>
+      return <a class="project-link" href={`#work-${slug}`} data-open-view={`work-${slug}`} aria-label={`${p.preview}: ${w.title}`}>
         <span class="project-link__title">{w.title}</span><Icon />
       </a>;
     })}</div>
   </nav>
   <aside class="studio__aside">
-    <pre class="ascii-study" data-ascii aria-hidden="true">{`       /──────/
-    /──       /
-  /─        /─
- /        /─
-/───────/`}</pre>
     <p class="studio__intro">{p.intro}</p>
     <nav class="studio__actions" aria-label={p.about}>
       <a class="text-button" href="#about" data-open-view="about"><span>{p.about}</span><Icon /></a>
@@ -43,7 +37,6 @@ const n = (i: number) => String(i + 1).padStart(2, '0');
     </nav>
   </aside>
 </div>
-<div class="project-preview" aria-hidden="true" data-project-preview><img alt="" width="640" height="360" /><span>{p.preview}<Icon /></span></div>
 <dialog class="sheet" data-sheet aria-labelledby="sheet-label">
   <div class="sheet__surface" data-sheet-surface>
     <header class="sheet__bar"><button class="sheet__home" type="button" data-sheet-close><Icon /><span>{p.home}</span></button><p class="sheet__label" id="sheet-label" tabindex="-1" data-sheet-label></p><button class="icon-button sheet__close" type="button" data-sheet-close aria-label={d.a11y.close}><Icon name="close" /></button></header>

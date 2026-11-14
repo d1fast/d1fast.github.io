@@ -1,7 +1,7 @@
 ---
 title: Fragrance builder
 subtitle: Every perfume note becomes a planet
-summary: "Building a fragrance from chosen notes, each one a planet on its own orbit. Planets can be picked, moved to another orbit or removed, and the service finds similar perfumes."
+summary: "Each perfume note becomes a planet. Add notes, move them between orbits and find perfumes with a similar composition."
 year: 2026
 order: 1
 role: Interface concept, 3D scene, front end
@@ -35,16 +35,16 @@ media:
 
 ## The task
 
-Build the main screen of a fragrance builder. The user composes a perfume from notes, and it had to feel like an object you want to touch. It also had to open on a phone and stay smooth.
+Build a fragrance composer where users choose notes and see the composition take shape. Support both mouse and touch controls.
 
 ## What I did
 
 - Every note became a planet. It can be tapped, dragged to another ring or removed.
-- A planet's surface is drawn once. After that it is a plain sphere, which a phone renders easily.
-- While the loading screen is still up, the scene measures the GPU and picks a quality tier: pixel density and anti-aliasing. If frames start dropping, it lowers the tier by itself.
+- Planet textures are calculated once and reused.
+- The scene selects an image quality level on load and lowers it if the frame rate drops.
 - Gestures: tap, hold to drag, pinch, double tap to reset the camera.
 - Similar fragrances are matched against the chosen notes, with a match percentage and a hint about which note to swap for a closer match.
 
 ## Result
 
-The demo runs smoothly on a phone and on a laptop without a discrete GPU. All the controls fit on one screen, and composing a fragrance and finding similar ones takes about a minute.
+The same scene lets users compose a fragrance, change its notes and view similar perfumes. The interface supports mouse and touch controls.
